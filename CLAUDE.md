@@ -199,6 +199,11 @@ Sensitive data permission:
 
 JWT-based: Access Token (1hr) + Refresh Token (7d). Passwords: bcrypt with 10 salt rounds.
 
+**API Client Auth Guard** (`src/lib/api.ts`):
+- `handleResponse()` intercepts 401 → attempts `/api/auth/refresh` → on failure redirects to `/login`
+- **Auth page exception**: `/login`, `/signup` 페이지에서는 401 시 refresh/redirect를 스킵하여 무한 새로고침 방지
+- `useAuth()` hook (`src/hooks/useAuth.ts`): SWR로 `/api/auth/me` fetch. `revalidateOnFocus: false`, `errorRetryCount: 0`으로 설정하여 미인증 상태에서 불필요한 재시도 방지
+
 ## Seed Data on Company Signup
 
 Auto-created: 5 departments, 5 positions, 1 work policy (09:00-18:00, 60min break), 1 work location, 11 allowance rules (A01-A11), 12 deduction rules (D01-D12), 2 minimum wages (2025-2026), 10 legal parameters (work hours, overtime rates, etc.).

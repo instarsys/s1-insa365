@@ -1,0 +1,283 @@
+import type { ISalaryCalculationRepository, CreateSalaryCalculationData } from '../../ports/ISalaryCalculationRepository';
+import type { IEmployeeRepository } from '../../ports/IEmployeeRepository';
+import type { IEmployeeSalaryItemRepository } from '../../ports/IEmployeeSalaryItemRepository';
+import type { ISalaryAttendanceDataRepository } from '../../ports/ISalaryAttendanceDataRepository';
+import type { IInsuranceRateRepository } from '../../ports/IInsuranceRateRepository';
+import type { ITaxBracketRepository } from '../../ports/ITaxBracketRepository';
+import type { ITaxExemptLimitRepository } from '../../ports/ITaxExemptLimitRepository';
+import type { ICompanyRepository } from '../../ports/ICompanyRepository';
+import type { PayrollResultDto } from '../../dtos/payroll';
+import type {
+  PayrollInput,
+  PayrollResult,
+  InsuranceRateSet,
+  TaxBracketEntry,
+  TaxExemptLimitEntry,
+  PayrollSettings,
+} from '@domain/services/types';
+import type { SalaryItemProps } from '@domain/entities';
+import type { AttendanceSummary } from '@domain/entities';
+import { ValidationError } from '@domain/errors';
+
+/**
+ * Port for the domain PayrollCalculator service.
+ * Injected at construction time to keep application layer decoupled from
+ * the specific calculator implementation.
+ */
+export interface IPayrollCalculatorService {
+  calculate(input: PayrollInput): PayrollResult;
+}
+
+export class CalculatePayrollUseCase {
+  constructor(
+    private salaryCalcRepo: ISalaryCalculationRepository,
+    private employeeRepo: IEmployeeRepository,
+    private employeeSalaryItemRepo: IEmployeeSalaryItemRepository,
+    private salaryAttendanceRepo: ISalaryAttendanceDataRepository,
+    private insuranceRateRepo: IInsuranceRateRepository,
+    private taxBracketRepo: ITaxBracketRepository,
+    private taxExemptLimitRepo: ITaxExemptLimitRepository,
+    private companyRepo: ICompanyRepository,
+    private payrollCalculator: IPayrollCalculatorService,
+  ) {}
+
+  async execute(companyId: string, year: number, month: number): Promise<PayrollResultDto[]> {
+    // Check if payroll already exists for this period
+    const existing = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
+    if (existing.length > 0) {
+      const hasConfirmed = existing.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
+      if (hasConfirmed) {
+        throw new ValidationError('Payroll for this period is already confirmed');
+      }
+      // Delete existing DRAFT calculations for recalculation
+      await this.salaryCalcRepo.deleteByPeriod(companyId, year, month);
+    }
+
+    // Load company settings
+    const company = await this.companyRepo.findById(companyId);
+    if (!company) {
+      throw new ValidationError('Company not found');
+    }
+
+    const settings: PayrollSettings = {
+      monthlyWorkHours: company.monthlyWorkHours,
+      prorationMethod: company.prorationMethod as 'CALENDAR_DAY' | 'WORKING_DAY',
+      nightWorkStart: company.nightWorkStartTime,
+      nightWorkEnd: company.nightWorkEndTime,
+    };
+
+    // Load insurance rates for the calculation date (15th of the pay month)
+    const rateDate = new Date(year, month - 1, 15);
+    const allRates = await this.insuranceRateRepo.findAllByDate(rateDate);
+    const insuranceRates = this.buildInsuranceRateSet(allRates);
+
+    // Load tax brackets
+    const taxBrackets = await this.taxBracketRepo.findAllByYear(year);
+    const taxBracketEntries: TaxBracketEntry[] = taxBrackets.map((tb) => ({
+      minIncome: tb.minIncome,
+      maxIncome: tb.maxIncome,
+      dependents: tb.dependents,
+      taxAmount: tb.taxAmount,
+    }));
+
+    // Load tax exempt limits
+    const taxExemptLimits = await this.taxExemptLimitRepo.findByYear(year);
+    const taxExemptEntries: TaxExemptLimitEntry[] = taxExemptLimits.map((tel) => ({
+      code: tel.code,
+      name: tel.name,
+      monthlyLimit: tel.monthlyLimit,
+    }));
+
+    // Load all active employees
+    const employees = await this.employeeRepo.findAll(companyId, {
+      status: 'ACTIVE',
+      page: 1,
+      limit: 10000,
+    });
+
+    // Load attendance snapshots for the period
+    const attendanceData = await this.salaryAttendanceRepo.findByPeriod(companyId, year, month);
+    const attendanceMap = new Map(attendanceData.map((a) => [a.userId, a]));
+
+    const calculations: CreateSalaryCalculationData[] = [];
+
+    for (const emp of employees.items) {
+      try {
+        // Load salary items
+        const salaryItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, emp.id);
+        const salaryItemProps: SalaryItemProps[] = salaryItems.map((si) => ({
+          id: si.id,
+          code: si.code,
+          name: si.name,
+          type: si.type as SalaryItemProps['type'],
+          paymentType: si.paymentType as SalaryItemProps['paymentType'],
+          paymentCycle: si.paymentCycle as SalaryItemProps['paymentCycle'],
+          amount: si.amount,
+          isOrdinaryWage: si.isOrdinaryWage,
+          isTaxExempt: si.isTaxExempt,
+          taxExemptCode: si.taxExemptCode ?? undefined,
+        }));
+
+        // Get attendance snapshot
+        const attData = attendanceMap.get(emp.id);
+        const attendance: AttendanceSummary = attData
+          ? {
+              regularMinutes: attData.totalRegularMinutes,
+              overtimeMinutes: attData.totalOvertimeMinutes,
+              nightMinutes: attData.totalNightMinutes,
+              nightOvertimeMinutes: attData.totalNightOvertimeMinutes,
+              holidayMinutes: attData.totalHolidayMinutes,
+              holidayOvertimeMinutes: attData.totalHolidayOvertimeMinutes,
+              holidayNightMinutes: attData.totalHolidayNightMinutes,
+              holidayNightOvertimeMinutes: attData.totalHolidayNightOvertimeMinutes,
+            }
+          : {
+              regularMinutes: 0,
+              overtimeMinutes: 0,
+              nightMinutes: 0,
+              nightOvertimeMinutes: 0,
+              holidayMinutes: 0,
+              holidayOvertimeMinutes: 0,
+              holidayNightMinutes: 0,
+              holidayNightOvertimeMinutes: 0,
+            };
+
+        const input: PayrollInput = {
+          employee: {
+            id: emp.id,
+            name: emp.name,
+            dependents: emp.dependents,
+            joinDate: emp.joinDate ? new Date(emp.joinDate) : new Date(),
+            resignDate: emp.resignDate ? new Date(emp.resignDate) : undefined,
+            nationalPensionMode: emp.nationalPensionMode as 'AUTO' | 'MANUAL' | 'NONE',
+            healthInsuranceMode: emp.healthInsuranceMode as 'AUTO' | 'MANUAL' | 'NONE',
+            employmentInsuranceMode: emp.employmentInsuranceMode as 'AUTO' | 'MANUAL' | 'NONE',
+            manualNationalPensionBase: emp.manualNationalPensionBase ?? undefined,
+            manualHealthInsuranceBase: emp.manualHealthInsuranceBase ?? undefined,
+          },
+          salaryItems: salaryItemProps,
+          attendance,
+          insuranceRates,
+          taxBrackets: taxBracketEntries,
+          taxExemptLimits: taxExemptEntries,
+          settings,
+          year,
+          month,
+        };
+
+        const result = this.payrollCalculator.calculate(input);
+
+        calculations.push({
+          companyId,
+          userId: emp.id,
+          year,
+          month,
+          status: result.status,
+          ordinaryWageMonthly: result.ordinaryWageMonthly,
+          ordinaryWageHourly: result.ordinaryWageHourly,
+          basePay: result.basePay,
+          fixedAllowances: result.fixedAllowances,
+          overtimePay: result.overtimePay,
+          nightPay: result.nightPay,
+          nightOvertimePay: result.nightOvertimePay,
+          holidayPay: result.holidayPay,
+          holidayOvertimePay: result.holidayOvertimePay,
+          holidayNightPay: result.holidayNightPay,
+          holidayNightOvertimePay: result.holidayNightOvertimePay,
+          variableAllowances: result.variableAllowances,
+          attendanceDeductions: result.attendanceDeductions,
+          totalPay: result.totalPay,
+          totalNonTaxable: result.totalNonTaxable,
+          taxableIncome: result.taxableIncome,
+          nationalPension: result.nationalPension,
+          healthInsurance: result.healthInsurance,
+          longTermCare: result.longTermCare,
+          employmentInsurance: result.employmentInsurance,
+          incomeTax: result.incomeTax,
+          localIncomeTax: result.localIncomeTax,
+          totalDeduction: result.totalDeduction,
+          netPay: result.netPay,
+          payItemsSnapshot: result.ordinaryWageItems,
+          deductionItemsSnapshot: result.nonTaxableItems,
+          insuranceRatesSnapshot: insuranceRates,
+          prorationApplied: result.prorationApplied,
+          prorationRatio: result.prorationRatio,
+          minimumWageWarning: result.minimumWageWarning ?? false,
+          errorMessage: result.errorMessage,
+        });
+      } catch (error) {
+        // Record failed calculation
+        calculations.push({
+          companyId,
+          userId: emp.id,
+          year,
+          month,
+          status: 'FAILED',
+          ordinaryWageMonthly: 0,
+          ordinaryWageHourly: 0,
+          basePay: 0,
+          fixedAllowances: 0,
+          overtimePay: 0,
+          nightPay: 0,
+          nightOvertimePay: 0,
+          holidayPay: 0,
+          holidayOvertimePay: 0,
+          holidayNightPay: 0,
+          holidayNightOvertimePay: 0,
+          variableAllowances: 0,
+          attendanceDeductions: 0,
+          totalPay: 0,
+          totalNonTaxable: 0,
+          taxableIncome: 0,
+          nationalPension: 0,
+          healthInsurance: 0,
+          longTermCare: 0,
+          employmentInsurance: 0,
+          incomeTax: 0,
+          localIncomeTax: 0,
+          totalDeduction: 0,
+          netPay: 0,
+          prorationApplied: false,
+          minimumWageWarning: false,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+
+    // Bulk save all calculations
+    if (calculations.length > 0) {
+      await this.salaryCalcRepo.createMany(calculations);
+    }
+
+    // Return results
+    return this.salaryCalcRepo.findByPeriod(companyId, year, month);
+  }
+
+  private buildInsuranceRateSet(rates: { type: string; employeeRate: number; minBase: number | null; maxBase: number | null }[]): InsuranceRateSet {
+    const findRate = (type: string) => rates.find((r) => r.type === type);
+
+    const pension = findRate('NATIONAL_PENSION');
+    const health = findRate('HEALTH_INSURANCE');
+    const ltc = findRate('LONG_TERM_CARE');
+    const employment = findRate('EMPLOYMENT_INSURANCE');
+
+    return {
+      nationalPension: {
+        rate: pension?.employeeRate ?? 0.045,
+        minBase: pension?.minBase ?? 390000,
+        maxBase: pension?.maxBase ?? 6170000,
+      },
+      healthInsurance: {
+        rate: health?.employeeRate ?? 0.03545,
+        minBase: health?.minBase ?? 279000,
+        maxBase: health?.maxBase ?? 12706000,
+      },
+      longTermCare: {
+        rate: ltc?.employeeRate ?? 0.1295,
+      },
+      employmentInsurance: {
+        rate: employment?.employeeRate ?? 0.009,
+      },
+    };
+  }
+}

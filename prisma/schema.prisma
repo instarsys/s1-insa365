@@ -1,0 +1,771 @@
+// s1-insa365 Prisma Schema
+// Korean payroll automation SaaS for SMEs
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ──────────────────────────────────────────────
+// Enums
+// ──────────────────────────────────────────────
+
+enum Role {
+  SYSTEM_ADMIN
+  COMPANY_ADMIN
+  MANAGER
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  RESIGNED
+  TERMINATED
+}
+
+enum InsuranceMode {
+  AUTO
+  MANUAL
+  NONE
+}
+
+enum SalaryItemType {
+  BASE
+  ALLOWANCE
+  DEDUCTION
+}
+
+enum PaymentType {
+  FIXED
+  FORMULA
+  VARIABLE
+}
+
+enum PaymentCycle {
+  MONTHLY
+  BIMONTHLY
+  QUARTERLY
+  ANNUAL
+}
+
+enum SalaryStatus {
+  DRAFT
+  CONFIRMED
+  PAID
+  FAILED
+  SKIPPED
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  READ
+  CONFIRM
+  CANCEL
+  EXPORT
+  LOGIN
+  LOGOUT
+}
+
+enum AttendanceStatus {
+  ON_TIME
+  LATE
+  EARLY_LEAVE
+  ABSENT
+  HALF_DAY
+  HOLIDAY
+  LEAVE
+}
+
+enum LeaveType {
+  ANNUAL
+  HALF_DAY_AM
+  HALF_DAY_PM
+  SICK
+  FAMILY_EVENT
+  UNPAID
+  OTHER
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  PAYROLL_CONFIRMED
+  LEAVE_APPROVED
+  LEAVE_REJECTED
+  OVERTIME_WARNING
+  ATTENDANCE_MISSING
+  LEGAL_PARAM_CHANGED
+}
+
+enum NotificationPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum LegalParameterCategory {
+  WORK_HOURS
+  OVERTIME
+  TAX
+  SEVERANCE
+  PENSION
+}
+
+enum ProrationMethod {
+  CALENDAR_DAY
+  WORKING_DAY
+}
+
+enum SubscriptionPlan {
+  TRIAL
+  STARTER
+  PRO
+}
+
+// ──────────────────────────────────────────────
+// Company
+// ──────────────────────────────────────────────
+
+model Company {
+  id                       String           @id @default(uuid())
+  name                     String
+  businessNumber           String           @map("business_number")
+  representativeName       String           @map("representative_name")
+  address                  String?
+  phone                    String?
+  email                    String?
+  payDay                   Int              @default(25) @map("pay_day")
+  monthlyWorkHours         Int              @default(209) @map("monthly_work_hours")
+  lateGraceMinutes         Int              @default(0) @map("late_grace_minutes")
+  earlyLeaveGraceMinutes   Int              @default(0) @map("early_leave_grace_minutes")
+  nightWorkStartTime       String           @default("22:00") @map("night_work_start_time")
+  nightWorkEndTime         String           @default("06:00") @map("night_work_end_time")
+  overtimeThresholdMinutes Int              @default(480) @map("overtime_threshold_minutes")
+  prorationMethod          ProrationMethod  @default(CALENDAR_DAY) @map("proration_method")
+  subscriptionPlan         SubscriptionPlan @default(TRIAL) @map("subscription_plan")
+  createdAt                DateTime         @default(now()) @map("created_at")
+  updatedAt                DateTime         @updatedAt @map("updated_at")
+  deletedAt                DateTime?        @map("deleted_at")
+
+  users              User[]
+  departments        Department[]
+  positions          Position[]
+  workPolicies       WorkPolicy[]
+  workLocations      WorkLocation[]
+  salaryRules        SalaryRule[]
+  auditLogs          AuditLog[]
+  employeeSalaryItems EmployeeSalaryItem[]
+  attendances        Attendance[]
+  salaryAttendanceData SalaryAttendanceData[]
+  salaryCalculations SalaryCalculation[]
+  leaveRequests      LeaveRequest[]
+  leaveBalances      LeaveBalance[]
+  notifications      Notification[]
+  payrollMonthlies   PayrollMonthly[]
+  attendanceSegments AttendanceSegment[]
+
+  @@map("companies")
+}
+
+// ──────────────────────────────────────────────
+// User (Employee)
+// ──────────────────────────────────────────────
+
+model User {
+  id                      String         @id @default(uuid())
+  companyId               String         @map("company_id")
+  company                 Company        @relation(fields: [companyId], references: [id])
+  employeeNumber          String?        @map("employee_number")
+  email                   String
+  password                String
+  name                    String
+  phone                   String?
+  role                    Role           @default(EMPLOYEE)
+  employeeStatus          EmployeeStatus @default(ACTIVE) @map("employee_status")
+  departmentId            String?        @map("department_id")
+  department              Department?    @relation(fields: [departmentId], references: [id])
+  positionId              String?        @map("position_id")
+  position                Position?      @relation(fields: [positionId], references: [id])
+  workPolicyId            String?        @map("work_policy_id")
+  workPolicy              WorkPolicy?    @relation(fields: [workPolicyId], references: [id])
+  workLocationId          String?        @map("work_location_id")
+  workLocation            WorkLocation?  @relation(fields: [workLocationId], references: [id])
+  joinDate                DateTime?      @map("join_date")
+  resignDate              DateTime?      @map("resign_date")
+  dependents              Int            @default(1)
+  encryptedRrn            String?        @map("encrypted_rrn")
+  encryptedBankAccount    String?        @map("encrypted_bank_account")
+  bankName                String?        @map("bank_name")
+  canViewSensitive        Boolean        @default(false) @map("can_view_sensitive")
+  nationalPensionMode     InsuranceMode  @default(AUTO) @map("national_pension_mode")
+  healthInsuranceMode     InsuranceMode  @default(AUTO) @map("health_insurance_mode")
+  employmentInsuranceMode InsuranceMode  @default(AUTO) @map("employment_insurance_mode")
+  manualNationalPensionBase  Decimal?    @map("manual_national_pension_base") @db.Decimal(15, 0)
+  manualHealthInsuranceBase  Decimal?    @map("manual_health_insurance_base") @db.Decimal(15, 0)
+  profileImageUrl         String?        @map("profile_image_url")
+  refreshToken            String?        @map("refresh_token")
+  createdAt               DateTime       @default(now()) @map("created_at")
+  updatedAt               DateTime       @updatedAt @map("updated_at")
+  deletedAt               DateTime?      @map("deleted_at")
+
+  employeeSalaryItems EmployeeSalaryItem[]
+  attendances         Attendance[]
+  salaryCalculations  SalaryCalculation[]
+  leaveRequests       LeaveRequest[]
+  leaveBalances       LeaveBalance[]
+  notifications       Notification[]
+  payrollMonthlies    PayrollMonthly[]
+
+  @@unique([companyId, email])
+  @@unique([companyId, employeeNumber])
+  @@index([companyId, employeeStatus])
+  @@map("users")
+}
+
+// ──────────────────────────────────────────────
+// Department
+// ──────────────────────────────────────────────
+
+model Department {
+  id        String    @id @default(uuid())
+  companyId String    @map("company_id")
+  company   Company   @relation(fields: [companyId], references: [id])
+  name      String
+  code      String?
+  parentId  String?   @map("parent_id")
+  sortOrder Int       @default(0) @map("sort_order")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users User[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("departments")
+}
+
+// ──────────────────────────────────────────────
+// Position
+// ──────────────────────────────────────────────
+
+model Position {
+  id        String    @id @default(uuid())
+  companyId String    @map("company_id")
+  company   Company   @relation(fields: [companyId], references: [id])
+  name      String
+  level     Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users User[]
+
+  @@unique([companyId, name])
+  @@map("positions")
+}
+
+// ──────────────────────────────────────────────
+// WorkPolicy
+// ──────────────────────────────────────────────
+
+model WorkPolicy {
+  id           String    @id @default(uuid())
+  companyId    String    @map("company_id")
+  company      Company   @relation(fields: [companyId], references: [id])
+  name         String
+  startTime    String    @map("start_time")
+  endTime      String    @map("end_time")
+  breakMinutes Int       @default(60) @map("break_minutes")
+  workDays     String    @default("1,2,3,4,5") @map("work_days")
+  isDefault    Boolean   @default(false) @map("is_default")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  users User[]
+
+  @@map("work_policies")
+}
+
+// ──────────────────────────────────────────────
+// WorkLocation
+// ──────────────────────────────────────────────
+
+model WorkLocation {
+  id           String    @id @default(uuid())
+  companyId    String    @map("company_id")
+  company      Company   @relation(fields: [companyId], references: [id])
+  name         String
+  address      String
+  latitude     Decimal?  @db.Decimal(10, 7)
+  longitude    Decimal?  @db.Decimal(10, 7)
+  radiusMeters Int       @default(100) @map("radius_meters")
+  isDefault    Boolean   @default(false) @map("is_default")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  users User[]
+
+  @@map("work_locations")
+}
+
+// ──────────────────────────────────────────────
+// SalaryRule (company-level template)
+// ──────────────────────────────────────────────
+
+model SalaryRule {
+  id            String        @id @default(uuid())
+  companyId     String        @map("company_id")
+  company       Company       @relation(fields: [companyId], references: [id])
+  code          String
+  name          String
+  type          SalaryItemType
+  paymentType   PaymentType   @default(FIXED) @map("payment_type")
+  paymentCycle  PaymentCycle  @default(MONTHLY) @map("payment_cycle")
+  defaultAmount Decimal?      @map("default_amount") @db.Decimal(15, 0)
+  isOrdinaryWage Boolean      @default(false) @map("is_ordinary_wage")
+  isTaxExempt   Boolean       @default(false) @map("is_tax_exempt")
+  taxExemptCode String?       @map("tax_exempt_code")
+  isActive      Boolean       @default(true) @map("is_active")
+  sortOrder     Int           @default(0) @map("sort_order")
+  formula       String?
+  description   String?
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+  deletedAt     DateTime?     @map("deleted_at")
+
+  @@unique([companyId, code])
+  @@map("salary_rules")
+}
+
+// ──────────────────────────────────────────────
+// EmployeeSalaryItem (per-employee, copied from SalaryRule)
+// ──────────────────────────────────────────────
+
+model EmployeeSalaryItem {
+  id             String        @id @default(uuid())
+  companyId      String        @map("company_id")
+  company        Company       @relation(fields: [companyId], references: [id])
+  userId         String        @map("user_id")
+  user           User          @relation(fields: [userId], references: [id])
+  code           String
+  name           String
+  type           SalaryItemType
+  paymentType    PaymentType   @default(FIXED) @map("payment_type")
+  paymentCycle   PaymentCycle  @default(MONTHLY) @map("payment_cycle")
+  amount         Decimal       @default(0) @db.Decimal(15, 0)
+  isOrdinaryWage Boolean       @default(false) @map("is_ordinary_wage")
+  isTaxExempt    Boolean       @default(false) @map("is_tax_exempt")
+  taxExemptCode  String?       @map("tax_exempt_code")
+  isActive       Boolean       @default(true) @map("is_active")
+  sortOrder      Int           @default(0) @map("sort_order")
+  formula        String?
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  deletedAt      DateTime?     @map("deleted_at")
+
+  @@unique([userId, code])
+  @@index([companyId, userId])
+  @@map("employee_salary_items")
+}
+
+// ──────────────────────────────────────────────
+// Attendance (daily record)
+// ──────────────────────────────────────────────
+
+model Attendance {
+  id               String           @id @default(uuid())
+  companyId        String           @map("company_id")
+  company          Company          @relation(fields: [companyId], references: [id])
+  userId           String           @map("user_id")
+  user             User             @relation(fields: [userId], references: [id])
+  date             DateTime         @db.Date
+  checkInTime      DateTime?        @map("check_in_time")
+  checkOutTime     DateTime?        @map("check_out_time")
+  checkInLatitude  Decimal?         @map("check_in_latitude") @db.Decimal(10, 7)
+  checkInLongitude Decimal?         @map("check_in_longitude") @db.Decimal(10, 7)
+  checkOutLatitude Decimal?         @map("check_out_latitude") @db.Decimal(10, 7)
+  checkOutLongitude Decimal?        @map("check_out_longitude") @db.Decimal(10, 7)
+  status           AttendanceStatus @default(ON_TIME)
+  regularMinutes   Int              @default(0) @map("regular_minutes")
+  overtimeMinutes  Int              @default(0) @map("overtime_minutes")
+  nightMinutes     Int              @default(0) @map("night_minutes")
+  nightOvertimeMinutes Int          @default(0) @map("night_overtime_minutes")
+  holidayMinutes   Int              @default(0) @map("holiday_minutes")
+  holidayOvertimeMinutes Int        @default(0) @map("holiday_overtime_minutes")
+  holidayNightMinutes Int           @default(0) @map("holiday_night_minutes")
+  holidayNightOvertimeMinutes Int   @default(0) @map("holiday_night_overtime_minutes")
+  totalMinutes     Int              @default(0) @map("total_minutes")
+  isHoliday        Boolean          @default(false) @map("is_holiday")
+  isConfirmed      Boolean          @default(false) @map("is_confirmed")
+  note             String?
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+  deletedAt        DateTime?        @map("deleted_at")
+
+  segments AttendanceSegment[]
+
+  @@unique([userId, date])
+  @@index([companyId, date])
+  @@index([companyId, userId, date])
+  @@map("attendances")
+}
+
+// ──────────────────────────────────────────────
+// AttendanceSegment (work segments within a day)
+// ──────────────────────────────────────────────
+
+model AttendanceSegment {
+  id           String     @id @default(uuid())
+  companyId    String     @map("company_id")
+  company      Company    @relation(fields: [companyId], references: [id])
+  attendanceId String     @map("attendance_id")
+  attendance   Attendance @relation(fields: [attendanceId], references: [id])
+  startTime    DateTime   @map("start_time")
+  endTime      DateTime   @map("end_time")
+  type         String     // REGULAR, OVERTIME, NIGHT, NIGHT_OVERTIME, HOLIDAY, HOLIDAY_OVERTIME, HOLIDAY_NIGHT, HOLIDAY_NIGHT_OVERTIME
+  minutes      Int
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  @@index([attendanceId])
+  @@index([companyId])
+  @@map("attendance_segments")
+}
+
+// ──────────────────────────────────────────────
+// SalaryAttendanceData (monthly attendance snapshot for payroll)
+// ──────────────────────────────────────────────
+
+model SalaryAttendanceData {
+  id                          String   @id @default(uuid())
+  companyId                   String   @map("company_id")
+  company                     Company  @relation(fields: [companyId], references: [id])
+  userId                      String   @map("user_id")
+  year                        Int
+  month                       Int
+  workDays                    Int      @default(0) @map("work_days")
+  actualWorkDays              Int      @default(0) @map("actual_work_days")
+  absentDays                  Int      @default(0) @map("absent_days")
+  lateDays                    Int      @default(0) @map("late_days")
+  earlyLeaveDays              Int      @default(0) @map("early_leave_days")
+  leaveDays                   Decimal  @default(0) @map("leave_days") @db.Decimal(5, 1)
+  totalRegularMinutes         Int      @default(0) @map("total_regular_minutes")
+  totalOvertimeMinutes        Int      @default(0) @map("total_overtime_minutes")
+  totalNightMinutes           Int      @default(0) @map("total_night_minutes")
+  totalNightOvertimeMinutes   Int      @default(0) @map("total_night_overtime_minutes")
+  totalHolidayMinutes         Int      @default(0) @map("total_holiday_minutes")
+  totalHolidayOvertimeMinutes Int      @default(0) @map("total_holiday_overtime_minutes")
+  totalHolidayNightMinutes    Int      @default(0) @map("total_holiday_night_minutes")
+  totalHolidayNightOvertimeMinutes Int @default(0) @map("total_holiday_night_overtime_minutes")
+  confirmedAt                 DateTime @map("confirmed_at")
+  confirmedBy                 String   @map("confirmed_by")
+  version                     Int      @default(1)
+  createdAt                   DateTime @default(now()) @map("created_at")
+
+  @@unique([companyId, userId, year, month, version])
+  @@index([companyId, year, month])
+  @@map("salary_attendance_data")
+}
+
+// ──────────────────────────────────────────────
+// SalaryCalculation (payroll calculation result)
+// ──────────────────────────────────────────────
+
+model SalaryCalculation {
+  id                    String       @id @default(uuid())
+  companyId             String       @map("company_id")
+  company               Company      @relation(fields: [companyId], references: [id])
+  userId                String       @map("user_id")
+  user                  User         @relation(fields: [userId], references: [id])
+  year                  Int
+  month                 Int
+  status                SalaryStatus @default(DRAFT)
+
+  // Phase 1: Ordinary Wage
+  ordinaryWageMonthly   Decimal      @default(0) @map("ordinary_wage_monthly") @db.Decimal(15, 0)
+  ordinaryWageHourly    Decimal      @default(0) @map("ordinary_wage_hourly") @db.Decimal(15, 0)
+
+  // Phase 2: Gross Pay
+  basePay               Decimal      @default(0) @map("base_pay") @db.Decimal(15, 0)
+  fixedAllowances       Decimal      @default(0) @map("fixed_allowances") @db.Decimal(15, 0)
+  overtimePay           Decimal      @default(0) @map("overtime_pay") @db.Decimal(15, 0)
+  nightPay              Decimal      @default(0) @map("night_pay") @db.Decimal(15, 0)
+  nightOvertimePay      Decimal      @default(0) @map("night_overtime_pay") @db.Decimal(15, 0)
+  holidayPay            Decimal      @default(0) @map("holiday_pay") @db.Decimal(15, 0)
+  holidayOvertimePay    Decimal      @default(0) @map("holiday_overtime_pay") @db.Decimal(15, 0)
+  holidayNightPay       Decimal      @default(0) @map("holiday_night_pay") @db.Decimal(15, 0)
+  holidayNightOvertimePay Decimal    @default(0) @map("holiday_night_overtime_pay") @db.Decimal(15, 0)
+  variableAllowances    Decimal      @default(0) @map("variable_allowances") @db.Decimal(15, 0)
+  attendanceDeductions  Decimal      @default(0) @map("attendance_deductions") @db.Decimal(15, 0)
+  totalPay              Decimal      @default(0) @map("total_pay") @db.Decimal(15, 0)
+
+  // Phase 3: Tax-Exempt
+  totalNonTaxable       Decimal      @default(0) @map("total_non_taxable") @db.Decimal(15, 0)
+  taxableIncome         Decimal      @default(0) @map("taxable_income") @db.Decimal(15, 0)
+
+  // Phase 4: Deductions
+  nationalPension       Decimal      @default(0) @map("national_pension") @db.Decimal(15, 0)
+  healthInsurance       Decimal      @default(0) @map("health_insurance") @db.Decimal(15, 0)
+  longTermCare          Decimal      @default(0) @map("long_term_care") @db.Decimal(15, 0)
+  employmentInsurance   Decimal      @default(0) @map("employment_insurance") @db.Decimal(15, 0)
+  incomeTax             Decimal      @default(0) @map("income_tax") @db.Decimal(15, 0)
+  localIncomeTax        Decimal      @default(0) @map("local_income_tax") @db.Decimal(15, 0)
+  otherDeductions       Decimal      @default(0) @map("other_deductions") @db.Decimal(15, 0)
+  totalDeduction        Decimal      @default(0) @map("total_deduction") @db.Decimal(15, 0)
+
+  // Phase 5: Net Pay
+  netPay                Decimal      @default(0) @map("net_pay") @db.Decimal(15, 0)
+
+  // Metadata
+  payItemsSnapshot      Json?        @map("pay_items_snapshot")
+  deductionItemsSnapshot Json?       @map("deduction_items_snapshot")
+  insuranceRatesSnapshot Json?       @map("insurance_rates_snapshot")
+  prorationApplied      Boolean      @default(false) @map("proration_applied")
+  prorationRatio        Decimal?     @map("proration_ratio") @db.Decimal(10, 6)
+  minimumWageWarning    Boolean      @default(false) @map("minimum_wage_warning")
+  skipReason            String?      @map("skip_reason")
+  errorMessage          String?      @map("error_message")
+  confirmedAt           DateTime?    @map("confirmed_at")
+  confirmedBy           String?      @map("confirmed_by")
+  calculatedAt          DateTime     @default(now()) @map("calculated_at")
+  createdAt             DateTime     @default(now()) @map("created_at")
+  updatedAt             DateTime     @updatedAt @map("updated_at")
+  deletedAt             DateTime?    @map("deleted_at")
+
+  @@unique([companyId, userId, year, month])
+  @@index([companyId, year, month])
+  @@index([companyId, status])
+  @@map("salary_calculations")
+}
+
+// ──────────────────────────────────────────────
+// InsuranceRate (4대보험 요율, date-range based)
+// ──────────────────────────────────────────────
+
+model InsuranceRate {
+  id                 String   @id @default(uuid())
+  type               String   // NATIONAL_PENSION, HEALTH_INSURANCE, LONG_TERM_CARE, EMPLOYMENT_INSURANCE
+  employeeRate       Decimal  @map("employee_rate") @db.Decimal(10, 6)
+  employerRate       Decimal  @map("employer_rate") @db.Decimal(10, 6)
+  minBase            Decimal? @map("min_base") @db.Decimal(15, 0)
+  maxBase            Decimal? @map("max_base") @db.Decimal(15, 0)
+  effectiveStartDate DateTime @map("effective_start_date") @db.Date
+  effectiveEndDate   DateTime @map("effective_end_date") @db.Date
+  description        String?
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@index([type, effectiveStartDate, effectiveEndDate])
+  @@map("insurance_rates")
+}
+
+// ──────────────────────────────────────────────
+// TaxBracket (간이세액표)
+// ──────────────────────────────────────────────
+
+model TaxBracket {
+  id          String  @id @default(uuid())
+  year        Int
+  minIncome   Decimal @map("min_income") @db.Decimal(15, 0)
+  maxIncome   Decimal @map("max_income") @db.Decimal(15, 0)
+  dependents  Int
+  taxAmount   Decimal @map("tax_amount") @db.Decimal(15, 0)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([year, dependents])
+  @@map("tax_brackets")
+}
+
+// ──────────────────────────────────────────────
+// TaxExemptLimit (비과세 한도)
+// ──────────────────────────────────────────────
+
+model TaxExemptLimit {
+  id           String   @id @default(uuid())
+  year         Int
+  code         String   // MEALS, VEHICLE, CHILDCARE, etc.
+  name         String
+  monthlyLimit Decimal  @map("monthly_limit") @db.Decimal(15, 0)
+  description  String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([year, code])
+  @@map("tax_exempt_limits")
+}
+
+// ──────────────────────────────────────────────
+// MinimumWage (최저임금)
+// ──────────────────────────────────────────────
+
+model MinimumWage {
+  id         String   @id @default(uuid())
+  year       Int      @unique
+  hourlyWage Decimal  @map("hourly_wage") @db.Decimal(10, 0)
+  monthlyWage Decimal @map("monthly_wage") @db.Decimal(15, 0)
+  description String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("minimum_wages")
+}
+
+// ──────────────────────────────────────────────
+// LegalParameter (법정 상수 key-value)
+// ──────────────────────────────────────────────
+
+model LegalParameter {
+  id          String                 @id @default(uuid())
+  category    LegalParameterCategory
+  key         String                 @unique
+  value       String
+  description String?
+  unit        String?
+  createdAt   DateTime               @default(now()) @map("created_at")
+  updatedAt   DateTime               @updatedAt @map("updated_at")
+
+  @@index([category])
+  @@map("legal_parameters")
+}
+
+// ──────────────────────────────────────────────
+// PayrollMonthly (월별 원천징수 이력)
+// ──────────────────────────────────────────────
+
+model PayrollMonthly {
+  id                 String   @id @default(uuid())
+  companyId          String   @map("company_id")
+  company            Company  @relation(fields: [companyId], references: [id])
+  userId             String   @map("user_id")
+  user               User     @relation(fields: [userId], references: [id])
+  year               Int
+  month              Int
+  totalPay           Decimal  @default(0) @map("total_pay") @db.Decimal(15, 0)
+  taxableIncome      Decimal  @default(0) @map("taxable_income") @db.Decimal(15, 0)
+  totalNonTaxable    Decimal  @default(0) @map("total_non_taxable") @db.Decimal(15, 0)
+  nationalPension    Decimal  @default(0) @map("national_pension") @db.Decimal(15, 0)
+  healthInsurance    Decimal  @default(0) @map("health_insurance") @db.Decimal(15, 0)
+  longTermCare       Decimal  @default(0) @map("long_term_care") @db.Decimal(15, 0)
+  employmentInsurance Decimal @default(0) @map("employment_insurance") @db.Decimal(15, 0)
+  incomeTax          Decimal  @default(0) @map("income_tax") @db.Decimal(15, 0)
+  localIncomeTax     Decimal  @default(0) @map("local_income_tax") @db.Decimal(15, 0)
+  netPay             Decimal  @default(0) @map("net_pay") @db.Decimal(15, 0)
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, userId, year, month])
+  @@index([companyId, year, month])
+  @@map("payroll_monthlies")
+}
+
+// ──────────────────────────────────────────────
+// LeaveRequest (휴가 신청)
+// ──────────────────────────────────────────────
+
+model LeaveRequest {
+  id          String      @id @default(uuid())
+  companyId   String      @map("company_id")
+  company     Company     @relation(fields: [companyId], references: [id])
+  userId      String      @map("user_id")
+  user        User        @relation(fields: [userId], references: [id])
+  type        LeaveType
+  startDate   DateTime    @map("start_date") @db.Date
+  endDate     DateTime    @map("end_date") @db.Date
+  days        Decimal     @db.Decimal(5, 1)
+  reason      String?
+  status      LeaveStatus @default(PENDING)
+  approvedBy  String?     @map("approved_by")
+  approvedAt  DateTime?   @map("approved_at")
+  rejectedBy  String?     @map("rejected_by")
+  rejectedAt  DateTime?   @map("rejected_at")
+  rejectReason String?    @map("reject_reason")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+
+  @@index([companyId, userId])
+  @@index([companyId, status])
+  @@map("leave_requests")
+}
+
+// ──────────────────────────────────────────────
+// LeaveBalance (연차 잔여일수)
+// ──────────────────────────────────────────────
+
+model LeaveBalance {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id])
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id])
+  year        Int
+  totalDays   Decimal  @default(0) @map("total_days") @db.Decimal(5, 1)
+  usedDays    Decimal  @default(0) @map("used_days") @db.Decimal(5, 1)
+  remainingDays Decimal @default(0) @map("remaining_days") @db.Decimal(5, 1)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, userId, year])
+  @@map("leave_balances")
+}
+
+// ──────────────────────────────────────────────
+// Notification (인앱 알림)
+// ──────────────────────────────────────────────
+
+model Notification {
+  id         String               @id @default(uuid())
+  companyId  String               @map("company_id")
+  company    Company              @relation(fields: [companyId], references: [id])
+  userId     String               @map("user_id")
+  user       User                 @relation(fields: [userId], references: [id])
+  type       NotificationType
+  priority   NotificationPriority @default(MEDIUM)
+  title      String
+  message    String
+  isRead     Boolean              @default(false) @map("is_read")
+  readAt     DateTime?            @map("read_at")
+  link       String?
+  createdAt  DateTime             @default(now()) @map("created_at")
+
+  @@index([companyId, userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+// ──────────────────────────────────────────────
+// AuditLog (immutable — no updatedAt, no deletedAt)
+// ──────────────────────────────────────────────
+
+model AuditLog {
+  id         String      @id @default(uuid())
+  companyId  String?     @map("company_id")
+  company    Company?    @relation(fields: [companyId], references: [id])
+  userId     String?     @map("user_id")
+  action     AuditAction
+  entityType String      @map("entity_type")
+  entityId   String?     @map("entity_id")
+  before     Json?
+  after      Json?
+  ipAddress  String?     @map("ip_address")
+  userAgent  String?     @map("user_agent")
+  createdAt  DateTime    @default(now()) @map("created_at")
+
+  @@index([companyId, entityType, createdAt])
+  @@map("audit_logs")
+}
