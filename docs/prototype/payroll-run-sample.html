@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>s1-insa365 — 급여 실행</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 14px; }
+  body {
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #F9FAFB; color: #4B5563; line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .num { font-family: 'Inter', sans-serif; }
+
+  :root {
+    --purple-50: #F5F3FF; --purple-100: #EDE9FE; --purple-200: #DDD6FE;
+    --purple-300: #C4B5FD; --purple-400: #A78BFA; --purple-500: #8B5CF6;
+    --purple-600: #7C3AED; --purple-700: #6D28D9; --purple-800: #5B21B6;
+    --purple-900: #4C1D95;
+    --gray-50: #F9FAFB; --gray-100: #F3F4F6; --gray-200: #E5E7EB;
+    --gray-300: #D1D5DB; --gray-400: #9CA3AF; --gray-500: #6B7280;
+    --gray-600: #4B5563; --gray-700: #374151; --gray-800: #1F2937;
+    --gray-900: #111827;
+    --success: #10B981; --success-light: #ECFDF5; --success-dark: #065F46;
+    --warning: #F59E0B; --warning-light: #FFFBEB; --warning-dark: #92400E;
+    --error: #EF4444; --error-light: #FEF2F2; --error-dark: #991B1B;
+    --info: #6366F1; --info-light: #EEF2FF; --info-dark: #3730A3;
+    --white: #FFFFFF;
+    --sidebar-w: 240px; --topbar-h: 56px;
+  }
+
+  /* ========== Top Bar ========== */
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: var(--topbar-h);
+    background: var(--white); border-bottom: 1px solid var(--gray-200);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; z-index: 50;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo { font-weight: 700; font-size: 18px; color: var(--purple-600); letter-spacing: -0.5px; }
+  .topbar-logo span { color: var(--gray-800); }
+  .topbar-right { display: flex; align-items: center; gap: 16px; }
+  .topbar-icon {
+    position: relative; width: 36px; height: 36px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--gray-500); transition: all 150ms;
+  }
+  .topbar-icon:hover { background: var(--gray-100); color: var(--gray-700); }
+  .topbar-badge {
+    position: absolute; top: 2px; right: 2px; width: 16px; height: 16px;
+    background: var(--error); color: var(--white); font-size: 10px;
+    font-weight: 600; border-radius: 999px; display: flex;
+    align-items: center; justify-content: center; font-family: 'Inter', sans-serif;
+  }
+  .topbar-company {
+    font-size: 13px; color: var(--gray-600); font-weight: 500;
+    padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: all 150ms;
+  }
+  .topbar-company:hover { background: var(--gray-100); }
+  .topbar-avatar {
+    width: 32px; height: 32px; border-radius: 999px;
+    background: var(--purple-100); color: var(--purple-600);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 13px; cursor: pointer;
+  }
+
+  /* ========== Sidebar ========== */
+  .sidebar {
+    position: fixed; top: var(--topbar-h); left: 0; bottom: 0;
+    width: var(--sidebar-w); background: var(--white);
+    border-right: 1px solid var(--gray-200); z-index: 40;
+    display: flex; flex-direction: column; overflow-y: auto; padding: 12px 0;
+  }
+  .sidebar-section {
+    padding: 16px 16px 4px; font-size: 11px; font-weight: 500;
+    color: var(--gray-400); text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 0 16px; height: 40px; cursor: pointer; transition: all 150ms;
+    color: var(--gray-600); font-size: 14px; font-weight: 400;
+    text-decoration: none; position: relative;
+  }
+  .sidebar-item:hover { background: var(--gray-50); }
+  .sidebar-item.active {
+    background: var(--purple-50); color: var(--purple-600); font-weight: 500;
+  }
+  .sidebar-item.active::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 3px; background: var(--purple-600); border-radius: 0 2px 2px 0;
+  }
+  .sidebar-item svg { width: 20px; height: 20px; flex-shrink: 0; }
+  .sidebar-item.active svg { color: var(--purple-600); }
+  .sidebar-sub {
+    padding-left: 46px; height: 36px; font-size: 13px; color: var(--gray-500);
+  }
+  .sidebar-sub.active { color: var(--purple-600); font-weight: 500; background: var(--purple-50); }
+  .sidebar-sub:hover { background: var(--gray-50); color: var(--gray-700); }
+  .sidebar-cta {
+    background: var(--purple-100); margin: 0 12px; border-radius: 8px;
+    color: var(--purple-700) !important; font-weight: 500 !important;
+  }
+  .sidebar-cta.active { background: var(--purple-200) !important; }
+  .sidebar-cta:hover { background: var(--purple-200); }
+  .sidebar-toggle {
+    display: flex; align-items: center; justify-content: space-between; width: 100%;
+  }
+  .sidebar-toggle .chevron { width: 16px; height: 16px; transition: transform 200ms; color: var(--gray-400); }
+  .sidebar-toggle.open .chevron { transform: rotate(90deg); }
+  .sidebar-footer {
+    margin-top: auto; padding: 16px; font-size: 11px; color: var(--gray-400);
+    font-family: 'Inter', sans-serif;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 2px; }
+
+  /* ========== Main ========== */
+  .main {
+    margin-left: var(--sidebar-w); margin-top: var(--topbar-h);
+    padding: 24px 32px; min-height: calc(100vh - var(--topbar-h));
+  }
+  .breadcrumb {
+    font-size: 12px; color: var(--gray-400); margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .breadcrumb a { color: var(--gray-400); text-decoration: none; }
+  .breadcrumb a:hover { color: var(--purple-500); }
+  .page-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;
+  }
+  .page-title { font-size: 24px; font-weight: 600; color: var(--gray-800); }
+
+  /* ========== Stepper ========== */
+  .stepper {
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px 0; margin-bottom: 24px;
+  }
+  .step { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .step-circle {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600;
+    transition: all 200ms;
+  }
+  .step.done .step-circle { background: var(--success); color: var(--white); }
+  .step.current .step-circle { background: var(--purple-600); color: var(--white); box-shadow: 0 0 0 4px var(--purple-100); }
+  .step.upcoming .step-circle { background: var(--gray-200); color: var(--gray-500); }
+  .step-label { font-size: 14px; font-weight: 400; color: var(--gray-500); transition: all 200ms; }
+  .step.done .step-label { color: var(--gray-700); }
+  .step.current .step-label { color: var(--purple-600); font-weight: 600; }
+  .step-line {
+    width: 80px; height: 2px; margin: 0 12px; transition: background 200ms;
+  }
+  .step-line.done { background: var(--success); }
+  .step-line.upcoming { background: var(--gray-200); }
+
+  /* ========== Buttons ========== */
+  .btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px; border-radius: 8px; font-size: 14px;
+    font-weight: 500; cursor: pointer; transition: all 150ms;
+    border: none; font-family: inherit;
+  }
+  .btn-primary { background: var(--purple-600); color: var(--white); }
+  .btn-primary:hover { background: var(--purple-700); }
+  .btn-primary:active { background: var(--purple-800); }
+  .btn-secondary { background: var(--white); color: var(--purple-600); border: 1px solid var(--purple-300); }
+  .btn-secondary:hover { background: var(--purple-50); }
+  .btn-ghost { background: transparent; color: var(--gray-500); }
+  .btn-ghost:hover { background: var(--gray-100); color: var(--gray-700); }
+  .btn-danger { background: var(--error); color: var(--white); }
+  .btn-danger:hover { background: #DC2626; }
+  .btn-lg { padding: 12px 28px; font-size: 15px; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn:disabled { background: var(--gray-100); color: var(--gray-400); cursor: not-allowed; border: none; }
+
+  /* ========== Card ========== */
+  .card {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  }
+
+  /* ========== Toolbar ========== */
+  .toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px; gap: 12px;
+  }
+  .toolbar-left { display: flex; align-items: center; gap: 8px; }
+  .toolbar-right { display: flex; align-items: center; gap: 8px; }
+  .search-input {
+    padding: 8px 12px 8px 36px; border: 1px solid var(--gray-300); border-radius: 8px;
+    font-size: 13px; font-family: inherit; outline: none; width: 240px;
+    transition: border-color 150ms; background: var(--white);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 10px center;
+  }
+  .search-input:focus { border-color: var(--purple-500); box-shadow: 0 0 0 3px var(--purple-100); }
+  .search-input::placeholder { color: var(--gray-400); }
+
+  /* ========== Spreadsheet Table ========== */
+  .spreadsheet-wrapper {
+    overflow-x: auto; border: 1px solid var(--gray-200); border-radius: 12px;
+    background: var(--white);
+  }
+  .spreadsheet {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+    font-family: 'Inter', 'Pretendard', sans-serif;
+  }
+  .spreadsheet thead th {
+    background: var(--gray-50); color: var(--gray-700); font-weight: 500;
+    padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--gray-200);
+    position: sticky; top: 0; z-index: 5; white-space: nowrap; font-size: 12px;
+    font-family: 'Pretendard', sans-serif;
+  }
+  .spreadsheet thead th.num-col { text-align: right; }
+  .spreadsheet thead th.check-col { width: 44px; text-align: center; }
+  .spreadsheet tbody td {
+    padding: 10px 14px; border-bottom: 1px solid var(--gray-100);
+    white-space: nowrap; transition: background 100ms;
+  }
+  .spreadsheet tbody td.num-col {
+    text-align: right; font-family: 'Inter', sans-serif; font-weight: 500;
+  }
+  .spreadsheet tbody td.check-col { text-align: center; }
+  .spreadsheet tbody td.name-col {
+    font-family: 'Pretendard', sans-serif; font-weight: 500; color: var(--gray-800);
+    position: sticky; left: 44px; background: inherit; z-index: 2;
+  }
+  .spreadsheet tbody td.dept-col {
+    font-family: 'Pretendard', sans-serif; color: var(--gray-600);
+  }
+  .spreadsheet tbody tr:hover td { background: var(--purple-50); }
+  .spreadsheet tbody tr.skip td {
+    background: var(--gray-50) !important; color: var(--gray-400);
+  }
+  .spreadsheet tbody tr.skip td.name-col { background: var(--gray-50) !important; color: var(--gray-400); }
+  .spreadsheet tbody tr.selected td { background: var(--purple-100); }
+  .spreadsheet tbody tr.edited td.edited-cell { background: var(--purple-50); }
+
+  /* Editable cell */
+  .cell-edit {
+    background: transparent; border: none; font: inherit; color: inherit;
+    text-align: right; width: 100%; padding: 0; outline: none;
+    font-family: 'Inter', sans-serif; font-weight: 500;
+  }
+  .cell-edit:focus {
+    background: var(--white); outline: 2px solid var(--purple-500);
+    border-radius: 4px; padding: 2px 6px; margin: -2px -6px;
+  }
+
+  /* Checkbox */
+  .checkbox {
+    width: 16px; height: 16px; accent-color: var(--purple-600); cursor: pointer;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; padding: 2px 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 500;
+    font-family: 'Pretendard', sans-serif;
+  }
+  .badge-success { background: var(--success-light); color: var(--success-dark); }
+  .badge-warning { background: var(--warning-light); color: var(--warning-dark); }
+  .badge-error { background: var(--error-light); color: var(--error-dark); }
+  .badge-purple { background: var(--purple-50); color: var(--purple-700); }
+  .badge-gray { background: var(--gray-100); color: var(--gray-500); }
+
+  /* Footer bar */
+  .footer-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-top: 1px solid var(--gray-200);
+    background: var(--white); border-radius: 0 0 12px 12px;
+  }
+  .footer-info { font-size: 13px; color: var(--gray-500); }
+  .footer-info strong { color: var(--gray-700); font-weight: 600; }
+  .footer-actions { display: flex; gap: 8px; }
+
+  /* ========== Step 2: Review ========== */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 0;
+    text-align: center; padding: 32px 24px;
+  }
+  .summary-item { padding: 0 24px; }
+  .summary-item:not(:last-child) { border-right: 1px solid var(--gray-200); }
+  .summary-label { font-size: 13px; color: var(--gray-500); margin-bottom: 8px; }
+  .summary-value {
+    font-family: 'Inter', sans-serif; font-size: 32px; font-weight: 700;
+    color: var(--gray-800); letter-spacing: -1px;
+  }
+  .summary-value.primary { color: var(--purple-600); }
+  .summary-unit { font-size: 16px; font-weight: 400; color: var(--gray-500); }
+  .summary-change {
+    font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500;
+    margin-top: 6px; display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+  }
+  .summary-change.up { background: var(--success-light); color: var(--success-dark); }
+  .summary-change.down { background: var(--error-light); color: var(--error-dark); }
+
+  /* Accordion */
+  .accordion { border-top: 1px solid var(--gray-200); }
+  .accordion-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; cursor: pointer; transition: background 150ms;
+    font-size: 14px; font-weight: 500; color: var(--gray-700);
+  }
+  .accordion-header:hover { background: var(--gray-50); }
+  .accordion-value { font-family: 'Inter', sans-serif; font-weight: 600; color: var(--gray-800); }
+  .accordion-chevron {
+    width: 20px; height: 20px; color: var(--gray-400); transition: transform 200ms;
+  }
+  .accordion-header.open .accordion-chevron { transform: rotate(180deg); }
+  .accordion-body {
+    padding: 0 24px 16px; display: none;
+  }
+  .accordion-body.open { display: block; }
+  .detail-row {
+    display: flex; justify-content: space-between; padding: 8px 0;
+    font-size: 13px; border-bottom: 1px solid var(--gray-100);
+  }
+  .detail-row:last-child { border-bottom: none; }
+  .detail-label { color: var(--gray-500); }
+  .detail-value { font-family: 'Inter', sans-serif; font-weight: 500; color: var(--gray-700); }
+
+  /* Change table */
+  .change-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .change-table th {
+    text-align: left; padding: 10px 14px; font-weight: 500; color: var(--gray-600);
+    background: var(--gray-50); border-bottom: 1px solid var(--gray-200);
+  }
+  .change-table th:nth-child(n+3) { text-align: right; }
+  .change-table td {
+    padding: 10px 14px; border-bottom: 1px solid var(--gray-100);
+    font-family: 'Pretendard', sans-serif;
+  }
+  .change-table td:nth-child(n+3) { text-align: right; font-family: 'Inter', sans-serif; font-weight: 500; }
+  .change-table tr:hover td { background: var(--purple-50); }
+  .change-up { color: var(--success-dark); }
+  .change-down { color: var(--error-dark); }
+
+  /* ========== Step 3: Confirm ========== */
+  .confirm-container {
+    text-align: center; padding: 60px 40px;
+    max-width: 540px; margin: 0 auto;
+  }
+  .confirm-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--success-light); color: var(--success);
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 24px; animation: scaleIn 400ms ease-out;
+  }
+  @keyframes scaleIn {
+    0% { transform: scale(0); opacity: 0; }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .confirm-title {
+    font-size: 24px; font-weight: 600; color: var(--gray-800); margin-bottom: 24px;
+  }
+  .confirm-details {
+    display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px;
+    text-align: left; background: var(--gray-50); border-radius: 12px; padding: 20px 24px;
+  }
+  .confirm-row {
+    display: flex; justify-content: space-between; font-size: 14px;
+  }
+  .confirm-row-label { color: var(--gray-500); }
+  .confirm-row-value { font-weight: 500; color: var(--gray-800); }
+  .confirm-row-value.num { font-family: 'Inter', sans-serif; }
+  .confirm-checks {
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 32px;
+    text-align: left;
+  }
+  .confirm-check {
+    display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--gray-600);
+  }
+  .confirm-check-icon {
+    width: 20px; height: 20px; color: var(--success); flex-shrink: 0;
+  }
+  .confirm-warning {
+    font-size: 13px; color: var(--warning-dark);
+    background: var(--warning-light); padding: 10px 16px; border-radius: 8px;
+    margin-bottom: 28px; display: flex; align-items: center; gap: 8px;
+  }
+  .confirm-actions { display: flex; gap: 12px; justify-content: center; }
+
+  /* ========== Confetti ========== */
+  .confetti-container {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 100; overflow: hidden;
+  }
+  .confetti-piece {
+    position: absolute; width: 10px; height: 10px; top: -10px;
+    animation: confettiFall linear forwards;
+  }
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+
+  /* ========== Page transitions ========== */
+  .step-content { display: none; }
+  .step-content.active {
+    display: block; animation: fadeInUp 300ms ease-out;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ========== Tooltip ========== */
+  .skip-label {
+    font-family: 'Pretendard', sans-serif; font-size: 12px;
+    color: var(--gray-400); font-style: italic;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== TOP BAR ==================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">s1<span>-insa365</span></div>
+  </div>
+  <div class="topbar-right">
+    <div class="topbar-icon" title="알림">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="topbar-badge">3</span>
+    </div>
+    <div class="topbar-company">주식회사 테크스타 ▾</div>
+    <div class="topbar-avatar">김</div>
+  </div>
+</header>
+
+<!-- ==================== SIDEBAR ==================== -->
+<nav class="sidebar">
+  <a class="sidebar-item" href="dashboard-sample.html">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
+    대시보드
+  </a>
+
+  <div class="sidebar-section">인사</div>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    직원 관리
+  </a>
+
+  <div class="sidebar-section">근태</div>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    근태 관리
+  </a>
+
+  <div class="sidebar-section">급여</div>
+  <a class="sidebar-item active sidebar-toggle open" href="#">
+    <span style="display:flex;align-items:center;gap:10px;">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2.5"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/></svg>
+      급여 관리
+    </span>
+  </a>
+  <a class="sidebar-item sidebar-sub sidebar-cta active" href="#">급여 실행</a>
+  <a class="sidebar-item sidebar-sub" href="#">급여 이력</a>
+  <a class="sidebar-item sidebar-sub" href="#">급여대장</a>
+  <a class="sidebar-item sidebar-sub" href="#">급여명세서</a>
+
+  <div class="sidebar-section">세무/리포트</div>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
+    세무/신고
+  </a>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>
+    리포트
+  </a>
+
+  <div class="sidebar-section">관리</div>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+    설정
+  </a>
+  <a class="sidebar-item" href="#">
+    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/></svg>
+    시스템 관리
+  </a>
+  <div class="sidebar-footer">v1.0.0</div>
+</nav>
+
+<!-- ==================== MAIN ==================== -->
+<main class="main">
+  <div class="breadcrumb">
+    <a href="#">급여 관리</a>
+    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+    급여 실행
+  </div>
+  <div class="page-header">
+    <div class="page-title">급여 실행 — <span class="num" style="font-weight:600;">2026</span>년 <span class="num" style="font-weight:600;">2</span>월</div>
+  </div>
+
+  <!-- Stepper -->
+  <div class="stepper" id="stepper">
+    <div class="step current" data-step="1" onclick="goStep(1)">
+      <div class="step-circle">1</div>
+      <div class="step-label">급여 입력</div>
+    </div>
+    <div class="step-line upcoming" id="line1"></div>
+    <div class="step upcoming" data-step="2" onclick="goStep(2)">
+      <div class="step-circle">2</div>
+      <div class="step-label">검토</div>
+    </div>
+    <div class="step-line upcoming" id="line2"></div>
+    <div class="step upcoming" data-step="3" onclick="goStep(3)">
+      <div class="step-circle">3</div>
+      <div class="step-label">확정</div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 1: 급여 입력 ==================== -->
+  <div class="step-content active" id="step1">
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <button class="btn btn-ghost btn-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44"/><circle cx="12" cy="12" r="3"/></svg>
+          컬럼 설정
+        </button>
+        <button class="btn btn-ghost btn-sm">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+          데이터 가져오기
+        </button>
+      </div>
+      <div class="toolbar-right">
+        <input class="search-input" type="text" placeholder="이름, 부서, 사번 검색...">
+      </div>
+    </div>
+
+    <div class="spreadsheet-wrapper">
+      <table class="spreadsheet">
+        <thead>
+          <tr>
+            <th class="check-col"><input type="checkbox" class="checkbox" checked></th>
+            <th>이름</th>
+            <th>부서</th>
+            <th class="num-col">기본급</th>
+            <th class="num-col">연장수당</th>
+            <th class="num-col">야간수당</th>
+            <th class="num-col">식대</th>
+            <th class="num-col">차량유지비</th>
+            <th class="num-col">국민연금</th>
+            <th class="num-col">건강보험</th>
+            <th class="num-col">고용보험</th>
+            <th class="num-col">소득세</th>
+            <th class="num-col">지방소득세</th>
+            <th class="num-col">총 지급액</th>
+            <th class="num-col">총 공제</th>
+            <th class="num-col">실수령</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">김민수</td>
+            <td class="dept-col">개발팀</td>
+            <td class="num-col"><input class="cell-edit" value="3,500,000"></td>
+            <td class="num-col"><input class="cell-edit" value="450,000"></td>
+            <td class="num-col"><input class="cell-edit" value="120,000"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col" style="color:var(--gray-500);">166,500</td>
+            <td class="num-col" style="color:var(--gray-500);">132,870</td>
+            <td class="num-col" style="color:var(--gray-500);">33,750</td>
+            <td class="num-col" style="color:var(--gray-500);">145,290</td>
+            <td class="num-col" style="color:var(--gray-500);">14,520</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">4,470,000</td>
+            <td class="num-col" style="color:var(--error);">492,930</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">3,977,070</td>
+          </tr>
+          <tr>
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">이서연</td>
+            <td class="dept-col">영업팀</td>
+            <td class="num-col"><input class="cell-edit" value="3,200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col" style="color:var(--gray-500);">144,000</td>
+            <td class="num-col" style="color:var(--gray-500);">113,420</td>
+            <td class="num-col" style="color:var(--gray-500);">28,800</td>
+            <td class="num-col" style="color:var(--gray-500);">98,540</td>
+            <td class="num-col" style="color:var(--gray-500);">9,850</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">3,600,000</td>
+            <td class="num-col" style="color:var(--error);">394,610</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">3,205,390</td>
+          </tr>
+          <tr>
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">최은지</td>
+            <td class="dept-col">마케팅팀</td>
+            <td class="num-col"><input class="cell-edit" value="3,800,000"></td>
+            <td class="num-col"><input class="cell-edit" value="380,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col" style="color:var(--gray-500);">171,000</td>
+            <td class="num-col" style="color:var(--gray-500);">139,460</td>
+            <td class="num-col" style="color:var(--gray-500);">35,100</td>
+            <td class="num-col" style="color:var(--gray-500);">158,330</td>
+            <td class="num-col" style="color:var(--gray-500);">15,830</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">4,380,000</td>
+            <td class="num-col" style="color:var(--error);">519,720</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">3,860,280</td>
+          </tr>
+          <tr class="edited">
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">정현우</td>
+            <td class="dept-col">개발팀</td>
+            <td class="num-col"><input class="cell-edit" value="4,200,000"></td>
+            <td class="num-col edited-cell"><input class="cell-edit" value="620,000" style="color:var(--purple-600);"></td>
+            <td class="num-col edited-cell"><input class="cell-edit" value="180,000" style="color:var(--purple-600);"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col" style="color:var(--gray-500);">202,500</td>
+            <td class="num-col" style="color:var(--gray-500);">168,090</td>
+            <td class="num-col" style="color:var(--gray-500);">40,500</td>
+            <td class="num-col" style="color:var(--gray-500);">218,760</td>
+            <td class="num-col" style="color:var(--gray-500);">21,870</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">5,400,000</td>
+            <td class="num-col" style="color:var(--error);">651,720</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">4,748,280</td>
+          </tr>
+          <tr class="skip">
+            <td class="check-col"><input type="checkbox" class="checkbox"></td>
+            <td class="name-col">박지훈 <span class="badge badge-gray" style="margin-left:4px;">SKIP</span></td>
+            <td class="dept-col">인사팀</td>
+            <td class="num-col" colspan="13"><span class="skip-label">무급휴직 — 급여 산정 대상에서 제외됩니다</span></td>
+          </tr>
+          <tr>
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">한지민</td>
+            <td class="dept-col">마케팅팀</td>
+            <td class="num-col"><input class="cell-edit" value="3,000,000"></td>
+            <td class="num-col"><input class="cell-edit" value="225,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col" style="color:var(--gray-500);">135,000</td>
+            <td class="num-col" style="color:var(--gray-500);">106,310</td>
+            <td class="num-col" style="color:var(--gray-500);">27,000</td>
+            <td class="num-col" style="color:var(--gray-500);">82,390</td>
+            <td class="num-col" style="color:var(--gray-500);">8,230</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">3,425,000</td>
+            <td class="num-col" style="color:var(--error);">358,930</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">3,066,070</td>
+          </tr>
+          <tr>
+            <td class="check-col"><input type="checkbox" class="checkbox" checked></td>
+            <td class="name-col">박서윤</td>
+            <td class="dept-col">영업팀</td>
+            <td class="num-col"><input class="cell-edit" value="3,400,000"></td>
+            <td class="num-col"><input class="cell-edit" value="170,000"></td>
+            <td class="num-col"><input class="cell-edit" value="0"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col"><input class="cell-edit" value="200,000"></td>
+            <td class="num-col" style="color:var(--gray-500);">153,000</td>
+            <td class="num-col" style="color:var(--gray-500);">120,650</td>
+            <td class="num-col" style="color:var(--gray-500);">30,600</td>
+            <td class="num-col" style="color:var(--gray-500);">112,650</td>
+            <td class="num-col" style="color:var(--gray-500);">11,260</td>
+            <td class="num-col" style="font-weight:600;color:var(--gray-800);">3,970,000</td>
+            <td class="num-col" style="color:var(--error);">428,160</td>
+            <td class="num-col" style="font-weight:700;color:var(--purple-600);">3,541,840</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="footer-bar" style="border-radius:0; border:1px solid var(--gray-200); border-top:none; border-radius: 0 0 12px 12px;">
+      <div class="footer-info">
+        전체 <strong class="num">150</strong>명 중 <strong class="num" style="color:var(--purple-600);">148</strong>명 대상, <strong class="num" style="color:var(--gray-400);">2</strong>명 건너뛰기
+      </div>
+      <div class="footer-actions">
+        <button class="btn btn-ghost" disabled>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+          이전
+        </button>
+        <button class="btn btn-primary" onclick="goStep(2)">
+          검토 요약
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m9 18 6-6-6-6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 2: 검토 요약 ==================== -->
+  <div class="step-content" id="step2">
+    <!-- Summary -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div style="padding: 20px 24px 0; font-size: 16px; font-weight: 600; color: var(--gray-800);">전체 요약</div>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-label">총 지급액</div>
+          <div class="summary-value num">148,500,000<span class="summary-unit">원</span></div>
+          <div class="summary-change up num">↑ 2.1% <span style="font-weight:400;">전월 대비</span></div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">총 공제</div>
+          <div class="summary-value num">39,200,000<span class="summary-unit">원</span></div>
+          <div class="summary-change up num">↑ 1.8% <span style="font-weight:400;">전월 대비</span></div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-label">총 실수령</div>
+          <div class="summary-value num primary">109,300,000<span class="summary-unit">원</span></div>
+          <div class="summary-change up num">↑ 2.3% <span style="font-weight:400;">전월 대비</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Accordion details -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div style="padding: 20px 24px; font-size: 16px; font-weight: 600; color: var(--gray-800);">항목별 상세</div>
+
+      <div class="accordion">
+        <div class="accordion-header open" onclick="toggleAccordion(this)">
+          <span>수당 합계</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="accordion-value num">25,300,000원</span>
+            <svg class="accordion-chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+        <div class="accordion-body open">
+          <div class="detail-row"><span class="detail-label">기본급 합계</span><span class="detail-value num">112,500,000원</span></div>
+          <div class="detail-row"><span class="detail-label">연장근로수당</span><span class="detail-value num">8,450,000원</span></div>
+          <div class="detail-row"><span class="detail-label">야간근로수당</span><span class="detail-value num">1,850,000원</span></div>
+          <div class="detail-row"><span class="detail-label">식대 (비과세)</span><span class="detail-value num">29,600,000원</span></div>
+          <div class="detail-row"><span class="detail-label">차량유지비 (비과세)</span><span class="detail-value num">15,400,000원</span></div>
+        </div>
+      </div>
+
+      <div class="accordion">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+          <span>4대보험</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="accordion-value num">18,500,000원</span>
+            <svg class="accordion-chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+        <div class="accordion-body">
+          <div class="detail-row"><span class="detail-label">국민연금 (4.5%)</span><span class="detail-value num">6,750,000원</span></div>
+          <div class="detail-row"><span class="detail-label">건강보험 (3.545%)</span><span class="detail-value num">5,310,000원</span></div>
+          <div class="detail-row"><span class="detail-label">장기요양보험 (12.95%)</span><span class="detail-value num">690,000원</span></div>
+          <div class="detail-row"><span class="detail-label">고용보험 (0.9%)</span><span class="detail-value num">1,350,000원</span></div>
+        </div>
+      </div>
+
+      <div class="accordion">
+        <div class="accordion-header" onclick="toggleAccordion(this)">
+          <span>소득세 / 지방소득세</span>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="accordion-value num">20,700,000원</span>
+            <svg class="accordion-chevron" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+        <div class="accordion-body">
+          <div class="detail-row"><span class="detail-label">근로소득세</span><span class="detail-value num">18,820,000원</span></div>
+          <div class="detail-row"><span class="detail-label">지방소득세 (10%)</span><span class="detail-value num">1,880,000원</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MoM Changes -->
+    <div class="card" style="margin-bottom: 24px;">
+      <div style="padding: 20px 24px; font-size: 16px; font-weight: 600; color: var(--gray-800);">전월 대비 주요 변동</div>
+      <div style="padding: 0 24px 20px; overflow-x: auto;">
+        <table class="change-table">
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>부서</th>
+              <th>전월 실수령</th>
+              <th>당월 실수령</th>
+              <th>변동액</th>
+              <th>사유</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style="font-weight:500;color:var(--gray-800);">정현우</td>
+              <td>개발팀</td>
+              <td>4,120,500</td>
+              <td>4,748,280</td>
+              <td class="change-up">+627,780</td>
+              <td><span class="badge badge-purple">연장+야간 증가</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;color:var(--gray-800);">김민수</td>
+              <td>개발팀</td>
+              <td>3,850,200</td>
+              <td>3,977,070</td>
+              <td class="change-up">+126,870</td>
+              <td><span class="badge badge-purple">연장수당 증가</span></td>
+            </tr>
+            <tr>
+              <td style="font-weight:500;color:var(--gray-800);">박서윤</td>
+              <td>영업팀</td>
+              <td>3,620,100</td>
+              <td>3,541,840</td>
+              <td class="change-down">-78,260</td>
+              <td><span class="badge badge-warning">연장수당 감소</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button class="btn btn-secondary" onclick="goStep(1)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 18-6-6 6-6"/></svg>
+        이전
+      </button>
+      <button class="btn btn-primary btn-lg" onclick="goStep(3)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        급여 확정
+      </button>
+    </div>
+  </div>
+
+  <!-- ==================== STEP 3: 확정 ==================== -->
+  <div class="step-content" id="step3">
+    <div class="card">
+      <div class="confirm-container">
+        <div class="confirm-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        </div>
+        <div class="confirm-title">급여가 확정되었습니다!</div>
+
+        <div class="confirm-details">
+          <div class="confirm-row">
+            <span class="confirm-row-label">귀속 월</span>
+            <span class="confirm-row-value num">2026년 2월</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">대상 직원</span>
+            <span class="confirm-row-value num">148명</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">총 지급액</span>
+            <span class="confirm-row-value num">148,500,000원</span>
+          </div>
+          <div class="confirm-row">
+            <span class="confirm-row-label">총 공제</span>
+            <span class="confirm-row-value num">39,200,000원</span>
+          </div>
+          <div class="confirm-row" style="padding-top:12px;border-top:1px solid var(--gray-200);">
+            <span class="confirm-row-label" style="font-weight:600;color:var(--gray-700);">총 실수령</span>
+            <span class="confirm-row-value num" style="font-size:18px;font-weight:700;color:var(--purple-600);">109,300,000원</span>
+          </div>
+        </div>
+
+        <div class="confirm-checks">
+          <div class="confirm-check">
+            <svg class="confirm-check-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            급여대장 자동 생성 완료
+          </div>
+          <div class="confirm-check">
+            <svg class="confirm-check-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            급여명세서 148건 생성 완료
+          </div>
+          <div class="confirm-check">
+            <svg class="confirm-check-icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+            직원 알림 발송 완료
+          </div>
+        </div>
+
+        <div class="confirm-warning">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          24시간 내 취소 가능합니다
+        </div>
+
+        <div class="confirm-actions">
+          <button class="btn btn-secondary">급여대장 보기</button>
+          <button class="btn btn-secondary">급여명세서 보기</button>
+          <button class="btn btn-primary" onclick="goStep(1)">대시보드로</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Confetti container (Step 3) -->
+<div class="confetti-container" id="confetti" style="display:none;"></div>
+
+<script>
+let currentStep = 1;
+
+function goStep(n) {
+  if (n < 1 || n > 3) return;
+  currentStep = n;
+
+  // Update stepper
+  document.querySelectorAll('.step').forEach((el, i) => {
+    const stepNum = i + 1;
+    el.classList.remove('done', 'current', 'upcoming');
+    if (stepNum < n) el.classList.add('done');
+    else if (stepNum === n) el.classList.add('current');
+    else el.classList.add('upcoming');
+    // Update circle content
+    const circle = el.querySelector('.step-circle');
+    if (stepNum < n) {
+      circle.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+    } else {
+      circle.textContent = stepNum;
+    }
+  });
+
+  // Update lines
+  document.getElementById('line1').className = 'step-line ' + (n > 1 ? 'done' : 'upcoming');
+  document.getElementById('line2').className = 'step-line ' + (n > 2 ? 'done' : 'upcoming');
+
+  // Show content
+  document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('step' + n).classList.add('active');
+
+  // Confetti on step 3
+  if (n === 3) launchConfetti();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleAccordion(header) {
+  const body = header.nextElementSibling;
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function launchConfetti() {
+  const container = document.getElementById('confetti');
+  container.style.display = 'block';
+  container.innerHTML = '';
+  const colors = ['#7C3AED', '#A78BFA', '#DDD6FE', '#10B981', '#F59E0B', '#EF4444', '#6366F1'];
+  for (let i = 0; i < 60; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.width = (Math.random() * 8 + 6) + 'px';
+    piece.style.height = (Math.random() * 8 + 6) + 'px';
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.animationDuration = (Math.random() * 2 + 2) + 's';
+    piece.style.animationDelay = (Math.random() * 1) + 's';
+    container.appendChild(piece);
+  }
+  setTimeout(() => { container.style.display = 'none'; }, 4500);
+}
+</script>
+</body>
+</html>
