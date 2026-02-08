@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { type ZodSchema, type ZodError } from 'zod';
 
 export function successResponse<T>(data: T, status = 200) {
   return NextResponse.json(data, { status });
@@ -22,6 +23,15 @@ export function notFoundResponse(entity = 'Resource') {
 
 export function forbiddenResponse() {
   return NextResponse.json({ message: '권한이 없습니다.' }, { status: 403 });
+}
+
+export function validateBody<T>(schema: ZodSchema<T>, data: unknown): { success: true; data: T } | { success: false; response: NextResponse } {
+  const result = schema.safeParse(data);
+  if (result.success) {
+    return { success: true, data: result.data };
+  }
+  const message = result.error.issues.map((e: { message: string }) => e.message).join(', ');
+  return { success: false, response: errorResponse(message, 400) };
 }
 
 export function parseSearchParams(url: URL) {

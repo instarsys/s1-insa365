@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
-import { createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { createLeaveRequestSchema } from '@/presentation/api/schemas';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
-    const { type, startDate, endDate, days, reason } = await request.json();
-
-    if (!type || !startDate || !endDate || days === undefined) {
-      return errorResponse('휴가 유형, 시작일, 종료일, 일수를 입력해주세요.', 400);
-    }
+    const body = await request.json();
+    const validation = validateBody(createLeaveRequestSchema, body);
+    if (!validation.success) return validation.response;
+    const { type, startDate, endDate, days, reason } = validation.data;
 
     const leaveRequest = await prisma.leaveRequest.create({
       data: {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LogOut, Lock, Bell, Mail, Phone, Calendar } from 'lucide-react';
 import { Card, CardBody, Avatar, Button, Input, Modal } from '@/components/ui';
 import { useAuth } from '@/hooks';
@@ -17,7 +17,11 @@ export default function EmployeeMyPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const [phoneEditing, setPhoneEditing] = useState(false);
-  const [phone, setPhone] = useState('010-0000-0000');
+  const [phone, setPhone] = useState(user?.phone ?? '');
+
+  useEffect(() => {
+    if (user?.phone) setPhone(user.phone);
+  }, [user?.phone]);
 
   const [notifPayroll, setNotifPayroll] = useState(true);
   const [notifAttendance, setNotifAttendance] = useState(true);
@@ -82,7 +86,9 @@ export default function EmployeeMyPage() {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400">입사일</p>
-                  <p className="text-xs font-medium text-gray-800">2024.01.02</p>
+                  <p className="text-xs font-medium text-gray-800">
+                    {user?.joinDate ? new Date(user.joinDate).toLocaleDateString('ko-KR') : '-'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">

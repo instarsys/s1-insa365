@@ -3,9 +3,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Bell, ChevronDown, LogOut, User } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifications } from '@/hooks/useNotifications';
+import { GlobalSearch } from './GlobalSearch';
 
 export function AdminTopBar() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -29,14 +32,19 @@ export function AdminTopBar() {
         <span className="text-lg font-bold text-purple-600">s1-insa365</span>
       </div>
 
+      {/* Center: Global Search */}
+      <GlobalSearch />
+
       {/* Right: Actions */}
       <div className="flex items-center gap-4">
         {/* Notification Bell */}
         <button className="relative rounded-lg p-2 text-gray-500 hover:bg-gray-100">
           <Bell className="h-5 w-5" />
-          <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-            3
-          </span>
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </button>
 
         {/* Company Name */}

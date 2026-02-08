@@ -2,16 +2,19 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
-import { createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { signupSchema } from '@/presentation/api/schemas';
+import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
 
 export async function POST(request: NextRequest) {
-  try {
-    const { companyName, businessNumber, representativeName, name, email, password } =
-      await request.json();
+  const rateLimited = rateLimit(`signup:${getClientIp(request.headers)}`, 3, 60_000);
+  if (rateLimited) return rateLimited;
 
-    if (!companyName || !businessNumber || !representativeName || !name || !email || !password) {
-      return errorResponse('필수 항목을 모두 입력해주세요.', 400);
-    }
+  try {
+    const body = await request.json();
+    const validation = validateBody(signupSchema, body);
+    if (!validation.success) return validation.response;
+    const { companyName, businessNumber, representativeName, name, email, password } = validation.data;
 
     const existingUser = await prisma.user.findFirst({
       where: { email, deletedAt: null },

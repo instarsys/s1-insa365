@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
   Calculator,
   ChevronRight,
@@ -9,6 +9,10 @@ import {
   AlertTriangle,
   ArrowUp,
   ArrowDown,
+  ChevronDown,
+  Users,
+  CalendarDays,
+  Banknote,
 } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Stepper } from '@/components/ui/Stepper';
@@ -56,6 +60,41 @@ export default function PayrollRunPage() {
   const { rows, isLoading: spreadsheetLoading, mutate: mutateSpreadsheet } = usePayrollSpreadsheet(year, month);
   const { summary, isLoading: summaryLoading } = usePayrollSummary(year, month);
   const mutations = usePayrollMutations();
+
+  // Inline editing state: { [employeeId-code]: editValue }
+  const [editingCells, setEditingCells] = useState<Record<string, string>>({});
+
+  const startEdit = useCallback((employeeId: string, code: string, currentValue: number) => {
+    setEditingCells((prev) => ({ ...prev, [`${employeeId}-${code}`]: String(currentValue) }));
+  }, []);
+
+  const updateEditValue = useCallback((key: string, value: string) => {
+    setEditingCells((prev) => ({ ...prev, [key]: value }));
+  }, []);
+
+  const commitEdit = useCallback(async (row: typeof rows[number], code: string) => {
+    const key = `${row.employeeId}-${code}`;
+    const newValue = Number(editingCells[key] ?? 0);
+    setEditingCells((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    // Only update if row has a calculationId (from API)
+    const calcId = (row as unknown as Record<string, unknown>).calculationId as string | undefined;
+    if (calcId && row.status === 'DRAFT') {
+      await mutations.updateItem(calcId, { variableAllowances: newValue });
+      await mutateSpreadsheet();
+    }
+  }, [editingCells, mutations, mutateSpreadsheet]);
+
+  const cancelEdit = useCallback((employeeId: string, code: string) => {
+    setEditingCells((prev) => {
+      const next = { ...prev };
+      delete next[`${employeeId}-${code}`];
+      return next;
+    });
+  }, []);
 
   const yearOptions = useMemo(() => generateYearOptions(), []);
 
@@ -264,11 +303,38 @@ export default function PayrollRunPage() {
                           <td className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
                             {formatKRW(row.basePay)}
                           </td>
-                          {allowanceColumns.map((col) => (
-                            <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
-                              {formatKRW(getItemAmount(row, col.code))}
-                            </td>
-                          ))}
+                          {allowanceColumns.map((col) => {
+                            const item = row.items.find((i) => i.code === col.code);
+                            const editKey = `${row.employeeId}-${col.code}`;
+                            const isEditing = editKey in editingCells;
+                            const isVariable = item?.type === 'ALLOWANCE' && row.status === 'DRAFT';
+
+                            return (
+                              <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
+                                {isEditing ? (
+                                  <input
+                                    type="number"
+                                    className="w-24 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    value={editingCells[editKey]}
+                                    onChange={(e) => updateEditValue(editKey, e.target.value)}
+                                    onBlur={() => commitEdit(row, col.code)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') commitEdit(row, col.code);
+                                      if (e.key === 'Escape') cancelEdit(row.employeeId, col.code);
+                                    }}
+                                    autoFocus
+                                  />
+                                ) : (
+                                  <span
+                                    className={isVariable ? 'cursor-pointer rounded px-1 hover:bg-purple-50' : ''}
+                                    onClick={isVariable ? () => startEdit(row.employeeId, col.code, item?.amount ?? 0) : undefined}
+                                  >
+                                    {formatKRW(getItemAmount(row, col.code))}
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
                           <td className="whitespace-nowrap bg-blue-50/50 px-4 py-3 text-right text-sm font-semibold tabular-nums text-blue-700">
                             {formatKRW(row.totalPay)}
                           </td>
@@ -460,44 +526,115 @@ export default function PayrollRunPage() {
             </Card>
           ) : (
             <>
-              <Card>
+              {/* Big Number Summary */}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-6 text-center">
+                  <Banknote className="mx-auto h-6 w-6 text-blue-600" />
+                  <p className="mt-2 text-xs font-medium text-blue-600">총 지급액</p>
+                  <p className="mt-1 text-2xl font-bold text-blue-700">{formatKRW(summary?.totalPay ?? 0)}</p>
+                </div>
+                <div className="rounded-xl border border-red-100 bg-red-50 p-6 text-center">
+                  <Banknote className="mx-auto h-6 w-6 text-red-500" />
+                  <p className="mt-2 text-xs font-medium text-red-500">총 공제</p>
+                  <p className="mt-1 text-2xl font-bold text-red-700">{formatKRW(summary?.totalDeduction ?? 0)}</p>
+                </div>
+                <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-6 text-center">
+                  <Banknote className="mx-auto h-6 w-6 text-emerald-600" />
+                  <p className="mt-2 text-xs font-medium text-emerald-600">총 실수령</p>
+                  <p className="mt-1 text-2xl font-bold text-emerald-700">{formatKRW(summary?.totalNetPay ?? 0)}</p>
+                </div>
+              </div>
+
+              {/* Details Card */}
+              <Card className="mt-6">
                 <CardHeader>
-                  <CardTitle>급여 확정</CardTitle>
+                  <CardTitle>급여 확정 상세</CardTitle>
                 </CardHeader>
                 <CardBody>
-                  <div className="space-y-4">
-                    <div className="rounded-lg bg-gray-50 p-4">
-                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        <div>
-                          <p className="text-xs text-gray-500">급여 기간</p>
-                          <p className="mt-1 font-semibold text-gray-800">{year}년 {month}월</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">대상 인원</p>
-                          <p className="mt-1 font-semibold text-gray-800">{summary?.totalEmployees ?? rows.length}명</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">총 지급액</p>
-                          <p className="mt-1 font-semibold text-blue-700">{formatKRW(summary?.totalPay ?? 0)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">총 실수령</p>
-                          <p className="mt-1 font-semibold text-emerald-700">{formatKRW(summary?.totalNetPay ?? 0)}</p>
-                        </div>
+                  <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                        <CalendarDays className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">급여 기간</p>
+                        <p className="font-semibold text-gray-800">{year}년 {month}월</p>
                       </div>
                     </div>
-
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                      <p className="text-sm font-medium text-amber-800">
-                        확정 후 24시간 이내에 취소할 수 있습니다.
-                      </p>
-                      <p className="mt-1 text-xs text-amber-600">
-                        확정 시 급여대장과 급여명세서가 자동 생성됩니다.
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">대상 인원</p>
+                        <p className="font-semibold text-gray-800">{summary?.totalEmployees ?? rows.length}명</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-blue-50 p-2 text-blue-600">
+                        <Banknote className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">총 지급액</p>
+                        <p className="font-semibold text-blue-700">{formatKRW(summary?.totalPay ?? 0)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="rounded-lg bg-emerald-50 p-2 text-emerald-600">
+                        <Banknote className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-500">총 실수령</p>
+                        <p className="font-semibold text-emerald-700">{formatKRW(summary?.totalNetPay ?? 0)}</p>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Expandable deduction breakdown */}
+                  {summary?.byDepartment && summary.byDepartment.length > 0 && (
+                    <details className="mt-6 rounded-lg border border-gray-200">
+                      <summary className="flex cursor-pointer items-center gap-2 px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        <ChevronDown className="h-4 w-4 text-gray-400" />
+                        부서별 내역 보기
+                      </summary>
+                      <div className="border-t border-gray-200 p-0">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-gray-50">
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">부서</th>
+                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">인원</th>
+                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">총 지급액</th>
+                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">총 실수령</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {(summary.byDepartment as Array<Record<string, unknown>>).map((dept, i) => (
+                              <tr key={i}>
+                                <td className="px-4 py-2 font-medium text-gray-700">{dept.departmentName as string}</td>
+                                <td className="px-4 py-2 text-right tabular-nums">{dept.employeeCount as number}</td>
+                                <td className="px-4 py-2 text-right tabular-nums">{formatKRW(dept.totalPay as number)}</td>
+                                <td className="px-4 py-2 text-right tabular-nums font-semibold text-emerald-700">
+                                  {formatKRW(dept.totalNetPay as number)}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  )}
                 </CardBody>
               </Card>
+
+              {/* Warning */}
+              <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-medium text-amber-800">
+                  확정 후 24시간 이내에 취소할 수 있습니다.
+                </p>
+                <p className="mt-1 text-xs text-amber-600">
+                  확정 시 급여대장과 급여명세서가 자동 생성됩니다.
+                </p>
+              </div>
 
               {/* Navigation */}
               <div className="mt-6 flex justify-between">
@@ -505,8 +642,8 @@ export default function PayrollRunPage() {
                   <ChevronLeft className="h-4 w-4" />
                   뒤로
                 </Button>
-                <Button onClick={() => setShowConfirmModal(true)}>
-                  <CheckCircle2 className="h-4 w-4" />
+                <Button onClick={() => setShowConfirmModal(true)} size="lg">
+                  <CheckCircle2 className="h-5 w-5" />
                   급여 확정
                 </Button>
               </div>

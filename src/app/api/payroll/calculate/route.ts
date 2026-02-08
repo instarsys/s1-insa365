@@ -3,13 +3,15 @@ import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { calculatePayrollSchema } from '@/presentation/api/schemas';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
-    const { year, month } = await request.json();
-
-    if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
+    const body = await request.json();
+    const validation = validateBody(calculatePayrollSchema, body);
+    if (!validation.success) return validation.response;
+    const { year, month } = validation.data;
 
     // Get active employees
     const employees = await prisma.user.findMany({

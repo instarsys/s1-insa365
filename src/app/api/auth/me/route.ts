@@ -19,6 +19,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
       departmentId: true,
       positionId: true,
       profileImageUrl: true,
+      joinDate: true,
       department: { select: { id: true, name: true } },
       position: { select: { id: true, name: true } },
       company: { select: { id: true, name: true } },
@@ -43,6 +44,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     departmentName: user.department?.name ?? null,
     positionName: user.position?.name ?? null,
     profileImageUrl: user.profileImageUrl,
+    joinDate: user.joinDate?.toISOString() ?? null,
   });
 }
 

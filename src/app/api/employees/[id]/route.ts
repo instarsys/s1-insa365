@@ -7,7 +7,9 @@ import {
   successResponse,
   notFoundResponse,
   noContentResponse,
+  validateBody,
 } from '@/presentation/api/helpers';
+import { updateEmployeeSchema } from '@/presentation/api/schemas';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -42,13 +44,15 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
 async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
+  const validation = validateBody(updateEmployeeSchema, body);
+  if (!validation.success) return validation.response;
 
   const existing = await prisma.user.findFirst({
     where: { id, companyId: auth.companyId, deletedAt: null },
   });
   if (!existing) return notFoundResponse('직원');
 
-  const { rrn, bankAccount, bankName, ...updateData } = body;
+  const { rrn, bankAccount, bankName, ...updateData } = validation.data;
 
   const data: Record<string, unknown> = { ...updateData };
   if (rrn !== undefined) {

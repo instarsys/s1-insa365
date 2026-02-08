@@ -1,0 +1,25 @@
+{
+  "name": "인사365 - 급여 자동화",
+  "short_name": "인사365",
+  "description": "한국 중소기업 급여 자동화 SaaS",
+  "start_url": "/home",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#7C3AED",
+  "background_color": "#FFFFFF",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

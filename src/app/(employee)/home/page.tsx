@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { MapPin, Clock, Bell, ChevronRight, Wallet } from 'lucide-react';
+import useSWR from 'swr';
+import { MapPin, Clock, Bell, ChevronRight, Wallet, AlertTriangle } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui';
 import { useAuth } from '@/hooks';
 import { useNotifications } from '@/hooks';
 import { useAttendanceMutations } from '@/hooks';
 import { cn, formatKRW } from '@/lib/utils';
+import { fetcher } from '@/lib/api';
 
 type ClockStatus = 'not_started' | 'checked_in' | 'checked_out';
 
@@ -48,16 +50,77 @@ function getNotificationIcon(type: string) {
   }
 }
 
+function useGeoLocation() {
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const requestLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setError('GPS를 지원하지 않는 브라우저입니다');
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude });
+        setError(null);
+      },
+      (err) => {
+        setError(err.code === 1 ? 'GPS 권한이 거부되었습니다' : 'GPS 위치를 가져올 수 없습니다');
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }, []);
+
+  return { coords, error, requestLocation };
+}
+
 export default function EmployeeHomePage() {
   const now = useCurrentTime();
   const { user } = useAuth();
   const { notifications } = useNotifications();
   const { checkIn, checkOut } = useAttendanceMutations();
+  const geo = useGeoLocation();
 
   const [clockStatus, setClockStatus] = useState<ClockStatus>('not_started');
   const [checkInTime, setCheckInTime] = useState<string | undefined>(undefined);
   const [checkOutTime, setCheckOutTime] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Restore today's attendance status on load
+  const todayStr = new Date().toISOString().split('T')[0];
+  const { data: todayAttendance } = useSWR<{ items: { checkInTime?: string; checkOutTime?: string }[] }>(
+    `/api/attendance/daily?date=${todayStr}&userId=me`,
+    fetcher,
+    { revalidateOnFocus: true },
+  );
+
+  useEffect(() => {
+    if (todayAttendance?.items?.length) {
+      const record = todayAttendance.items[0];
+      if (record.checkOutTime) {
+        setClockStatus('checked_out');
+        setCheckInTime(record.checkInTime);
+        setCheckOutTime(record.checkOutTime);
+      } else if (record.checkInTime) {
+        setClockStatus('checked_in');
+        setCheckInTime(record.checkInTime);
+      }
+    }
+  }, [todayAttendance]);
+
+  // Request GPS on mount
+  useEffect(() => {
+    geo.requestLocation();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch last month's actual salary
+  const { data: payHistory } = useSWR<{ items: { netPay: number }[] }>(
+    '/api/payroll/history?limit=1',
+    fetcher,
+    { revalidateOnFocus: false },
+  );
+  const lastMonthPay = payHistory?.items?.[0]?.netPay;
 
   const workMinutes = (() => {
     if (!checkInTime) return 0;
@@ -72,12 +135,16 @@ export default function EmployeeHomePage() {
   const handleClockAction = useCallback(async () => {
     setIsLoading(true);
     try {
+      const locationData = geo.coords
+        ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude }
+        : {};
+
       if (clockStatus === 'not_started' || clockStatus === 'checked_out') {
-        await checkIn({});
+        await checkIn(locationData);
         setCheckInTime(new Date().toISOString());
         setClockStatus('checked_in');
       } else {
-        await checkOut({});
+        await checkOut(locationData);
         setCheckOutTime(new Date().toISOString());
         setClockStatus('checked_out');
       }
@@ -86,7 +153,7 @@ export default function EmployeeHomePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [clockStatus, checkIn, checkOut]);
+  }, [clockStatus, checkIn, checkOut, geo.coords]);
 
   const buttonLabel = clockStatus === 'checked_in' ? '퇴근하기' : '출근하기';
   const buttonColor = clockStatus === 'checked_in'
@@ -125,8 +192,22 @@ export default function EmployeeHomePage() {
           <span className="text-base font-semibold">{buttonLabel}</span>
         </button>
         <div className="mt-2 flex items-center gap-1 text-xs text-gray-400">
-          <MapPin className="h-3 w-3" />
-          <span>GPS 위치 확인됨</span>
+          {geo.error ? (
+            <>
+              <AlertTriangle className="h-3 w-3 text-amber-500" />
+              <span className="text-amber-500">{geo.error}</span>
+            </>
+          ) : geo.coords ? (
+            <>
+              <MapPin className="h-3 w-3 text-emerald-500" />
+              <span className="text-emerald-500">GPS 위치 확인됨</span>
+            </>
+          ) : (
+            <>
+              <MapPin className="h-3 w-3" />
+              <span>GPS 위치 확인 중...</span>
+            </>
+          )}
         </div>
       </div>
 
@@ -164,7 +245,9 @@ export default function EmployeeHomePage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400">지난달 실수령</p>
-            <p className="mt-0.5 text-sm font-bold text-purple-600">{formatKRW(3456789)}</p>
+            <p className="mt-0.5 text-sm font-bold text-purple-600">
+              {lastMonthPay != null ? formatKRW(lastMonthPay) : '-'}
+            </p>
           </div>
         </CardBody>
       </Card>

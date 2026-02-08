@@ -1,13 +1,22 @@
 'use client';
 
 import { useState } from 'react';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
 import {
   Button, Table, Badge, Tabs, Modal, Textarea, Spinner, EmptyState, useToast,
 } from '@/components/ui';
 import { useLeaveRequests, useLeaveMutations } from '@/hooks';
 import { formatDate } from '@/lib/utils';
+import { fetcher } from '@/lib/api';
 import { CalendarDays, Check, X } from 'lucide-react';
+
+interface LeaveBalance {
+  userId: string;
+  totalDays: number;
+  usedDays: number;
+  remainingDays: number;
+}
 
 function getLeaveTypeBadge(type: string) {
   switch (type) {
@@ -42,6 +51,17 @@ export default function LeaveManagementPage() {
   const statusFilter = activeTab === 'pending' ? 'PENDING' : undefined;
   const { requests, isLoading, mutate } = useLeaveRequests({ status: statusFilter });
   const { approve, reject } = useLeaveMutations();
+
+  // Fetch all balances
+  const { data: balancesData } = useSWR<{ items: LeaveBalance[] }>(
+    '/api/leave/balances',
+    fetcher,
+    { revalidateOnFocus: true },
+  );
+  const balanceMap = new Map<string, LeaveBalance>();
+  for (const b of balancesData?.items ?? []) {
+    balanceMap.set(b.userId, b);
+  }
 
   const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
 
@@ -115,6 +135,26 @@ export default function LeaveManagementPage() {
       key: 'days',
       label: '일수',
       render: (row: Record<string, unknown>) => `${row.days}일`,
+    },
+    {
+      key: 'remainingDays',
+      label: '잔여일수',
+      render: (row: Record<string, unknown>) => {
+        const userId = row.userId as string;
+        const balance = balanceMap.get(userId);
+        if (!balance) return <span className="text-gray-400">-</span>;
+        const remaining = balance.remainingDays;
+        const requestDays = row.days as number;
+        const isInsufficient = remaining < requestDays;
+        return (
+          <span className={isInsufficient ? 'font-medium text-amber-600' : 'text-gray-700'}>
+            {remaining}일
+            {isInsufficient && (
+              <span className="ml-1 text-[10px] text-amber-500">부족</span>
+            )}
+          </span>
+        );
+      },
     },
     {
       key: 'status',

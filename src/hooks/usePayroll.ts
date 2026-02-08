@@ -36,17 +36,35 @@ interface PayrollSummary {
   }[];
 }
 
+interface PayrollHistoryItem {
+  year: number;
+  month: number;
+  totalEmployees: number;
+  totalPay: number;
+  totalDeduction: number;
+  totalNetPay: number;
+  status: string;
+  confirmedAt?: string;
+  // Phase 2: Gross Pay breakdown
+  basePay?: number;
+  fixedAllowances?: number;
+  overtimePay?: number;
+  nightPay?: number;
+  holidayPay?: number;
+  variableAllowances?: number;
+  totalNonTaxable?: number;
+  // Phase 4: Deduction breakdown
+  nationalPension?: number;
+  healthInsurance?: number;
+  longTermCare?: number;
+  employmentInsurance?: number;
+  incomeTax?: number;
+  localIncomeTax?: number;
+  netPay?: number;
+}
+
 interface PayrollHistory {
-  items: {
-    year: number;
-    month: number;
-    totalEmployees: number;
-    totalPay: number;
-    totalDeduction: number;
-    totalNetPay: number;
-    status: string;
-    confirmedAt?: string;
-  }[];
+  items: PayrollHistoryItem[];
 }
 
 export function usePayrollSpreadsheet(year: number, month: number) {

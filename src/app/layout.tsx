@@ -9,8 +9,21 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 's1-insa365 | 급여 자동화',
+  title: '인사365 | 급여 자동화',
   description: '한국 중소기업 급여 자동화 SaaS',
+  manifest: '/manifest.json',
+  themeColor: '#7C3AED',
+  viewport: {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: '인사365',
+  },
 };
 
 export default function RootLayout({

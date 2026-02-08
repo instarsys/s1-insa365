@@ -18,6 +18,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     });
     if (pendingLeaves > 0) {
       todos.push({
+        id: 'leave-approval',
         type: 'LEAVE_APPROVAL',
         title: '휴가 승인 대기',
         description: `${pendingLeaves}건의 휴가 신청이 승인을 기다리고 있습니다.`,
@@ -40,6 +41,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     });
     if (unconfirmedCount > 0) {
       todos.push({
+        id: 'attendance-confirm',
         type: 'ATTENDANCE_CONFIRM',
         title: '근태 확정 필요',
         description: `${unconfirmedCount}건의 미확정 근태 기록이 있습니다.`,
@@ -63,6 +65,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     });
     if (draftPayroll > 0) {
       todos.push({
+        id: 'payroll-confirm',
         type: 'PAYROLL_CONFIRM',
         title: '급여 확정 필요',
         description: `${currentMonth}월 급여가 임시 상태입니다. 확인 후 확정해주세요.`,
@@ -91,6 +94,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
 
     if (overtimeEmployees.length > 0) {
       todos.push({
+        id: 'overtime-warning',
         type: 'OVERTIME_WARNING',
         title: '52시간 주의',
         description: `${overtimeEmployees.length}명이 주 48시간을 초과했습니다.`,
@@ -107,6 +111,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
   });
   if (unreadCount > 0) {
     todos.push({
+      id: 'unread-notifications',
       type: 'NOTIFICATIONS',
       title: '읽지 않은 알림',
       description: `${unreadCount}개의 읽지 않은 알림이 있습니다.`,

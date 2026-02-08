@@ -1,44 +1,28 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import useSWR from 'swr';
+import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout';
 import {
   Button, Table, Badge, SearchInput, Select, Pagination,
   Spinner, EmptyState, SlidePanel, Input, DatePicker, useToast,
+  Tabs, Avatar,
 } from '@/components/ui';
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
+import { fetcher } from '@/lib/api';
 import { Plus, Users } from 'lucide-react';
 
-type PanelMode = 'create' | 'detail' | null;
+type PanelMode = 'create' | null;
 
-const statusOptions = [
-  { value: '', label: '전체 상태' },
-  { value: 'ACTIVE', label: '재직' },
-  { value: 'ON_LEAVE', label: '휴직' },
-  { value: 'RESIGNED', label: '퇴직' },
-];
+interface DepartmentItem { id: string; name: string; }
+interface PositionItem { id: string; name: string; }
 
-const departmentFilterOptions = [
-  { value: '', label: '전체 부서' },
-];
-
-const departmentOptions = [
-  { value: '', label: '부서 선택' },
-  { value: 'dept-1', label: '경영지원부' },
-  { value: 'dept-2', label: '개발부' },
-  { value: 'dept-3', label: '영업부' },
-  { value: 'dept-4', label: '마케팅부' },
-  { value: 'dept-5', label: '인사부' },
-];
-
-const positionOptions = [
-  { value: '', label: '직급 선택' },
-  { value: 'pos-1', label: '사원' },
-  { value: 'pos-2', label: '주임' },
-  { value: 'pos-3', label: '대리' },
-  { value: 'pos-4', label: '과장' },
-  { value: 'pos-5', label: '부장' },
+const STATUS_TABS = [
+  { key: '', label: '재직' },
+  { key: 'ON_LEAVE', label: '휴직' },
+  { key: 'RESIGNED', label: '퇴직' },
 ];
 
 const insuranceModeOptions = [
@@ -80,23 +64,57 @@ const emptyForm: EmployeeForm = {
 
 export default function EmployeeListPage() {
   const toast = useToast();
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusTab, setStatusTab] = useState('');
   const [page, setPage] = useState(1);
+
+  // Dynamic department & position data
+  const { data: deptData } = useSWR<{ items: DepartmentItem[] }>('/api/departments', fetcher);
+  const { data: posData } = useSWR<{ items: PositionItem[] }>('/api/positions', fetcher);
+
+  const departmentFilterOptions = useMemo(() => [
+    { value: '', label: '전체 부서' },
+    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ], [deptData]);
+
+  const departmentOptions = useMemo(() => [
+    { value: '', label: '부서 선택' },
+    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ], [deptData]);
+
+  const positionOptions = useMemo(() => [
+    { value: '', label: '직급 선택' },
+    ...(posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
+  ], [posData]);
+
+  // statusTab '' = ACTIVE
+  const statusFilter = statusTab || 'ACTIVE';
 
   const { employees, total, isLoading, mutate } = useEmployees({
     search,
     departmentId: departmentFilter || undefined,
-    status: statusFilter || undefined,
+    status: statusFilter,
     page,
     limit: 20,
   });
 
-  const { createEmployee, updateEmployee } = useEmployeeMutations();
+  // Separate counts for each tab
+  const { employees: allActive } = useEmployees({ status: 'ACTIVE', limit: 1 });
+  const { total: activeTotal } = useEmployees({ status: 'ACTIVE', limit: 1 });
+  const { total: onLeaveTotal } = useEmployees({ status: 'ON_LEAVE', limit: 1 });
+  const { total: resignedTotal } = useEmployees({ status: 'RESIGNED', limit: 1 });
+
+  const tabsWithCount = useMemo(() => [
+    { key: '', label: '재직', count: activeTotal },
+    { key: 'ON_LEAVE', label: '휴직', count: onLeaveTotal },
+    { key: 'RESIGNED', label: '퇴직', count: resignedTotal },
+  ], [activeTotal, onLeaveTotal, resignedTotal]);
+
+  const { createEmployee } = useEmployeeMutations();
 
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Record<string, unknown> | null>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -104,23 +122,12 @@ export default function EmployeeListPage() {
 
   const openCreate = useCallback(() => {
     setForm(emptyForm);
-    setSelectedEmployee(null);
     setPanelMode('create');
   }, []);
 
-  const openDetail = useCallback((emp: Record<string, unknown>) => {
-    setSelectedEmployee(emp);
-    setForm({
-      name: (emp.name as string) || '',
-      email: (emp.email as string) || '',
-      phone: (emp.phone as string) || '',
-      departmentId: (emp.departmentId as string) || '',
-      positionId: (emp.positionId as string) || '',
-      joinDate: (emp.joinDate as string) || '',
-      baseSalary: '',
-      insuranceMode: 'AUTO',
-    });
-    setPanelMode('detail');
+  const handleTabChange = useCallback((key: string) => {
+    setStatusTab(key);
+    setPage(1);
   }, []);
 
   const handleSave = async () => {
@@ -142,13 +149,8 @@ export default function EmployeeListPage() {
         insuranceMode: form.insuranceMode,
       };
 
-      if (panelMode === 'create') {
-        await createEmployee(payload);
-        toast.success('직원이 등록되었습니다.');
-      } else if (selectedEmployee) {
-        await updateEmployee(selectedEmployee.id as string, payload);
-        toast.success('직원 정보가 수정되었습니다.');
-      }
+      await createEmployee(payload);
+      toast.success('직원이 등록되었습니다.');
       await mutate();
       setPanelMode(null);
     } catch {
@@ -160,16 +162,26 @@ export default function EmployeeListPage() {
 
   const columns = [
     { key: 'employeeNumber', label: '사번', sortable: true },
-    { key: 'name', label: '이름', sortable: true },
+    {
+      key: 'name',
+      label: '이름',
+      sortable: true,
+      render: (row: Record<string, unknown>) => (
+        <div className="flex items-center gap-3">
+          <Avatar name={(row.name as string) || '?'} size="sm" />
+          <span className="font-medium text-gray-900">{row.name as string}</span>
+        </div>
+      ),
+    },
     {
       key: 'departmentName',
       label: '부서',
-      render: (row: Record<string, unknown>) => (row.departmentName as string) || '-',
+      render: (row: Record<string, unknown>) => (row.departmentName as string) || (row.department as Record<string, unknown>)?.name as string || '-',
     },
     {
       key: 'positionName',
       label: '직급',
-      render: (row: Record<string, unknown>) => (row.positionName as string) || '-',
+      render: (row: Record<string, unknown>) => (row.positionName as string) || (row.position as Record<string, unknown>)?.name as string || '-',
     },
     {
       key: 'joinDate',
@@ -193,6 +205,14 @@ export default function EmployeeListPage() {
         </Button>
       </PageHeader>
 
+      {/* Lifecycle Tabs */}
+      <Tabs
+        tabs={tabsWithCount}
+        activeKey={statusTab}
+        onChange={handleTabChange}
+        className="mb-4"
+      />
+
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <SearchInput
@@ -206,12 +226,6 @@ export default function EmployeeListPage() {
           value={departmentFilter}
           onChange={setDepartmentFilter}
           placeholder="전체 부서"
-        />
-        <Select
-          options={statusOptions}
-          value={statusFilter}
-          onChange={setStatusFilter}
-          placeholder="전체 상태"
         />
       </div>
 
@@ -236,27 +250,12 @@ export default function EmployeeListPage() {
             <Table
               columns={columns}
               data={employees as unknown as Record<string, unknown>[]}
+              onRowClick={(row) => {
+                const id = row.id as string;
+                if (id) router.push(`/employees/${id}`);
+              }}
             />
           </div>
-
-          {/* Clickable row overlay via table row click */}
-          {employees.length > 0 && (
-            <div className="mt-1">
-              <p className="text-xs text-gray-400">
-                행을 클릭하면 상세 정보를 확인할 수 있습니다.
-              </p>
-              <div className="mt-2">
-                {employees.map((emp) => (
-                  <button
-                    key={emp.id}
-                    onClick={() => openDetail(emp as unknown as Record<string, unknown>)}
-                    className="sr-only"
-                    aria-label={`${emp.name} 상세 보기`}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
 
           <div className="mt-4 flex items-center justify-between">
             <p className="text-sm text-gray-500">총 {total}명</p>
@@ -269,11 +268,11 @@ export default function EmployeeListPage() {
         </>
       )}
 
-      {/* SlidePanel: Create / Detail */}
+      {/* SlidePanel: Create */}
       <SlidePanel
         open={panelMode !== null}
         onClose={() => setPanelMode(null)}
-        title={panelMode === 'create' ? '직원 등록' : '직원 상세'}
+        title="직원 등록"
         size="lg"
       >
         <div className="space-y-5">

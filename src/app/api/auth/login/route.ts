@@ -3,15 +3,19 @@ import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
-import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { loginSchema } from '@/presentation/api/schemas';
+import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
 
 export async function POST(request: NextRequest) {
-  try {
-    const { email, password } = await request.json();
+  const rateLimited = rateLimit(`login:${getClientIp(request.headers)}`, 5, 60_000);
+  if (rateLimited) return rateLimited;
 
-    if (!email || !password) {
-      return errorResponse('이메일과 비밀번호를 입력해주세요.', 400);
-    }
+  try {
+    const body = await request.json();
+    const validation = validateBody(loginSchema, body);
+    if (!validation.success) return validation.response;
+    const { email, password } = validation.data;
 
     const user = await prisma.user.findFirst({
       where: { email, deletedAt: null },

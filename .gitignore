@@ -10,6 +10,10 @@
 
 # testing
 /coverage
+/test-results/
+/e2e/.auth-state.json
+/e2e/.super-admin-auth-state.json
+/e2e/.employee-auth-state.json
 
 # next.js
 /.next/

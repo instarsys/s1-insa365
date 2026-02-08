@@ -11,11 +11,12 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Shield,
   ChevronDown,
   ChevronRight,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import type { Role } from '@/lib/types';
 
 interface SubMenuItem {
   label: string;
@@ -27,21 +28,25 @@ interface MenuItemConfig {
   href: string;
   icon: React.ComponentType<{ className?: string }>;
   section: string;
+  allowedRoles: Role[];
   children?: SubMenuItem[];
 }
 
+// PRD 4.9 역할별 메뉴 가시성
 const menuItems: MenuItemConfig[] = [
   {
     label: '대시보드',
     href: '/dashboard',
     icon: LayoutDashboard,
     section: '',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
   },
   {
     label: '직원 관리',
     href: '/employees',
     icon: Users,
     section: '인사',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
       { label: '직원 목록', href: '/employees/list' },
       { label: '부서/직급 관리', href: '/employees/departments' },
@@ -53,6 +58,7 @@ const menuItems: MenuItemConfig[] = [
     href: '/attendance',
     icon: Clock,
     section: '근태',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
       { label: '일별 근태', href: '/attendance/daily' },
       { label: '월별 현황', href: '/attendance/monthly' },
@@ -65,6 +71,7 @@ const menuItems: MenuItemConfig[] = [
     href: '/payroll',
     icon: Wallet,
     section: '급여',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
       { label: '급여 실행', href: '/payroll/run' },
       { label: '급여 이력', href: '/payroll/history' },
@@ -77,6 +84,7 @@ const menuItems: MenuItemConfig[] = [
     href: '/tax',
     icon: FileText,
     section: '세무/리포트',
+    allowedRoles: ['COMPANY_ADMIN'],
     children: [
       { label: '원천징수 현황', href: '/tax/withholding' },
       { label: '신고 데이터', href: '/tax/reports' },
@@ -87,9 +95,12 @@ const menuItems: MenuItemConfig[] = [
     href: '/reports',
     icon: BarChart3,
     section: '세무/리포트',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
       { label: '급여 리포트', href: '/reports/payroll' },
       { label: '근태 리포트', href: '/reports/attendance' },
+      { label: '부서별 인건비', href: '/reports/department-cost' },
+      { label: '4대보험 현황', href: '/reports/insurance-status' },
     ],
   },
   {
@@ -97,6 +108,7 @@ const menuItems: MenuItemConfig[] = [
     href: '/settings',
     icon: Settings,
     section: '관리',
+    allowedRoles: ['COMPANY_ADMIN'],
     children: [
       { label: '회사 정보', href: '/settings/company' },
       { label: '근무 정책', href: '/settings/work-policy' },
@@ -104,23 +116,26 @@ const menuItems: MenuItemConfig[] = [
       { label: '플랜/결제', href: '/settings/billing' },
     ],
   },
-  {
-    label: '시스템 관리',
-    href: '/system',
-    icon: Shield,
-    section: '관리',
-    children: [
-      { label: '법정 파라미터', href: '/system/legal-params' },
-      { label: '감사 로그', href: '/system/audit-log' },
-    ],
-  },
 ];
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { user, isLoading } = useAuth();
+  const userRole = user?.role;
+
+  const ROLE_HIERARCHY: Record<Role, number> = {
+    SYSTEM_ADMIN: 4, COMPANY_ADMIN: 3, MANAGER: 2, EMPLOYEE: 1,
+  };
+  const visibleMenuItems = userRole
+    ? menuItems.filter((item) => {
+        const userLevel = ROLE_HIERARCHY[userRole] ?? 0;
+        const minRequired = Math.min(...item.allowedRoles.map((r) => ROLE_HIERARCHY[r] ?? 99));
+        return userLevel >= minRequired;
+      })
+    : [];
+
   const [expandedItems, setExpandedItems] = useState<string[]>(() => {
-    // Auto-expand the menu containing the current path
-    const current = menuItems.find(
+    const current = visibleMenuItems.find(
       (item) => pathname.startsWith(item.href) && item.children,
     );
     return current ? [current.href] : [];
@@ -135,20 +150,32 @@ export function AdminSidebar() {
   const isActive = (href: string) => pathname === href;
   const isParentActive = (href: string) => pathname.startsWith(href) && pathname !== href;
 
-  // Precompute which items start a new section
+  // Precompute which items start a new section (based on visible items only)
   const sectionStarts = new Set<string>();
   let prevSection = '';
-  for (const item of menuItems) {
+  for (const item of visibleMenuItems) {
     if (item.section && item.section !== prevSection) {
       sectionStarts.add(item.href);
       prevSection = item.section;
     }
   }
 
+  if (isLoading) {
+    return (
+      <aside className="fixed left-0 top-14 bottom-0 z-40 w-60 overflow-y-auto border-r border-gray-200 bg-white">
+        <nav className="flex flex-col gap-1 py-4 px-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-10 animate-pulse rounded-md bg-gray-100" />
+          ))}
+        </nav>
+      </aside>
+    );
+  }
+
   return (
     <aside className="fixed left-0 top-14 bottom-0 z-40 w-60 overflow-y-auto border-r border-gray-200 bg-white">
       <nav className="flex flex-col py-4">
-        {menuItems.map((item) => {
+        {visibleMenuItems.map((item) => {
           const Icon = item.icon;
           const hasChildren = item.children && item.children.length > 0;
           const isExpanded = expandedItems.includes(item.href);

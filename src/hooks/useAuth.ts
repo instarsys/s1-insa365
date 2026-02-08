@@ -9,12 +9,14 @@ interface User {
   companyId: string;
   name: string;
   email: string;
+  phone?: string;
   role: 'SYSTEM_ADMIN' | 'COMPANY_ADMIN' | 'MANAGER' | 'EMPLOYEE';
   employeeNumber?: string;
   canViewSensitive: boolean;
   companyName?: string;
   departmentName?: string | null;
   positionName?: string | null;
+  joinDate?: string;
 }
 
 interface LoginInput {

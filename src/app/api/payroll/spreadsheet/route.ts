@@ -34,7 +34,40 @@ async function handler(request: NextRequest, auth: AuthContext) {
     orderBy: { user: { name: 'asc' } },
   });
 
-  return successResponse({ year, month, items: calculations });
+  const items = calculations.map((calc) => ({
+    employeeId: calc.userId,
+    employeeName: calc.user.name,
+    employeeNumber: calc.user.employeeNumber ?? '',
+    departmentName: calc.user.department?.name,
+    basePay: Number(calc.basePay),
+    items: calc.user.employeeSalaryItems.map((item) => ({
+      code: item.code,
+      name: item.name,
+      amount: Number(item.amount),
+      type: item.type,
+    })),
+    totalPay: Number(calc.totalPay),
+    totalDeduction: Number(calc.totalDeduction),
+    netPay: Number(calc.netPay),
+    status: calc.status,
+    isSkipped: calc.status === 'SKIPPED',
+    skipReason: calc.skipReason ?? undefined,
+    // Breakdown for inline editing
+    fixedAllowances: Number(calc.fixedAllowances),
+    variableAllowances: Number(calc.variableAllowances),
+    overtimePay: Number(calc.overtimePay),
+    nightPay: Number(calc.nightPay),
+    holidayPay: Number(calc.holidayPay),
+    nationalPension: Number(calc.nationalPension),
+    healthInsurance: Number(calc.healthInsurance),
+    longTermCare: Number(calc.longTermCare),
+    employmentInsurance: Number(calc.employmentInsurance),
+    incomeTax: Number(calc.incomeTax),
+    localIncomeTax: Number(calc.localIncomeTax),
+    calculationId: calc.id,
+  }));
+
+  return successResponse({ year, month, items });
 }
 
 export const GET = withAuth(handler) as (request: NextRequest) => Promise<NextResponse>;

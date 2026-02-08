@@ -20,26 +20,43 @@ async function getAccessToken(): Promise<string | null> {
   return null; // cookies are sent automatically
 }
 
-async function handleResponse<T>(response: Response): Promise<T> {
-  if (response.status === 401) {
-    // Skip refresh/redirect on auth pages to prevent infinite reload loop
-    if (typeof window !== 'undefined') {
-      const { pathname } = window.location;
-      if (pathname === '/login' || pathname === '/signup') {
-        const body = await response.json().catch(() => ({}));
-        throw new ApiError(401, body.message || 'Not authenticated', body);
-      }
-    }
-    // Try refresh
-    const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' });
-    if (!refreshRes.ok) {
-      window.location.href = '/login';
-      throw new ApiError(401, 'Authentication expired');
-    }
-    // Caller should retry
-    throw new ApiError(401, 'Token refreshed, please retry');
+// Mutex: prevents multiple concurrent refresh requests when several SWR hooks get 401 simultaneously
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = fetch('/api/auth/refresh', { method: 'POST', credentials: 'include' })
+    .then((res) => res.ok)
+    .finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
+
+function isAuthPage(): boolean {
+  if (typeof window === 'undefined') return false;
+  const { pathname } = window.location;
+  return pathname === '/login' || pathname === '/signup' || pathname === '/super-admin/login';
+}
+
+/**
+ * Fetch with automatic 401 → refresh → retry.
+ * On auth pages, skips refresh/redirect to prevent infinite loops.
+ */
+async function fetchWithAuth(url: string, options?: RequestInit): Promise<Response> {
+  const response = await fetch(url, { ...options, credentials: 'include' });
+
+  if (response.status !== 401 || isAuthPage()) return response;
+
+  const refreshed = await refreshAccessToken();
+  if (!refreshed) {
+    if (typeof window !== 'undefined') window.location.href = '/login';
+    return response;
   }
 
+  // Retry with new access_token cookie (automatically included by browser)
+  return fetch(url, { ...options, credentials: 'include' });
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new ApiError(response.status, body.message || response.statusText, body);
@@ -57,14 +74,13 @@ export async function apiGet<T>(url: string, params?: Record<string, string | nu
     }
   }
   const fullUrl = searchParams.toString() ? `${url}?${searchParams}` : url;
-  const response = await fetch(fullUrl, { credentials: 'include' });
+  const response = await fetchWithAuth(fullUrl);
   return handleResponse<T>(response);
 }
 
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetchWithAuth(url, {
     method: 'POST',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -72,9 +88,8 @@ export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
 }
 
 export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetchWithAuth(url, {
     method: 'PUT',
-    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -82,9 +97,8 @@ export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
 }
 
 export async function apiDelete<T>(url: string): Promise<T> {
-  const response = await fetch(url, {
+  const response = await fetchWithAuth(url, {
     method: 'DELETE',
-    credentials: 'include',
   });
   return handleResponse<T>(response);
 }

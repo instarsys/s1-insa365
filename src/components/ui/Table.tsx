@@ -17,6 +17,7 @@ interface TableProps<T> {
   onSort?: (key: string) => void;
   sortKey?: string;
   sortDir?: SortDirection;
+  onRowClick?: (row: T, index: number) => void;
   className?: string;
 }
 
@@ -26,6 +27,7 @@ function Table<T extends Record<string, unknown>>({
   onSort,
   sortKey,
   sortDir,
+  onRowClick,
   className,
 }: TableProps<T>) {
   return (
@@ -57,7 +59,14 @@ function Table<T extends Record<string, unknown>>({
         </TableHead>
         <TableBody>
           {data.map((row, i) => (
-            <TableRow key={i} className="even:bg-gray-50/50 hover:bg-purple-50/30">
+            <TableRow
+              key={i}
+              className={cn(
+                'even:bg-gray-50/50 hover:bg-purple-50/30',
+                onRowClick && 'cursor-pointer',
+              )}
+              onClick={onRowClick ? () => onRowClick(row, i) : undefined}
+            >
               {columns.map((col) => (
                 <TableCell key={col.key}>
                   {col.render ? col.render(row) : (row[col.key] as ReactNode)}

@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
-import { createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { checkInSchema } from '@/presentation/api/schemas';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
-    const { latitude, longitude } = await request.json();
+    const body = await request.json();
+    const validation = validateBody(checkInSchema, body);
+    if (!validation.success) return validation.response;
+    const { latitude, longitude } = validation.data;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

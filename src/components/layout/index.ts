@@ -4,3 +4,6 @@ export { MobileTabBar } from './MobileTabBar';
 export { MobileTopBar } from './MobileTopBar';
 export { Breadcrumb } from './Breadcrumb';
 export { PageHeader } from './PageHeader';
+export { GlobalSearch } from './GlobalSearch';
+export { SuperAdminSidebar } from './SuperAdminSidebar';
+export { SuperAdminTopBar } from './SuperAdminTopBar';

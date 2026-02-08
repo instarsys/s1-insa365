@@ -1,8 +1,11 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import { Card, CardBody, Tabs } from '@/components/ui';
+import { Spinner } from '@/components/ui/Spinner';
 import { cn } from '@/lib/utils';
+import { fetcher } from '@/lib/api';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -12,6 +15,25 @@ interface DayData {
   date: number;
   hours: number;
   status: DayStatus;
+}
+
+interface AttendanceItem {
+  date: string;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  status: string;
+  regularMinutes: number;
+  overtimeMinutes: number;
+  nightMinutes: number;
+  totalMinutes: number;
+  isHoliday: boolean;
+  note: string | null;
+}
+
+interface MyAttendanceResponse {
+  year: number;
+  month: number;
+  items: AttendanceItem[];
 }
 
 const statusDot: Record<DayStatus, string> = {
@@ -30,43 +52,51 @@ const statusLabel: Record<DayStatus, string> = {
   none: '',
 };
 
-function getWeekDays(): DayData[] {
+function mapStatus(apiStatus: string): DayStatus {
+  switch (apiStatus) {
+    case 'ON_TIME': return 'normal';
+    case 'LATE':
+    case 'EARLY_LEAVE':
+    case 'HALF_DAY': return 'late';
+    case 'ABSENT': return 'absent';
+    case 'LEAVE':
+    case 'HOLIDAY': return 'leave';
+    default: return 'none';
+  }
+}
+
+function buildAttendanceMap(items: AttendanceItem[]): Map<string, AttendanceItem> {
+  const map = new Map<string, AttendanceItem>();
+  for (const item of items) {
+    map.set(item.date, item);
+  }
+  return map;
+}
+
+function WeeklyView({ items }: { items: AttendanceItem[] }) {
+  const attendanceMap = useMemo(() => buildAttendanceMap(items), [items]);
+
   const today = new Date();
   const dayOfWeek = today.getDay();
   const monday = new Date(today);
   monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
 
-  return Array.from({ length: 7 }, (_, i) => {
+  const week: DayData[] = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i);
-    const isPast = d <= today;
-    const isWeekend = d.getDay() === 0 || d.getDay() === 6;
-    const hours = isPast && !isWeekend ? 8 : isPast && isWeekend ? 0 : 0;
-    const status: DayStatus = isPast && !isWeekend ? 'normal' : 'none';
-    return { date: d.getDate(), hours, status };
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const record = attendanceMap.get(key);
+    if (record) {
+      return {
+        date: d.getDate(),
+        hours: Math.round((record.totalMinutes / 60) * 10) / 10,
+        status: mapStatus(record.status),
+      };
+    }
+    return { date: d.getDate(), hours: 0, status: 'none' as DayStatus };
   });
-}
 
-function getMonthDays(year: number, month: number): (DayData | null)[] {
-  const firstDay = new Date(year, month, 1).getDay();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const today = new Date();
-
-  const cells: (DayData | null)[] = Array.from({ length: firstDay }, () => null);
-  for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(year, month, d);
-    const isPast = date <= today;
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-    const hours = isPast && !isWeekend ? 8 : 0;
-    const status: DayStatus = isPast && !isWeekend ? 'normal' : 'none';
-    cells.push({ date: d, hours, status });
-  }
-  return cells;
-}
-
-function WeeklyView() {
-  const week = getWeekDays();
-  const totalHours = week.reduce((sum, d) => sum + d.hours, 0);
+  const totalHours = Math.round(week.reduce((sum, d) => sum + d.hours, 0) * 10) / 10;
   const maxHours = 12;
 
   return (
@@ -105,22 +135,37 @@ function WeeklyView() {
   );
 }
 
-function MonthlyView() {
+function MonthlyView({ items, year, month }: { items: AttendanceItem[]; year: number; month: number }) {
+  const attendanceMap = useMemo(() => buildAttendanceMap(items), [items]);
   const today = new Date();
-  const [year] = useState(today.getFullYear());
-  const [month] = useState(today.getMonth());
 
-  const days = useMemo(() => getMonthDays(year, month), [year, month]);
-  const totalHours = days.reduce((sum, d) => sum + (d?.hours ?? 0), 0);
-  const workDays = days.filter((d) => d && d.status !== 'none').length;
+  const firstDay = new Date(year, month - 1, 1).getDay();
+  const daysInMonth = new Date(year, month, 0).getDate();
+
+  const cells: (DayData | null)[] = Array.from({ length: firstDay }, () => null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const record = attendanceMap.get(key);
+    if (record) {
+      cells.push({
+        date: d,
+        hours: Math.round((record.totalMinutes / 60) * 10) / 10,
+        status: mapStatus(record.status),
+      });
+    } else {
+      cells.push({ date: d, hours: 0, status: 'none' });
+    }
+  }
+
+  const totalHours = Math.round(cells.reduce((sum, d) => sum + (d?.hours ?? 0), 0) * 10) / 10;
+  const workDays = cells.filter((d) => d && d.status !== 'none').length;
 
   return (
     <div className="space-y-4">
       <p className="text-center text-sm font-semibold text-gray-800">
-        {year}년 {month + 1}월
+        {year}년 {month}월
       </p>
 
-      {/* Calendar header */}
       <div className="grid grid-cols-7 gap-1 text-center">
         {DAY_LABELS.map((label, i) => (
           <span key={label} className={cn('text-[10px] font-medium', i === 0 ? 'text-red-400' : 'text-gray-400')}>
@@ -129,16 +174,15 @@ function MonthlyView() {
         ))}
       </div>
 
-      {/* Calendar body */}
       <div className="grid grid-cols-7 gap-1">
-        {days.map((day, i) => (
+        {cells.map((day, i) => (
           <div key={i} className="flex flex-col items-center py-1.5">
             {day ? (
               <>
                 <span
                   className={cn(
                     'text-xs',
-                    day.date === today.getDate() && month === today.getMonth()
+                    day.date === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()
                       ? 'font-bold text-purple-600'
                       : 'text-gray-700',
                   )}
@@ -156,7 +200,6 @@ function MonthlyView() {
         ))}
       </div>
 
-      {/* Legend */}
       <div className="flex flex-wrap items-center gap-3 px-2">
         {(['normal', 'late', 'absent', 'leave'] as DayStatus[]).map((s) => (
           <div key={s} className="flex items-center gap-1">
@@ -166,7 +209,6 @@ function MonthlyView() {
         ))}
       </div>
 
-      {/* Summary */}
       <Card className="rounded-2xl">
         <CardBody className="p-4">
           <div className="flex items-center justify-between">
@@ -182,20 +224,37 @@ function MonthlyView() {
   );
 }
 
-const tabs = [
+const tabItems = [
   { key: 'weekly', label: '주간' },
   { key: 'monthly', label: '월간' },
 ];
 
 export default function EmployeeAttendancePage() {
   const [activeTab, setActiveTab] = useState('weekly');
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth() + 1;
+
+  const { data, isLoading } = useSWR<MyAttendanceResponse>(
+    `/api/attendance/my?year=${year}&month=${month}`,
+    fetcher,
+    { revalidateOnFocus: true },
+  );
+
+  const items = data?.items ?? [];
 
   return (
     <div className="space-y-4">
       <h1 className="text-lg font-semibold text-gray-800">근태</h1>
-      <Tabs tabs={tabs} activeKey={activeTab} onChange={setActiveTab} />
+      <Tabs tabs={tabItems} activeKey={activeTab} onChange={setActiveTab} />
       <div className="pt-2">
-        {activeTab === 'weekly' ? <WeeklyView /> : <MonthlyView />}
+        {isLoading ? (
+          <Spinner text="근태 데이터 로딩중..." className="py-12" />
+        ) : activeTab === 'weekly' ? (
+          <WeeklyView items={items} />
+        ) : (
+          <MonthlyView items={items} year={year} month={month} />
+        )}
       </div>
     </div>
   );

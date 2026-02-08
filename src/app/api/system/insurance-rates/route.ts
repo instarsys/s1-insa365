@@ -3,7 +3,8 @@ import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { successResponse, createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { createInsuranceRateSchema } from '@/presentation/api/schemas';
 
 async function handleGet(_request: NextRequest, _auth: AuthContext) {
   const rates = await prisma.insuranceRate.findMany({
@@ -15,11 +16,9 @@ async function handleGet(_request: NextRequest, _auth: AuthContext) {
 
 async function handlePost(request: NextRequest, auth: AuthContext) {
   const body = await request.json();
-  const { type, employeeRate, employerRate, minBase, maxBase, effectiveStartDate, effectiveEndDate, description } = body;
-
-  if (!type || employeeRate === undefined || employerRate === undefined || !effectiveStartDate || !effectiveEndDate) {
-    return errorResponse('필수 항목을 모두 입력해주세요.', 400);
-  }
+  const validation = validateBody(createInsuranceRateSchema, body);
+  if (!validation.success) return validation.response;
+  const { type, employeeRate, employerRate, minBase, maxBase, effectiveStartDate, effectiveEndDate, description } = validation.data;
 
   const rate = await prisma.insuranceRate.create({
     data: {

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
 import {
   Button, Table, Select, Modal, Spinner, EmptyState, useToast,
 } from '@/components/ui';
 import { useMonthlyAttendance, useAttendanceMutations } from '@/hooks';
+import { fetcher } from '@/lib/api';
 import { Calendar, CheckCircle2 } from 'lucide-react';
 
 function minutesToHours(minutes: number) {
@@ -36,9 +38,11 @@ export default function MonthlyAttendancePage() {
     label: `${i + 1}월`,
   }));
 
-  const departmentOptions = [
+  const { data: deptData } = useSWR<{ items: { id: string; name: string }[] }>('/api/departments', fetcher);
+  const departmentOptions = useMemo(() => [
     { value: '', label: '전체 부서' },
-  ];
+    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ], [deptData]);
 
   const handleConfirm = async () => {
     setIsConfirming(true);

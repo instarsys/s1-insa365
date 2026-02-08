@@ -9,7 +9,9 @@ import {
   createdResponse,
   errorResponse,
   parseSearchParams,
+  validateBody,
 } from '@/presentation/api/helpers';
+import { createEmployeeSchema } from '@/presentation/api/schemas';
 
 async function handleGet(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -67,11 +69,9 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
 async function handlePost(request: NextRequest, auth: AuthContext) {
   try {
     const body = await request.json();
-    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName } = body;
-
-    if (!name || !email || !password) {
-      return errorResponse('이름, 이메일, 비밀번호는 필수입니다.', 400);
-    }
+    const validation = validateBody(createEmployeeSchema, body);
+    if (!validation.success) return validation.response;
+    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName } = validation.data;
 
     const existing = await prisma.user.findFirst({
       where: { companyId: auth.companyId, email, deletedAt: null },
