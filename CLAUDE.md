@@ -283,3 +283,76 @@ Global tables (NO RLS): `companies`, `insurance_rates`, `tax_brackets`, `tax_exe
 
 ### Tests
 19 tenant isolation tests in `src/infrastructure/persistence/repositories/__tests__/tenant-isolation.test.ts`.
+
+## E2E Testing (Playwright)
+
+### Configuration (`playwright.config.ts`)
+- **Base URL**: `http://localhost:3001`
+- **Workers**: 1 (serial execution for stability)
+- **3 auth setup files** + **3 test projects** (각각 별도 인증 상태):
+
+| Project | Auth Setup | Storage State | Test Match |
+|---------|-----------|---------------|-----------|
+| chromium | `auth.setup.ts` (COMPANY_ADMIN) | `.admin-auth-state.json` | 일반 `*.spec.ts` |
+| super-admin | `super-admin-auth.setup.ts` (SYSTEM_ADMIN) | `.super-admin-auth-state.json` | `super-admin-*.spec.ts` |
+| employee | `employee-auth.setup.ts` (EMPLOYEE) | `.employee-auth-state.json` | `employee-*.spec.ts` |
+
+### Test Accounts
+- Admin: `admin@test-company.com` / `admin123!` — COMPANY_ADMIN
+- Super Admin: `sysadmin@insa365.com` / `sysadmin123!` — SYSTEM_ADMIN
+- Employee: `kim.ys@test-company.com` / `test1234!` — EMPLOYEE
+
+### Running Tests
+```bash
+# 전체 실행
+npx playwright test
+
+# 단일 파일
+npx playwright test e2e/dashboard.spec.ts
+
+# 프로젝트별
+npx playwright test --project=super-admin
+```
+
+### Test Results (2026-02-09)
+- **563 tests PASS**, 27 spec files + 3 setup files
+- **Coverage**: 관리자 15페이지 + Super Admin 7페이지 + 직원 5페이지
+- **Runtime**: ~2.6 minutes
+
+### Playwright Selector Guidelines
+- **`getByRole('button', { name, exact: true })`** 권장 — accessible name 기반, `<span>` 래핑된 텍스트도 정확히 매칭
+- **`:text-is("X")` 주의** — 자식 element(`<span>`, `<div>`)에 텍스트가 있으면 매칭 실패. Tabs 컴포넌트 등에서 문제 발생
+- **`:has-text("X")`** — 부분 매칭이라 편리하지만 다중 매칭 주의
+- **Hydration mismatch 필터링** — 실시간 시계(Date.now()) 등으로 인한 React hydration 에러는 JS 에러 테스트에서 `err.message.includes('Hydration')` 필터링
+
+### GPS Mocking (employee-home)
+```typescript
+context = await browser.newContext({
+  storageState: STORAGE_STATE_PATH,
+  geolocation: { latitude: 37.5665, longitude: 126.978 },
+  permissions: ['geolocation'],
+});
+```
+
+## Project Status (2026-02-09)
+
+### Completed
+- Sprint 1-6 전체 구현 완료
+- Gusto UI/UX 벤치마크 적용
+- Super Admin 콘솔 분리 (별도 URL/레이아웃/로그인)
+- E2E 563 테스트 전체 PASS
+- vitest 161 단위 테스트 PASS
+- TypeScript `tsc --noEmit` clean
+
+### Remaining (수동 작업)
+- Go/No-Go 체크리스트 (수동 검증 항목)
+- 배포 설정 (.env.production, Docker build, Sentry DSN)
+
+### Dev Server Setup
+```bash
+docker-compose up -d          # PostgreSQL (port 5438)
+npx prisma migrate dev        # DB migration
+npx prisma db seed            # Seed 50 employees
+npx tsx scripts/create-sysadmin.ts  # sysadmin 계정 (DB에 없을 때)
+npm run dev                    # Next.js (port 3001)
+```

@@ -1,7 +1,8 @@
 # s1-insa365 제품 요구사항 문서 (PRD)
 
-> Product Requirements Document v2.7
+> Product Requirements Document v2.8
 > 한국 중소기업 급여 자동화 SaaS
+> v2.8 (2026-02-09): Sprint 1-6 완료 + E2E 563 테스트 PASS 반영
 
 ---
 
