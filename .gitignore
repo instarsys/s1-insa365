@@ -49,4 +49,9 @@ next-env.d.ts
 # playwright-mcp
 .playwright-mcp/
 
+# project docs (private)
+CLAUDE.md
+TODO.md
+/docs/
+
 /src/generated/prisma
