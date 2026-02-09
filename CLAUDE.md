@@ -8,21 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The product vision: "Korean SME payroll in 3 minutes." Three core modules: Employee Management, Attendance Management, Salary Auto-calculation.
 
-## Technology Stack
-
-| Layer | Technology | Notes |
-|-------|-----------|-------|
-| Frontend | Next.js 15 (App Router) + React Server Components | SWR for client data fetching |
-| Backend | Next.js API Routes + **Clean Architecture (필수)** | UseCase 패턴, Domain/Application/Infrastructure 레이어 분리 |
-| ORM | Prisma | Type-safe queries, auto-migration |
-| Database | PostgreSQL + RLS | Row-Level Security for tenant isolation |
-| Batch Processing | BullMQ + Redis | Payroll batch calc, PDF generation queue |
-| File Storage | S3-compatible object storage (Cloudflare R2) | presigned URL upload, UUID filenames |
-| Monitoring | Sentry | Error tracking + performance monitoring |
-| Auth | JWT (Access 1hr + Refresh 7d) + bcrypt | See Auth section |
-| Infra | AWS (EC2/ECS + RDS PostgreSQL + ElastiCache Redis) | 다른 프로젝트와 AWS 통합 운영 |
-
-## Clean Architecture (필수)
+## Clean Architecture (필수) — 코딩 규칙
 
 모든 백엔드 코드는 Clean Architecture 레이어 구조를 따른다:
 
@@ -38,6 +24,7 @@ src/
 │   └── dtos/         # Request/Response DTOs
 ├── infrastructure/   # Frameworks & Drivers
 │   ├── persistence/  # Prisma repositories (implements ports)
+│   ├── di/           # DI 컨테이너 (container.ts)
 │   ├── queue/        # BullMQ job processors
 │   ├── encryption/   # AES-256-GCM service
 │   └── external/     # 외부 API 연동
@@ -50,6 +37,86 @@ src/
 domain 레이어는 어떤 외부 라이브러리에도 의존하지 않는다.
 급여 계산 핵심 로직(Phase 0~5)은 반드시 domain/application 레이어에 위치.
 
+### API Route 필수 패턴 (반드시 준수)
+
+모든 API Route에서 DB 접근은 **반드시** DI 컨테이너(`getContainer()`)를 통해서만 수행한다:
+
+```typescript
+// ✅ 올바른 패턴: getContainer()를 통한 Repository/UseCase 접근
+import { getContainer } from '@/infrastructure/di/container';
+
+export async function GET(req: NextRequest) {
+  const user = await getAuthUser(req);
+  const { employeeRepo } = getContainer();
+  const data = await employeeRepo.findAll(user.companyId, filters);
+  return NextResponse.json(data);
+}
+
+// ✅ UseCase를 통한 비즈니스 로직 실행
+export async function POST(req: NextRequest) {
+  const user = await getAuthUser(req);
+  const { calculatePayrollUseCase } = getContainer();
+  const result = await calculatePayrollUseCase.execute({ companyId: user.companyId, ...body });
+  return NextResponse.json(result);
+}
+```
+
+### 절대 금지 패턴 (위반 시 즉시 수정)
+
+```typescript
+// ❌ 절대 금지: API Route에서 prisma 직접 import
+import { prisma } from '@/infrastructure/persistence/prisma/client';
+
+// ❌ 절대 금지: API Route에서 prisma 직접 호출
+const data = await prisma.user.findMany({ where: { companyId } });
+const employee = await prisma.employee.create({ data: { ... } });
+
+// ❌ 절대 금지: API Route에서 getPrismaForTenant 직접 호출
+const tenantPrisma = getPrismaForTenant(companyId);
+const data = await tenantPrisma.user.findMany();
+```
+
+**교훈**: 프로젝트 초기에 "클린 아키텍처 필수"라는 추상적 원칙만 기술하고 구체적 금지/필수 패턴을 명시하지 않아, 80개 API 라우트에서 prisma를 직접 호출하는 코드가 생성됨. 이후 104개 파일 대규모 리팩토링이 필요했음 (커밋 `c28fa9a`).
+
+### 새 API Route 생성 시 체크리스트
+
+1. 필요한 Repository 메서드가 `src/infrastructure/persistence/repositories/`에 있는지 확인
+2. 없으면 Repository 클래스에 메서드 추가
+3. 새 Repository인 경우 → `src/infrastructure/di/container.ts`에 import + 인스턴스 생성 + export 추가
+4. API Route에서 `const { xxxRepo } = getContainer();`로 접근
+5. **최종 확인**: 해당 파일에 `prisma`를 직접 import하는 코드가 없는지 검증
+
+### DI 컨테이너 (`src/infrastructure/di/container.ts`)
+
+- **싱글톤 패턴**: 26개 Repository + 49개 Use Case를 한 곳에서 관리
+- **의존성 주입**: Use Case 생성 시 필요한 Repository를 생성자로 주입
+- **새 Repository 추가 절차**:
+  1. `src/infrastructure/persistence/repositories/XxxRepository.ts` 클래스 생성
+  2. `container.ts`에 import → 인스턴스 생성 → `getContainer()` 반환 객체에 추가
+- **새 Use Case 추가 절차**:
+  1. `src/application/use-cases/XxxUseCase.ts` 클래스 생성
+  2. `container.ts`에 import → Repository 의존성 주입하며 인스턴스 생성 → export
+
+### 유일한 예외
+
+- **`auth/signup`**: 회사 + 사용자 + 시드 데이터(부서/직급/급여규칙/근로정책 등)를 `$transaction`으로 원자적 생성하는 복합 트랜잭션. 단일 Repository로 분리하기 어려워 현재 상태 유지.
+
+---
+
+## Technology Stack
+
+| Layer | Technology | Notes |
+|-------|-----------|-------|
+| Frontend | Next.js 15 (App Router) + React Server Components | SWR for client data fetching |
+| Backend | Next.js API Routes + **Clean Architecture (필수)** | UseCase 패턴, Domain/Application/Infrastructure 레이어 분리 |
+| ORM | Prisma | Type-safe queries, auto-migration |
+| Database | PostgreSQL + RLS | Row-Level Security for tenant isolation |
+| Batch Processing | BullMQ + Redis | Payroll batch calc, PDF generation queue |
+| File Storage | S3-compatible object storage (Cloudflare R2) | presigned URL upload, UUID filenames |
+| Monitoring | Sentry | Error tracking + performance monitoring |
+| Auth | JWT (Access 1hr + Refresh 7d) + bcrypt | See Auth section |
+| Infra | AWS (EC2/ECS + RDS PostgreSQL + ElastiCache Redis) | 다른 프로젝트와 AWS 통합 운영 |
+
 ## Architecture Principles (from PRD/MVP)
 
 These are hard requirements derived from s0 lessons — violating them caused production bugs:
@@ -60,7 +127,6 @@ These are hard requirements derived from s0 lessons — violating them caused pr
 - **Multi-tenancy via companyId (구현 완료)** — Every DB query must filter by `companyId`. JWT tokens carry `companyId`. All 12 Repositories validate companyId via `findFirst` before `update`/`softDelete` (returns null on mismatch). 5 API routes patched for companyId leaks.
 - **Soft delete everywhere** — Use `deletedAt` field, never hard delete. Korean labor law requires 3-year data retention.
 - **PII encryption** — Resident registration numbers (주민등록번호) use AES-256-GCM encryption.
-- **Clean Architecture (필수)** — 모든 백엔드 코드는 domain/application/infrastructure/presentation 4개 레이어로 분리. 의존성 방향: 바깥→안쪽. domain은 외부 의존성 없는 순수 TypeScript. 급여 계산 핵심 로직은 domain/application에만 위치.
 - **DB-level tenant isolation (RLS) (구현 완료)** — PostgreSQL RLS on 16 tenant tables via `current_setting('app.company_id')`. `getPrismaForTenant(companyId)` extension auto-injects companyId (incremental adoption). Defense-in-depth: application code + DB policy both enforce isolation. Global tables (companies, insurance_rates, tax_brackets, tax_exempt_limits, minimum_wages, legal_parameters) excluded from RLS.
 - **PII field-level encryption** — Both 주민등록번호 AND 계좌번호 use AES-256-GCM. Decryption requires `canViewSensitive` permission flag. All PII access logged to AuditLog (개인정보보호법 compliance).
 - **Async batch processing** — Payroll batch calculation (300+ employees) runs via BullMQ job queue, not synchronous API. Frontend polls progress via status endpoint. PDF bulk generation also queued.
@@ -216,6 +282,8 @@ JWT-based: Access Token (1hr) + Refresh Token (7d). Passwords: bcrypt with 10 sa
 - Rate limiting: API 100/min per IP
 - `useAuth()` hook (`src/hooks/useAuth.ts`): SWR로 `/api/auth/me` fetch. `revalidateOnFocus: false`, `errorRetryCount: 0`으로 설정하여 미인증 상태에서 불필요한 재시도 방지
 
+---
+
 ## Seed Data on Company Signup
 
 Auto-created: 5 departments, 5 positions, 1 work policy (09:00-18:00, 60min break), 1 work location, 11 allowance rules (A01-A11), 12 deduction rules (D01-D12), 2 minimum wages (2025-2026), 10 legal parameters (work hours, overtime rates, etc.).
@@ -314,11 +382,6 @@ npx playwright test e2e/dashboard.spec.ts
 npx playwright test --project=super-admin
 ```
 
-### Test Results (2026-02-09)
-- **563 tests PASS**, 27 spec files + 3 setup files
-- **Coverage**: 관리자 15페이지 + Super Admin 7페이지 + 직원 5페이지
-- **Runtime**: ~2.6 minutes
-
 ### Playwright Selector Guidelines
 - **`getByRole('button', { name, exact: true })`** 권장 — accessible name 기반, `<span>` 래핑된 텍스트도 정확히 매칭
 - **`:text-is("X")` 주의** — 자식 element(`<span>`, `<div>`)에 텍스트가 있으면 매칭 실패. Tabs 컴포넌트 등에서 문제 발생
@@ -334,36 +397,8 @@ context = await browser.newContext({
 });
 ```
 
-## Project Status (2026-02-09)
+## Dev Server Setup
 
-### Completed
-- Sprint 1-6 전체 구현 완료
-- Gusto UI/UX 벤치마크 적용
-- Super Admin 콘솔 분리 (별도 URL/레이아웃/로그인)
-- E2E 563 테스트 전체 PASS
-- vitest 161 단위 테스트 PASS
-- TypeScript `tsc --noEmit` clean
-- **시프티(Shiftee) 벤치마크 분석 + 근태 UI 개선** (2026-02-09)
-  - `docs/shiftee-benchmark.md` — 14개 페이지 심층 분석 + GAP 분석 문서
-  - 달력형: 미퇴근 빨간 ●, 페이지네이션 옵션(50/100/200/500), 휴가 표시 토글
-  - 목록형: 페이지네이션 옵션(10/25/50/100), 요약 바 총 시간(h) 추가
-  - 근태 관련 리팩토링: attendance/daily → records(목록형), monthly → calendar(달력형) URL 분리
-
-### Remaining (수동 작업)
-- Go/No-Go 체크리스트 (수동 검증 항목)
-- 배포 설정 (.env.production, Docker build, Sentry DSN)
-
-### Next Implementation Targets (시프티 벤치마크 Post-MVP)
-- 지점별 색상 바 (달력형 셀 좌측, 부서/지점별 고유 컬러)
-- 컬럼별 검색 필터 (목록형 테이블 각 헤더 아래 인풋)
-- 비활성화 토글 (직원/부서/지점 "비활성화된 항목 보기")
-- 다운로드/업로드 버튼 (모든 관리 페이지 Excel/CSV)
-- 휴가 3뷰 탭 (유형별/목록/월별) + 휴가 관리 달력 모달
-- 휴가 그룹 계층 (그룹→유형 2단계) + 자동 발생 규칙
-- GPS 장소명 표시 (좌표 대신 WorkLocation 이름)
-- 출퇴근 장소 GPS 반경 설정 UI
-
-### Dev Server Setup
 ```bash
 docker-compose up -d          # PostgreSQL (port 5438)
 npx prisma migrate dev        # DB migration
