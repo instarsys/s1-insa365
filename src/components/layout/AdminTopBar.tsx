@@ -29,7 +29,7 @@ export function AdminTopBar() {
     <header className="fixed top-0 left-0 right-0 z-50 flex h-14 items-center justify-between border-b border-gray-200 bg-white px-6">
       {/* Left: Logo */}
       <div className="flex items-center gap-3">
-        <span className="text-lg font-bold text-purple-600">s1-insa365</span>
+        <span className="text-lg font-bold text-indigo-600">s1-insa365</span>
       </div>
 
       {/* Center: Global Search */}
@@ -57,7 +57,7 @@ export function AdminTopBar() {
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowMenu(!showMenu)}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100 text-sm font-medium text-purple-600 hover:bg-purple-200 transition-colors"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm font-medium text-indigo-600 hover:bg-indigo-200 transition-colors"
           >
             {initial}
           </button>

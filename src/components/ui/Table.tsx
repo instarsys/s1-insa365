@@ -62,7 +62,7 @@ function Table<T extends Record<string, unknown>>({
             <TableRow
               key={i}
               className={cn(
-                'even:bg-gray-50/50 hover:bg-purple-50/30',
+                'even:bg-gray-50/50 hover:bg-indigo-50/30',
                 onRowClick && 'cursor-pointer',
               )}
               onClick={onRowClick ? () => onRowClick(row, i) : undefined}

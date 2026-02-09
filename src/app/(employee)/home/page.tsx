@@ -158,7 +158,7 @@ export default function EmployeeHomePage() {
   const buttonLabel = clockStatus === 'checked_in' ? '퇴근하기' : '출근하기';
   const buttonColor = clockStatus === 'checked_in'
     ? 'bg-red-500 hover:bg-red-600 active:bg-red-700'
-    : 'bg-purple-600 hover:bg-purple-700 active:bg-purple-800';
+    : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800';
 
   const recentNotifications = notifications.slice(0, 5);
 
@@ -226,7 +226,7 @@ export default function EmployeeHomePage() {
             </div>
             <div className="text-center">
               <p className="text-[10px] text-gray-400">근무시간</p>
-              <p className="mt-0.5 text-sm font-semibold text-purple-600">
+              <p className="mt-0.5 text-sm font-semibold text-indigo-600">
                 {workHours}시간 {workMins}분
               </p>
             </div>
@@ -245,7 +245,7 @@ export default function EmployeeHomePage() {
           </div>
           <div className="text-right">
             <p className="text-xs text-gray-400">지난달 실수령</p>
-            <p className="mt-0.5 text-sm font-bold text-purple-600">
+            <p className="mt-0.5 text-sm font-bold text-indigo-600">
               {lastMonthPay != null ? formatKRW(lastMonthPay) : '-'}
             </p>
           </div>
@@ -256,7 +256,7 @@ export default function EmployeeHomePage() {
       <div>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-sm font-semibold text-gray-800">최근 알림</p>
-          <button className="flex items-center text-xs text-purple-600">
+          <button className="flex items-center text-xs text-indigo-600">
             전체보기 <ChevronRight className="h-3 w-3" />
           </button>
         </div>
@@ -269,8 +269,8 @@ export default function EmployeeHomePage() {
               return (
                 <Card key={n.id} className="rounded-2xl">
                   <CardBody className="flex items-start gap-3 p-3">
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-50">
-                      <Icon className="h-4 w-4 text-purple-600" />
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-indigo-50">
+                      <Icon className="h-4 w-4 text-indigo-600" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className={cn('text-xs', n.isRead ? 'text-gray-500' : 'font-medium text-gray-800')}>
@@ -278,7 +278,7 @@ export default function EmployeeHomePage() {
                       </p>
                       <p className="mt-0.5 text-[10px] text-gray-400">{timeAgo(n.createdAt)}</p>
                     </div>
-                    {!n.isRead && <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-purple-600" />}
+                    {!n.isRead && <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-indigo-600" />}
                   </CardBody>
                 </Card>
               );

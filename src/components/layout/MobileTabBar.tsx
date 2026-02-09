@@ -28,7 +28,7 @@ export function MobileTabBar() {
             href={tab.href}
             className={cn(
               'flex flex-col items-center gap-0.5',
-              active ? 'text-purple-600' : 'text-gray-400',
+              active ? 'text-indigo-600' : 'text-gray-400',
             )}
           >
             <Icon className="h-6 w-6" />

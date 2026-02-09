@@ -11,6 +11,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   const leaveRequest = await prisma.leaveRequest.findFirst({
     where: { id, companyId: auth.companyId, deletedAt: null },
+    include: {
+      leaveTypeConfig: { select: { deductsFromBalance: true } },
+    },
   });
 
   if (!leaveRequest) return notFoundResponse('휴가 신청');
@@ -27,20 +30,26 @@ async function handler(request: NextRequest, auth: AuthContext) {
     },
   });
 
-  // Update leave balance
-  const year = new Date(leaveRequest.startDate).getFullYear();
-  const balance = await prisma.leaveBalance.findFirst({
-    where: { companyId: auth.companyId, userId: leaveRequest.userId, year },
-  });
+  // Update leave balance (skip if leaveTypeConfig says deductsFromBalance=false)
+  const shouldDeduct = leaveRequest.leaveTypeConfig
+    ? leaveRequest.leaveTypeConfig.deductsFromBalance
+    : true;
 
-  if (balance) {
-    await prisma.leaveBalance.update({
-      where: { id: balance.id },
-      data: {
-        usedDays: { increment: leaveRequest.days },
-        remainingDays: { decrement: leaveRequest.days },
-      },
+  if (shouldDeduct) {
+    const year = new Date(leaveRequest.startDate).getFullYear();
+    const balance = await prisma.leaveBalance.findFirst({
+      where: { companyId: auth.companyId, userId: leaveRequest.userId, year },
     });
+
+    if (balance) {
+      await prisma.leaveBalance.update({
+        where: { id: balance.id },
+        data: {
+          usedDays: { increment: leaveRequest.days },
+          remainingDays: { decrement: leaveRequest.days },
+        },
+      });
+    }
   }
 
   // Create notification

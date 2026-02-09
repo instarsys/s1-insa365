@@ -20,8 +20,8 @@ export default function BillingPage() {
           </CardHeader>
           <CardBody>
             <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-50">
-                <Crown className="h-6 w-6 text-purple-600" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-indigo-50">
+                <Crown className="h-6 w-6 text-indigo-600" />
               </div>
               <div>
                 <p className="font-semibold text-gray-800">Free Trial</p>
@@ -59,7 +59,7 @@ export default function BillingPage() {
                   <span className="text-sm font-medium">0 / 50</span>
                 </div>
                 <div className="mt-1.5 h-2 w-full rounded-full bg-gray-100">
-                  <div className="h-2 rounded-full bg-purple-500" style={{ width: '0%' }} />
+                  <div className="h-2 rounded-full bg-indigo-500" style={{ width: '0%' }} />
                 </div>
               </div>
               <div>

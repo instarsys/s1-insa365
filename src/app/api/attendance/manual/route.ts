@@ -7,7 +7,7 @@ import { createdResponse, errorResponse } from '@/presentation/api/helpers';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
-    const { userId, date, checkInTime, checkOutTime, status, note, isHoliday } = await request.json();
+    const { userId, date, checkInTime, checkOutTime, status, note, isHoliday, isConfirmed } = await request.json();
 
     if (!userId || !date) {
       return errorResponse('직원과 날짜를 지정해주세요.', 400);
@@ -39,6 +39,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       note: note ?? null,
       isHoliday: isHoliday ?? false,
       totalMinutes,
+      ...(isConfirmed !== undefined && { isConfirmed }),
     };
 
     const attendance = existing

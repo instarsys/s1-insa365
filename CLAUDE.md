@@ -343,10 +343,25 @@ context = await browser.newContext({
 - E2E 563 테스트 전체 PASS
 - vitest 161 단위 테스트 PASS
 - TypeScript `tsc --noEmit` clean
+- **시프티(Shiftee) 벤치마크 분석 + 근태 UI 개선** (2026-02-09)
+  - `docs/shiftee-benchmark.md` — 14개 페이지 심층 분석 + GAP 분석 문서
+  - 달력형: 미퇴근 빨간 ●, 페이지네이션 옵션(50/100/200/500), 휴가 표시 토글
+  - 목록형: 페이지네이션 옵션(10/25/50/100), 요약 바 총 시간(h) 추가
+  - 근태 관련 리팩토링: attendance/daily → records(목록형), monthly → calendar(달력형) URL 분리
 
 ### Remaining (수동 작업)
 - Go/No-Go 체크리스트 (수동 검증 항목)
 - 배포 설정 (.env.production, Docker build, Sentry DSN)
+
+### Next Implementation Targets (시프티 벤치마크 Post-MVP)
+- 지점별 색상 바 (달력형 셀 좌측, 부서/지점별 고유 컬러)
+- 컬럼별 검색 필터 (목록형 테이블 각 헤더 아래 인풋)
+- 비활성화 토글 (직원/부서/지점 "비활성화된 항목 보기")
+- 다운로드/업로드 버튼 (모든 관리 페이지 Excel/CSV)
+- 휴가 3뷰 탭 (유형별/목록/월별) + 휴가 관리 달력 모달
+- 휴가 그룹 계층 (그룹→유형 2단계) + 자동 발생 규칙
+- GPS 장소명 표시 (좌표 대신 WorkLocation 이름)
+- 출퇴근 장소 GPS 반경 설정 UI
 
 ### Dev Server Setup
 ```bash

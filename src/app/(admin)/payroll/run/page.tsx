@@ -187,14 +187,14 @@ export default function PayrollRunPage() {
                   options={yearOptions}
                   value={String(year)}
                   onChange={(v) => setYear(Number(v))}
-                  className="w-32"
+                  wrapperClassName="w-28"
                 />
                 <Select
                   label="월"
                   options={MONTH_OPTIONS}
                   value={String(month)}
                   onChange={(v) => setMonth(Number(v))}
-                  className="w-28"
+                  wrapperClassName="w-24"
                 />
                 <Button onClick={handleCalculate} disabled={calculating}>
                   {calculating ? (
@@ -283,7 +283,7 @@ export default function PayrollRunPage() {
                       {rows.map((row) => (
                         <tr
                           key={row.employeeId}
-                          className={`hover:bg-purple-50/30 ${row.isSkipped ? 'bg-gray-50 opacity-60' : ''}`}
+                          className={`hover:bg-indigo-50/30 ${row.isSkipped ? 'bg-gray-50 opacity-60' : ''}`}
                         >
                           <td className="sticky left-0 z-10 bg-white px-3 py-3">
                             <Checkbox
@@ -314,7 +314,7 @@ export default function PayrollRunPage() {
                                 {isEditing ? (
                                   <input
                                     type="number"
-                                    className="w-24 rounded border border-purple-300 bg-purple-50 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-purple-500"
+                                    className="w-24 rounded border border-indigo-300 bg-indigo-50 px-2 py-1 text-right text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                                     value={editingCells[editKey]}
                                     onChange={(e) => updateEditValue(editKey, e.target.value)}
                                     onBlur={() => commitEdit(row, col.code)}
@@ -326,7 +326,7 @@ export default function PayrollRunPage() {
                                   />
                                 ) : (
                                   <span
-                                    className={isVariable ? 'cursor-pointer rounded px-1 hover:bg-purple-50' : ''}
+                                    className={isVariable ? 'cursor-pointer rounded px-1 hover:bg-indigo-50' : ''}
                                     onClick={isVariable ? () => startEdit(row.employeeId, col.code, item?.amount ?? 0) : undefined}
                                   >
                                     {formatKRW(getItemAmount(row, col.code))}
@@ -553,7 +553,7 @@ export default function PayrollRunPage() {
                 <CardBody>
                   <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                      <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
                         <CalendarDays className="h-5 w-5" />
                       </div>
                       <div>
@@ -562,7 +562,7 @@ export default function PayrollRunPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="rounded-lg bg-purple-50 p-2 text-purple-600">
+                      <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">
                         <Users className="h-5 w-5" />
                       </div>
                       <div>

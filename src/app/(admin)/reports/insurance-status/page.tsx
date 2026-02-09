@@ -62,7 +62,7 @@ function InsuranceCard({ title, employeeTotal, employerTotal, enrolledCount }: {
           {employerTotal !== undefined && (
             <div className="flex justify-between border-t border-gray-100 pt-2 text-xs">
               <span className="font-medium text-gray-600">합계</span>
-              <span className="font-semibold text-purple-600">{formatKRW(employeeTotal + employerTotal)}</span>
+              <span className="font-semibold text-indigo-600">{formatKRW(employeeTotal + employerTotal)}</span>
             </div>
           )}
           {enrolledCount !== undefined && (
@@ -112,14 +112,14 @@ export default function InsuranceStatusReportPage() {
               options={yearOptions}
               value={String(year)}
               onChange={(v) => setYear(Number(v))}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="월"
               options={MONTH_OPTIONS}
               value={String(month)}
               onChange={(v) => setMonth(Number(v))}
-              className="w-28"
+              wrapperClassName="w-24"
             />
           </div>
         </CardBody>
@@ -151,7 +151,7 @@ export default function InsuranceStatusReportPage() {
             <Card>
               <CardBody className="p-4 text-center">
                 <p className="text-xs text-gray-500">총 보험료</p>
-                <p className="mt-1 text-lg font-bold text-purple-600">{formatKRW(totalEmployee + totalEmployer)}</p>
+                <p className="mt-1 text-lg font-bold text-indigo-600">{formatKRW(totalEmployee + totalEmployer)}</p>
               </CardBody>
             </Card>
           </div>

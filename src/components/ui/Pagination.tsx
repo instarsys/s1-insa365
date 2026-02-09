@@ -82,7 +82,7 @@ function Pagination({
             className={cn(
               'inline-flex h-8 w-8 items-center justify-center rounded-lg text-sm font-medium transition-colors',
               page === currentPage
-                ? 'bg-purple-600 text-white'
+                ? 'bg-indigo-600 text-white'
                 : 'text-gray-600 hover:bg-gray-100',
             )}
           >

@@ -140,8 +140,8 @@ export default function EmployeeImportPage() {
           onClick={() => fileInputRef.current?.click()}
           className={`flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-12 transition-colors ${
             isDragOver
-              ? 'border-purple-500 bg-purple-50'
-              : 'border-gray-300 bg-gray-50 hover:border-purple-400 hover:bg-purple-50/50'
+              ? 'border-indigo-500 bg-indigo-50'
+              : 'border-gray-300 bg-gray-50 hover:border-indigo-400 hover:bg-indigo-50/50'
           }`}
         >
           <Upload className="mb-3 h-10 w-10 text-gray-400" />

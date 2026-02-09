@@ -44,7 +44,7 @@ function Avatar({ name, imageUrl, size = 'md', className }: AvatarProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center justify-center rounded-full bg-purple-100 font-medium text-purple-700',
+        'inline-flex items-center justify-center rounded-full bg-indigo-100 font-medium text-indigo-700',
         sizeStyles[size],
         className,
       )}

@@ -70,14 +70,14 @@ export default function DepartmentCostReportPage() {
               options={yearOptions}
               value={String(year)}
               onChange={(v) => setYear(Number(v))}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="월"
               options={MONTH_OPTIONS}
               value={String(month)}
               onChange={(v) => setMonth(Number(v))}
-              className="w-28"
+              wrapperClassName="w-24"
             />
           </div>
         </CardBody>
@@ -115,7 +115,7 @@ export default function DepartmentCostReportPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.map((row) => (
-                    <tr key={row.departmentId} className="hover:bg-purple-50/30">
+                    <tr key={row.departmentId} className="hover:bg-indigo-50/30">
                       <td className="px-4 py-3 font-medium">{row.departmentName}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{row.employeeCount}명</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatKRW(row.totalPay)}</td>

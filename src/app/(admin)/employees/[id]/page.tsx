@@ -271,7 +271,7 @@ export default function EmployeeDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {salaryItems.map((item) => (
-                    <tr key={item.id as string} className="hover:bg-purple-50/30">
+                    <tr key={item.id as string} className="hover:bg-indigo-50/30">
                       <td className="px-4 py-3 text-gray-500">{item.code as string}</td>
                       <td className="px-4 py-3 font-medium text-gray-800">{item.name as string}</td>
                       <td className="px-4 py-3">

@@ -80,7 +80,7 @@ export default function WithholdingPage() {
             options={yearOptions}
             value={String(year)}
             onChange={(v) => { setYear(Number(v)); setLoading(true); }}
-            className="w-32"
+            wrapperClassName="w-28"
           />
         </CardBody>
       </Card>
@@ -116,7 +116,7 @@ export default function WithholdingPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {data.map((row) => (
-                    <tr key={row.month} className="hover:bg-purple-50/30">
+                    <tr key={row.month} className="hover:bg-indigo-50/30">
                       <td className="px-4 py-3 font-medium">{row.month}월</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatKRW(row.taxableIncome)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatKRW(row.nationalPension)}</td>

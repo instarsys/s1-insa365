@@ -79,14 +79,14 @@ export default function PayrollReportPage() {
               options={yearOptions}
               value={String(startYear)}
               onChange={(v) => { setStartYear(Number(v)); setLoading(true); }}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="시작 월"
               options={MONTH_OPTIONS}
               value={String(startMonth)}
               onChange={(v) => { setStartMonth(Number(v)); setLoading(true); }}
-              className="w-28"
+              wrapperClassName="w-24"
             />
             <span className="pb-2 text-gray-400">~</span>
             <Select
@@ -94,14 +94,14 @@ export default function PayrollReportPage() {
               options={yearOptions}
               value={String(endYear)}
               onChange={(v) => { setEndYear(Number(v)); setLoading(true); }}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="종료 월"
               options={MONTH_OPTIONS}
               value={String(endMonth)}
               onChange={(v) => { setEndMonth(Number(v)); setLoading(true); }}
-              className="w-28"
+              wrapperClassName="w-24"
             />
           </div>
         </CardBody>
@@ -147,7 +147,7 @@ export default function PayrollReportPage() {
                       : null;
 
                     return (
-                      <tr key={`${row.year}-${row.month}`} className="hover:bg-purple-50/30">
+                      <tr key={`${row.year}-${row.month}`} className="hover:bg-indigo-50/30">
                         <td className="px-4 py-3 font-medium">{row.year}년 {row.month}월</td>
                         <td className="px-4 py-3 text-right tabular-nums">{row.totalEmployees}명</td>
                         <td className="px-4 py-3 text-right tabular-nums">{formatKRW(row.totalPay)}</td>

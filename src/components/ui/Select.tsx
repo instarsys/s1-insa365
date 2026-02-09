@@ -12,14 +12,15 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onC
   error?: string;
   placeholder?: string;
   onChange?: (value: string) => void;
+  wrapperClassName?: string;
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, options, error, placeholder, id, value, onChange, ...props }, ref) => {
+  ({ className, label, options, error, placeholder, id, value, onChange, wrapperClassName, ...props }, ref) => {
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
-      <div className="w-full">
+      <div className={cn('w-full', wrapperClassName)}>
         {label && (
           <label
             htmlFor={selectId}
@@ -35,7 +36,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
           onChange={(e) => onChange?.(e.target.value)}
           className={cn(
             'h-10 w-full rounded-lg border px-3 text-sm transition-colors duration-150',
-            'focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500',
+            'focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500',
             'disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-50 disabled:text-gray-400',
             error
               ? 'border-red-500 bg-red-50 focus:ring-red-500/20 focus:border-red-500'

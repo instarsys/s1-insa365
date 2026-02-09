@@ -23,13 +23,13 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 const icons: Record<ToastType, ReactNode> = {
   success: <CheckCircle className="h-5 w-5 text-emerald-500" />,
   error: <AlertCircle className="h-5 w-5 text-red-500" />,
-  info: <Info className="h-5 w-5 text-purple-500" />,
+  info: <Info className="h-5 w-5 text-indigo-500" />,
 };
 
 const bgStyles: Record<ToastType, string> = {
   success: 'border-emerald-200 bg-emerald-50',
   error: 'border-red-200 bg-red-50',
-  info: 'border-purple-200 bg-purple-50',
+  info: 'border-indigo-200 bg-indigo-50',
 };
 
 let nextId = 0;

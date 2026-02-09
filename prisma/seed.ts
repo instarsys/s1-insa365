@@ -10,21 +10,28 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('Seeding database...');
 
-  // Create test company
-  const company = await prisma.company.create({
-    data: {
-      name: '테스트 주식회사',
-      businessNumber: '123-45-67890',
-      representativeName: '홍길동',
-      address: '서울특별시 강남구 테헤란로 123',
-      phone: '02-1234-5678',
-      email: 'admin@test-company.com',
-      payDay: 25,
-      monthlyWorkHours: 209,
-    },
-  });
-  console.log('Company created:', company.name);
-
+  // Create test company (idempotent)
+  let company = await prisma.company.findFirst({ where: { businessNumber: '123-45-67890' } });
+  if (!company) {
+    company = await prisma.company.create({
+      data: {
+        name: '테스트 주식회사',
+        businessNumber: '123-45-67890',
+        representativeName: '홍길동',
+        address: '서울특별시 강남구 테헤란로 123',
+        phone: '02-1234-5678',
+        email: 'admin@test-company.com',
+        payDay: 25,
+        monthlyWorkHours: 209,
+      },
+    });
+    console.log('Company created:', company.name);
+  } else {
+    console.log('Company already exists:', company.name);
+    // 회사가 이미 존재하면 휴가 시드만 추가 실행
+    await seedLeaveData(company.id);
+    return;
+  }
   // 5 Departments
   const departments = await Promise.all([
     prisma.department.create({ data: { companyId: company.id, name: '경영지원팀', code: 'DEPT-001', sortOrder: 1 } }),
@@ -145,6 +152,7 @@ async function main() {
       { year: 2025, hourlyWage: 10030, monthlyWage: 2096270 },
       { year: 2026, hourlyWage: 10320, monthlyWage: 2156880 },
     ],
+    skipDuplicates: true,
   });
   console.log('Minimum wages created');
 
@@ -155,6 +163,7 @@ async function main() {
       { year: 2025, code: 'VEHICLE', name: '차량유지비', monthlyLimit: 200000 },
       { year: 2025, code: 'CHILDCARE', name: '보육수당', monthlyLimit: 200000 },
     ],
+    skipDuplicates: true,
   });
   console.log('Tax-exempt limits created');
 
@@ -168,17 +177,22 @@ async function main() {
   ];
 
   for (const r of rateData) {
-    await prisma.insuranceRate.create({
-      data: {
-        type: r.type,
-        employeeRate: r.employeeRate,
-        employerRate: r.employerRate,
-        minBase: r.minBase,
-        maxBase: r.maxBase,
-        effectiveStartDate: new Date(r.start),
-        effectiveEndDate: new Date(r.end),
-      },
+    const existing = await prisma.insuranceRate.findFirst({
+      where: { type: r.type, effectiveStartDate: new Date(r.start) },
     });
+    if (!existing) {
+      await prisma.insuranceRate.create({
+        data: {
+          type: r.type,
+          employeeRate: r.employeeRate,
+          employerRate: r.employerRate,
+          minBase: r.minBase,
+          maxBase: r.maxBase,
+          effectiveStartDate: new Date(r.start),
+          effectiveEndDate: new Date(r.end),
+        },
+      });
+    }
   }
   console.log('Insurance rates created:', rateData.length);
 
@@ -197,15 +211,20 @@ async function main() {
   ];
 
   for (const p of legalParams) {
-    await prisma.legalParameter.create({
-      data: {
-        category: p.category,
-        key: p.key,
-        value: p.value,
-        description: p.description,
-        unit: p.unit,
-      },
+    const existing = await prisma.legalParameter.findFirst({
+      where: { key: p.key },
     });
+    if (!existing) {
+      await prisma.legalParameter.create({
+        data: {
+          category: p.category,
+          key: p.key,
+          value: p.value,
+          description: p.description,
+          unit: p.unit,
+        },
+      });
+    }
   }
   console.log('Legal parameters created:', legalParams.length);
 
@@ -523,6 +542,150 @@ async function main() {
   console.log('Last month salary calculations + payroll monthly created');
 
   // ──────────────────────────────────────────────
+  // Leave Groups, Types, Accrual Rules (시프티 벤치마크 기반)
+  // ──────────────────────────────────────────────
+  const annualLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId: company.id,
+      name: '연차휴가',
+      allowOveruse: false,
+      description: '법정 연차 휴가 그룹',
+      sortOrder: 1,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  const otherLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId: company.id,
+      name: '기타휴가',
+      allowOveruse: true,
+      description: '경조사, 병가 등 기타 휴가 그룹',
+      sortOrder: 2,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  console.log('Leave groups created: 2');
+
+  // 8 Leave Type Configs (시프티 벤치마크 기반)
+  const leaveTypeConfigs = [
+    { code: 'ABSENCE', name: '결근', groupId: null, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 1 },
+    { code: 'CONDOLENCE', name: '경조', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 2 },
+    { code: 'PUBLIC', name: '공가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 3 },
+    { code: 'OTHER', name: '기타', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 4 },
+    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
+    { code: 'SICK_PAID', name: '병가(유급)', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 6 },
+    { code: 'HALF_DAY', name: '반차', groupId: annualLeaveGroup.id, timeOption: 'HALF_DAY' as const, paidHours: 4, deductionDays: 0.5, deductsFromBalance: true, sortOrder: 7 },
+    { code: 'ANNUAL', name: '연차', groupId: annualLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: true, sortOrder: 8 },
+  ];
+
+  const createdLeaveTypeConfigs: Record<string, string> = {};
+  for (const ltc of leaveTypeConfigs) {
+    const created = await prisma.leaveTypeConfig.create({
+      data: {
+        companyId: company.id,
+        leaveGroupId: ltc.groupId,
+        code: ltc.code,
+        name: ltc.name,
+        timeOption: ltc.timeOption,
+        paidHours: ltc.paidHours,
+        deductionDays: ltc.deductionDays,
+        deductsFromBalance: ltc.deductsFromBalance,
+        requiresApproval: true,
+        sortOrder: ltc.sortOrder,
+        isActive: true,
+        isSystem: true,
+      },
+    });
+    createdLeaveTypeConfigs[ltc.code] = created.id;
+  }
+  console.log('Leave type configs created:', leaveTypeConfigs.length);
+
+  // Accrual Rule 1: 입사일 기준 연차 — 1년 미만자 (월 기준, 11개 tier)
+  const monthlyRule = await prisma.leaveAccrualRule.create({
+    data: {
+      companyId: company.id,
+      leaveGroupId: annualLeaveGroup.id,
+      name: '입사일 기준 연차 — 1년 미만자',
+      accrualBasis: 'JOIN_DATE',
+      accrualUnit: 'MONTHLY',
+      proRataFirstYear: false,
+      description: '근로기준법 제60조 2항: 1년 미만 근로자 매월 1일 발생',
+      isActive: true,
+      sortOrder: 1,
+    },
+  });
+
+  // 11 monthly tiers (1~11개월)
+  const monthlyTiers = [];
+  for (let m = 1; m <= 11; m++) {
+    monthlyTiers.push({
+      accrualRuleId: monthlyRule.id,
+      serviceMonthFrom: m,
+      serviceMonthTo: m,
+      accrualDays: 1,
+      validMonths: 12 - m,
+      sortOrder: m,
+    });
+  }
+  await prisma.leaveAccrualRuleTier.createMany({ data: monthlyTiers });
+  console.log('Monthly accrual rule created with 11 tiers');
+
+  // Accrual Rule 2: 회계연도 기준 연차 — 1년 이상자 (연 기준, 22개 tier)
+  const yearlyRule = await prisma.leaveAccrualRule.create({
+    data: {
+      companyId: company.id,
+      leaveGroupId: annualLeaveGroup.id,
+      name: '회계연도 기준 연차 — 1년 이상자',
+      accrualBasis: 'FISCAL_YEAR',
+      accrualUnit: 'YEARLY',
+      proRataFirstYear: true,
+      description: '근로기준법 제60조: 기본 15일, 2년마다 1일 가산, 최대 25일',
+      isActive: true,
+      sortOrder: 2,
+    },
+  });
+
+  // 22 yearly tiers (1~22년차 이상)
+  const yearlyTiers = [];
+  const yearRanges = [
+    [12, 35, 15], [36, 59, 15],       // 1~2년: 15일, 3~4년: 15일 (실제로는 16이지만 시프티 기준에 맞춤)
+    [12, 35, 15], // 재정의 — 아래 정확한 로직 적용
+  ];
+  // 정확한 시프티 벤치마크 tiers:
+  // 1~3년차(12~47개월): 15일
+  // 4~5년차(48~71개월): 16일
+  // 6~7년차(72~95개월): 17일
+  // ...2년마다 +1, 최대 25일
+  const preciseYearlyTiers = [
+    { from: 12, to: 47, days: 15 },    // 1~3년차
+    { from: 48, to: 71, days: 16 },    // 4~5년차
+    { from: 72, to: 95, days: 17 },    // 6~7년차
+    { from: 96, to: 119, days: 18 },   // 8~9년차
+    { from: 120, to: 143, days: 19 },  // 10~11년차
+    { from: 144, to: 167, days: 20 },  // 12~13년차
+    { from: 168, to: 191, days: 21 },  // 14~15년차
+    { from: 192, to: 215, days: 22 },  // 16~17년차
+    { from: 216, to: 239, days: 23 },  // 18~19년차
+    { from: 240, to: 263, days: 24 },  // 20~21년차
+    { from: 264, to: 999, days: 25 },  // 22년차 이상 (최대 25일)
+  ];
+  for (let i = 0; i < preciseYearlyTiers.length; i++) {
+    const t = preciseYearlyTiers[i];
+    yearlyTiers.push({
+      accrualRuleId: yearlyRule.id,
+      serviceMonthFrom: t.from,
+      serviceMonthTo: t.to,
+      accrualDays: t.days,
+      validMonths: null,
+      sortOrder: i + 1,
+    });
+  }
+  await prisma.leaveAccrualRuleTier.createMany({ data: yearlyTiers });
+  console.log('Yearly accrual rule created with', preciseYearlyTiers.length, 'tiers');
+
+  // ──────────────────────────────────────────────
   // Sample leave balances (2025/2026)
   // ──────────────────────────────────────────────
   const currentYear = today.getFullYear();
@@ -695,6 +858,137 @@ async function main() {
   console.log('Manager login: manager@test-company.com / manager123!');
   console.log('Employee login: kim.ys@test-company.com / test1234! (and 14 others)');
   console.log('Total employees:', employees.length + 2, `(${employees.length} employees + 1 admin + 1 manager)`);
+}
+
+async function seedLeaveData(companyId: string) {
+  // 이미 휴가 그룹이 있으면 스킵
+  const existingGroups = await prisma.leaveGroup.findMany({ where: { companyId } });
+  if (existingGroups.length > 0) {
+    console.log('Leave data already exists, skipping.');
+    return;
+  }
+
+  const annualLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId,
+      name: '연차휴가',
+      allowOveruse: false,
+      description: '법정 연차 휴가 그룹',
+      sortOrder: 1,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  const otherLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId,
+      name: '기타휴가',
+      allowOveruse: true,
+      description: '경조사, 병가 등 기타 휴가 그룹',
+      sortOrder: 2,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  console.log('Leave groups created: 2');
+
+  const leaveTypeConfigs = [
+    { code: 'ABSENCE', name: '결근', groupId: null, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 1 },
+    { code: 'CONDOLENCE', name: '경조', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 2 },
+    { code: 'PUBLIC', name: '공가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 3 },
+    { code: 'OTHER', name: '기타', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 4 },
+    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
+    { code: 'SICK_PAID', name: '병가(유급)', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 6 },
+    { code: 'HALF_DAY', name: '반차', groupId: annualLeaveGroup.id, timeOption: 'HALF_DAY' as const, paidHours: 4, deductionDays: 0.5, deductsFromBalance: true, sortOrder: 7 },
+    { code: 'ANNUAL', name: '연차', groupId: annualLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: true, sortOrder: 8 },
+  ];
+
+  for (const ltc of leaveTypeConfigs) {
+    await prisma.leaveTypeConfig.create({
+      data: {
+        companyId,
+        leaveGroupId: ltc.groupId,
+        code: ltc.code,
+        name: ltc.name,
+        timeOption: ltc.timeOption,
+        paidHours: ltc.paidHours,
+        deductionDays: ltc.deductionDays,
+        deductsFromBalance: ltc.deductsFromBalance,
+        requiresApproval: true,
+        sortOrder: ltc.sortOrder,
+        isActive: true,
+        isSystem: true,
+      },
+    });
+  }
+  console.log('Leave type configs created:', leaveTypeConfigs.length);
+
+  // Accrual Rule 1: 월별 (1년 미만)
+  const monthlyRule = await prisma.leaveAccrualRule.create({
+    data: {
+      companyId,
+      leaveGroupId: annualLeaveGroup.id,
+      name: '입사일 기준 연차 — 1년 미만자',
+      accrualBasis: 'JOIN_DATE',
+      accrualUnit: 'MONTHLY',
+      proRataFirstYear: false,
+      description: '근로기준법 제60조 2항: 1년 미만 근로자 매월 1일 발생',
+      isActive: true,
+      sortOrder: 1,
+    },
+  });
+  const monthlyTiers = [];
+  for (let m = 1; m <= 11; m++) {
+    monthlyTiers.push({
+      accrualRuleId: monthlyRule.id,
+      serviceMonthFrom: m,
+      serviceMonthTo: m,
+      accrualDays: 1,
+      validMonths: 12 - m,
+      sortOrder: m,
+    });
+  }
+  await prisma.leaveAccrualRuleTier.createMany({ data: monthlyTiers });
+  console.log('Monthly accrual rule created with 11 tiers');
+
+  // Accrual Rule 2: 연간 (1년 이상)
+  const yearlyRule = await prisma.leaveAccrualRule.create({
+    data: {
+      companyId,
+      leaveGroupId: annualLeaveGroup.id,
+      name: '회계연도 기준 연차 — 1년 이상자',
+      accrualBasis: 'FISCAL_YEAR',
+      accrualUnit: 'YEARLY',
+      proRataFirstYear: true,
+      description: '근로기준법 제60조: 기본 15일, 2년마다 1일 가산, 최대 25일',
+      isActive: true,
+      sortOrder: 2,
+    },
+  });
+  const preciseYearlyTiers = [
+    { from: 12, to: 47, days: 15 },
+    { from: 48, to: 71, days: 16 },
+    { from: 72, to: 95, days: 17 },
+    { from: 96, to: 119, days: 18 },
+    { from: 120, to: 143, days: 19 },
+    { from: 144, to: 167, days: 20 },
+    { from: 168, to: 191, days: 21 },
+    { from: 192, to: 215, days: 22 },
+    { from: 216, to: 239, days: 23 },
+    { from: 240, to: 263, days: 24 },
+    { from: 264, to: 999, days: 25 },
+  ];
+  const yearlyTiers = preciseYearlyTiers.map((t, i) => ({
+    accrualRuleId: yearlyRule.id,
+    serviceMonthFrom: t.from,
+    serviceMonthTo: t.to,
+    accrualDays: t.days,
+    validMonths: null,
+    sortOrder: i + 1,
+  }));
+  await prisma.leaveAccrualRuleTier.createMany({ data: yearlyTiers });
+  console.log('Yearly accrual rule created with', preciseYearlyTiers.length, 'tiers');
+  console.log('Leave data seeded successfully.');
 }
 
 main()

@@ -134,6 +134,28 @@ enum SubscriptionPlan {
   PRO
 }
 
+enum LeaveTimeOption {
+  FULL_DAY
+  HALF_DAY
+  HOURS
+}
+
+enum LeaveAccrualBasis {
+  JOIN_DATE
+  FISCAL_YEAR
+}
+
+enum LeaveAccrualUnit {
+  MONTHLY
+  YEARLY
+}
+
+enum LeaveAccrualSource {
+  RULE
+  MANUAL
+  CARRY_OVER
+}
+
 // ──────────────────────────────────────────────
 // Company
 // ──────────────────────────────────────────────
@@ -175,6 +197,10 @@ model Company {
   notifications      Notification[]
   payrollMonthlies   PayrollMonthly[]
   attendanceSegments AttendanceSegment[]
+  leaveGroups        LeaveGroup[]
+  leaveTypeConfigs   LeaveTypeConfig[]
+  leaveAccrualRules  LeaveAccrualRule[]
+  leaveAccrualRecords LeaveAccrualRecord[]
 
   @@map("companies")
 }
@@ -227,6 +253,7 @@ model User {
   leaveBalances       LeaveBalance[]
   notifications       Notification[]
   payrollMonthlies    PayrollMonthly[]
+  leaveAccrualRecords LeaveAccrualRecord[]
 
   @@unique([companyId, email])
   @@unique([companyId, employeeNumber])
@@ -678,25 +705,27 @@ model PayrollMonthly {
 // ──────────────────────────────────────────────
 
 model LeaveRequest {
-  id          String      @id @default(uuid())
-  companyId   String      @map("company_id")
-  company     Company     @relation(fields: [companyId], references: [id])
-  userId      String      @map("user_id")
-  user        User        @relation(fields: [userId], references: [id])
-  type        LeaveType
-  startDate   DateTime    @map("start_date") @db.Date
-  endDate     DateTime    @map("end_date") @db.Date
-  days        Decimal     @db.Decimal(5, 1)
-  reason      String?
-  status      LeaveStatus @default(PENDING)
-  approvedBy  String?     @map("approved_by")
-  approvedAt  DateTime?   @map("approved_at")
-  rejectedBy  String?     @map("rejected_by")
-  rejectedAt  DateTime?   @map("rejected_at")
-  rejectReason String?    @map("reject_reason")
-  createdAt   DateTime    @default(now()) @map("created_at")
-  updatedAt   DateTime    @updatedAt @map("updated_at")
-  deletedAt   DateTime?   @map("deleted_at")
+  id                String           @id @default(uuid())
+  companyId         String           @map("company_id")
+  company           Company          @relation(fields: [companyId], references: [id])
+  userId            String           @map("user_id")
+  user              User             @relation(fields: [userId], references: [id])
+  type              LeaveType
+  leaveTypeConfigId String?          @map("leave_type_config_id")
+  leaveTypeConfig   LeaveTypeConfig? @relation(fields: [leaveTypeConfigId], references: [id])
+  startDate         DateTime         @map("start_date") @db.Date
+  endDate           DateTime         @map("end_date") @db.Date
+  days              Decimal          @db.Decimal(5, 1)
+  reason            String?
+  status            LeaveStatus      @default(PENDING)
+  approvedBy        String?          @map("approved_by")
+  approvedAt        DateTime?        @map("approved_at")
+  rejectedBy        String?          @map("rejected_by")
+  rejectedAt        DateTime?        @map("rejected_at")
+  rejectReason      String?          @map("reject_reason")
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+  deletedAt         DateTime?        @map("deleted_at")
 
   @@index([companyId, userId])
   @@index([companyId, status])
@@ -768,4 +797,141 @@ model AuditLog {
 
   @@index([companyId, entityType, createdAt])
   @@map("audit_logs")
+}
+
+// ──────────────────────────────────────────────
+// LeaveGroup (휴가 그룹)
+// ──────────────────────────────────────────────
+
+model LeaveGroup {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  company     Company   @relation(fields: [companyId], references: [id])
+  name        String
+  allowOveruse Boolean  @default(false) @map("allow_overuse")
+  description String?
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  isSystem    Boolean   @default(false) @map("is_system")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  leaveTypeConfigs  LeaveTypeConfig[]
+  leaveAccrualRules LeaveAccrualRule[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("leave_groups")
+}
+
+// ──────────────────────────────────────────────
+// LeaveTypeConfig (DB 기반 휴가 유형)
+// ──────────────────────────────────────────────
+
+model LeaveTypeConfig {
+  id                  String          @id @default(uuid())
+  companyId           String          @map("company_id")
+  company             Company         @relation(fields: [companyId], references: [id])
+  leaveGroupId        String?         @map("leave_group_id")
+  leaveGroup          LeaveGroup?     @relation(fields: [leaveGroupId], references: [id])
+  code                String
+  name                String
+  timeOption          LeaveTimeOption @default(FULL_DAY) @map("time_option")
+  paidHours           Decimal         @default(8) @map("paid_hours") @db.Decimal(4, 1)
+  deductionDays       Decimal         @default(1) @map("deduction_days") @db.Decimal(4, 1)
+  deductsFromBalance  Boolean         @default(true) @map("deducts_from_balance")
+  requiresApproval    Boolean         @default(true) @map("requires_approval")
+  maxConsecutiveDays  Int?            @map("max_consecutive_days")
+  description         String?
+  sortOrder           Int             @default(0) @map("sort_order")
+  isActive            Boolean         @default(true) @map("is_active")
+  isSystem            Boolean         @default(false) @map("is_system")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+  deletedAt           DateTime?       @map("deleted_at")
+
+  leaveRequests       LeaveRequest[]
+  leaveAccrualRecords LeaveAccrualRecord[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@map("leave_type_configs")
+}
+
+// ──────────────────────────────────────────────
+// LeaveAccrualRule (발생 규칙)
+// ──────────────────────────────────────────────
+
+model LeaveAccrualRule {
+  id              String            @id @default(uuid())
+  companyId       String            @map("company_id")
+  company         Company           @relation(fields: [companyId], references: [id])
+  leaveGroupId    String            @map("leave_group_id")
+  leaveGroup      LeaveGroup        @relation(fields: [leaveGroupId], references: [id])
+  name            String
+  accrualBasis    LeaveAccrualBasis @map("accrual_basis")
+  accrualUnit     LeaveAccrualUnit  @map("accrual_unit")
+  proRataFirstYear Boolean          @default(false) @map("pro_rata_first_year")
+  description     String?
+  isActive        Boolean           @default(true) @map("is_active")
+  sortOrder       Int               @default(0) @map("sort_order")
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+  deletedAt       DateTime?         @map("deleted_at")
+
+  tiers           LeaveAccrualRuleTier[]
+  leaveAccrualRecords LeaveAccrualRecord[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("leave_accrual_rules")
+}
+
+// ──────────────────────────────────────────────
+// LeaveAccrualRuleTier (규칙 단계)
+// ──────────────────────────────────────────────
+
+model LeaveAccrualRuleTier {
+  id                String           @id @default(uuid())
+  accrualRuleId     String           @map("accrual_rule_id")
+  accrualRule       LeaveAccrualRule @relation(fields: [accrualRuleId], references: [id], onDelete: Cascade)
+  serviceMonthFrom  Int              @map("service_month_from")
+  serviceMonthTo    Int              @map("service_month_to")
+  accrualDays       Decimal          @map("accrual_days") @db.Decimal(5, 1)
+  validMonths       Int?             @map("valid_months")
+  sortOrder         Int              @default(0) @map("sort_order")
+
+  @@index([accrualRuleId])
+  @@map("leave_accrual_rule_tiers")
+}
+
+// ──────────────────────────────────────────────
+// LeaveAccrualRecord (발생 이력)
+// ──────────────────────────────────────────────
+
+model LeaveAccrualRecord {
+  id                  String              @id @default(uuid())
+  companyId           String              @map("company_id")
+  company             Company             @relation(fields: [companyId], references: [id])
+  userId              String              @map("user_id")
+  user                User                @relation(fields: [userId], references: [id])
+  leaveTypeConfigId   String              @map("leave_type_config_id")
+  leaveTypeConfig     LeaveTypeConfig     @relation(fields: [leaveTypeConfigId], references: [id])
+  accrualRuleId       String?             @map("accrual_rule_id")
+  accrualRule         LeaveAccrualRule?   @relation(fields: [accrualRuleId], references: [id])
+  year                Int
+  accrualDays         Decimal             @map("accrual_days") @db.Decimal(5, 1)
+  usedDays            Decimal             @default(0) @map("used_days") @db.Decimal(5, 1)
+  expiredDays         Decimal             @default(0) @map("expired_days") @db.Decimal(5, 1)
+  periodStart         DateTime            @map("period_start") @db.Date
+  periodEnd           DateTime            @map("period_end") @db.Date
+  expiresAt           DateTime?           @map("expires_at") @db.Date
+  source              LeaveAccrualSource  @default(RULE)
+  createdAt           DateTime            @default(now()) @map("created_at")
+  updatedAt           DateTime            @updatedAt @map("updated_at")
+
+  @@index([companyId, userId, year])
+  @@index([companyId])
+  @@map("leave_accrual_records")
 }

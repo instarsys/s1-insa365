@@ -240,7 +240,7 @@ export default function WorkPolicyPage() {
                   onClick={() => toggleDay(i)}
                   className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors ${
                     formDays.includes(i)
-                      ? 'bg-purple-600 text-white'
+                      ? 'bg-indigo-600 text-white'
                       : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >

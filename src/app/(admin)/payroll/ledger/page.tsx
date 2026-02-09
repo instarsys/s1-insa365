@@ -106,14 +106,14 @@ export default function PayrollLedgerPage() {
               options={yearOptions}
               value={String(year)}
               onChange={(v) => setYear(Number(v))}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="월"
               options={MONTH_OPTIONS}
               value={String(month)}
               onChange={(v) => setMonth(Number(v))}
-              className="w-28"
+              wrapperClassName="w-24"
             />
           </div>
         </CardBody>
@@ -169,7 +169,7 @@ export default function PayrollLedgerPage() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {employees.map((emp, idx) => (
-                    <tr key={idx} className="hover:bg-purple-50/30">
+                    <tr key={idx} className="hover:bg-indigo-50/30">
                       <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-4 py-3 text-xs text-gray-500">
                         {emp.employeeNumber}
                       </td>

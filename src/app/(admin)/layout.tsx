@@ -13,7 +13,7 @@ export default function AdminLayout({
         <AdminTopBar />
         <AdminSidebar />
         <main className="pl-60 pt-14">
-          <div className="mx-auto max-w-[1280px] p-8">{children}</div>
+          <div className="px-6 py-6">{children}</div>
         </main>
       </div>
     </Providers>

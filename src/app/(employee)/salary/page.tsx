@@ -81,9 +81,9 @@ function PayBreakdown({ item }: { item: { basePay?: number; fixedAllowances?: nu
       )}
 
       {/* Net pay */}
-      <div className="flex justify-between border-t border-purple-200 pt-2">
+      <div className="flex justify-between border-t border-indigo-200 pt-2">
         <span className="text-sm font-medium text-gray-700">실수령</span>
-        <span className="text-base font-bold text-purple-600">{formatKRW(item.totalNetPay)}</span>
+        <span className="text-base font-bold text-indigo-600">{formatKRW(item.totalNetPay)}</span>
       </div>
     </div>
   );
@@ -103,7 +103,7 @@ export default function EmployeeSalaryPage() {
 
       {/* Latest payslip */}
       {latest ? (
-        <Card className="rounded-2xl border-purple-200 bg-purple-50/30">
+        <Card className="rounded-2xl border-indigo-200 bg-indigo-50/30">
           <CardBody className="p-4">
             <div className="mb-3 flex items-center justify-between">
               <p className="text-sm font-semibold text-gray-800">
@@ -126,10 +126,10 @@ export default function EmployeeSalaryPage() {
                   <span className="text-gray-500">총 공제</span>
                   <span className="font-medium text-red-600">-{formatKRW(latest.totalDeduction)}</span>
                 </div>
-                <div className="border-t border-purple-200 pt-2">
+                <div className="border-t border-indigo-200 pt-2">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">실수령</span>
-                    <span className="text-xl font-bold text-purple-600">{formatKRW(latest.totalNetPay)}</span>
+                    <span className="text-xl font-bold text-indigo-600">{formatKRW(latest.totalNetPay)}</span>
                   </div>
                 </div>
               </div>
@@ -138,7 +138,7 @@ export default function EmployeeSalaryPage() {
             {hasDetailFields && (
               <button
                 onClick={() => setLatestExpanded(!latestExpanded)}
-                className="mt-2 flex w-full items-center justify-center gap-1 text-xs text-purple-500 hover:text-purple-700"
+                className="mt-2 flex w-full items-center justify-center gap-1 text-xs text-indigo-500 hover:text-indigo-700"
               >
                 {latestExpanded ? '접기' : '항목별 상세보기'}
                 {latestExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
@@ -203,7 +203,7 @@ export default function EmployeeSalaryPage() {
                             </div>
                             <div className="flex justify-between text-xs">
                               <span className="text-gray-500">실수령</span>
-                              <span className="font-semibold text-purple-600">{formatKRW(item.totalNetPay)}</span>
+                              <span className="font-semibold text-indigo-600">{formatKRW(item.totalNetPay)}</span>
                             </div>
                           </div>
                         )}

@@ -91,12 +91,12 @@ export default function DashboardPage() {
                     <li key={todo.id}>
                       <Link
                         href={todo.link}
-                        className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-purple-50/50"
+                        className="group flex items-center gap-4 px-6 py-4 transition-colors hover:bg-indigo-50/50"
                       >
                         <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
                           todo.priority === 'HIGH'
                             ? 'bg-red-50 text-red-600'
-                            : 'bg-purple-50 text-purple-600'
+                            : 'bg-indigo-50 text-indigo-600'
                         }`}>
                           {TODO_ICON_MAP[todo.type]}
                         </div>
@@ -107,7 +107,7 @@ export default function DashboardPage() {
                         <Badge variant={PRIORITY_VARIANT[todo.priority]}>
                           {PRIORITY_LABEL[todo.priority]}
                         </Badge>
-                        <span className="inline-flex items-center gap-1 text-xs font-medium text-purple-600 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 opacity-0 transition-opacity group-hover:opacity-100">
                           처리하기
                           <ArrowRight className="h-3.5 w-3.5" />
                         </span>
@@ -144,7 +144,7 @@ export default function DashboardPage() {
                     <p className="mt-1 text-xs text-gray-500">지각</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-purple-500">{widgets.todayAttendance.leave}</p>
+                    <p className="text-2xl font-bold text-indigo-500">{widgets.todayAttendance.leave}</p>
                     <p className="mt-1 text-xs text-gray-500">휴가</p>
                   </div>
                 </div>

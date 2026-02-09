@@ -42,7 +42,7 @@ export default function LoginPage() {
     <Card>
       <CardBody>
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-purple-600">s1-insa365</h1>
+          <h1 className="text-2xl font-bold text-indigo-600">s1-insa365</h1>
           <p className="mt-2 text-sm text-gray-500">한국 중소기업 급여 자동화</p>
         </div>
 
@@ -86,7 +86,7 @@ export default function LoginPage() {
           아직 계정이 없으신가요?{' '}
           <Link
             href="/signup"
-            className="font-medium text-purple-600 hover:text-purple-700"
+            className="font-medium text-indigo-600 hover:text-indigo-700"
           >
             회사 등록하기
           </Link>

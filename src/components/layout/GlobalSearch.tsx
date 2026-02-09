@@ -219,7 +219,7 @@ export function GlobalSearch() {
                             onMouseEnter={() => setSelectedIndex(i)}
                             className={cn(
                               'flex w-full items-center gap-3 px-5 py-2.5 text-left text-sm transition-colors',
-                              i === selectedIndex ? 'bg-purple-50 text-purple-700' : 'text-gray-700 hover:bg-gray-50',
+                              i === selectedIndex ? 'bg-indigo-50 text-indigo-700' : 'text-gray-700 hover:bg-gray-50',
                             )}
                           >
                             {result.type === 'employee' ? (

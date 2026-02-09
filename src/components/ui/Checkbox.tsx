@@ -37,7 +37,7 @@ function Checkbox({ label, checked, onChange, disabled, indeterminate, className
         disabled={disabled}
         className={cn(
           'h-4 w-4 rounded border-gray-300',
-          'text-purple-600 focus:ring-2 focus:ring-purple-500/20',
+          'text-indigo-600 focus:ring-2 focus:ring-indigo-500/20',
           'disabled:cursor-not-allowed',
         )}
       />

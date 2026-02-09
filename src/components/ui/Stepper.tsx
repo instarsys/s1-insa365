@@ -27,7 +27,7 @@ function Stepper({ steps, currentStep, className }: StepperProps) {
                 className={cn(
                   'flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors',
                   isCompleted && 'bg-emerald-500 text-white',
-                  isActive && 'bg-purple-600 text-white',
+                  isActive && 'bg-indigo-600 text-white',
                   !isCompleted && !isActive && 'bg-gray-200 text-gray-500',
                 )}
               >
@@ -37,7 +37,7 @@ function Stepper({ steps, currentStep, className }: StepperProps) {
               <span
                 className={cn(
                   'text-xs font-medium whitespace-nowrap',
-                  isActive ? 'text-purple-600' : isCompleted ? 'text-gray-700' : 'text-gray-400',
+                  isActive ? 'text-indigo-600' : isCompleted ? 'text-gray-700' : 'text-gray-400',
                 )}
               >
                 {step.label}

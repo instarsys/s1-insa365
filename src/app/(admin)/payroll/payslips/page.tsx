@@ -68,14 +68,14 @@ export default function PayslipsPage() {
               options={yearOptions}
               value={String(year)}
               onChange={(v) => setYear(Number(v))}
-              className="w-32"
+              wrapperClassName="w-28"
             />
             <Select
               label="월"
               options={MONTH_OPTIONS}
               value={String(month)}
               onChange={(v) => setMonth(Number(v))}
-              className="w-28"
+              wrapperClassName="w-24"
             />
             <div className="flex-1">
               <SearchInput
@@ -105,8 +105,8 @@ export default function PayslipsPage() {
                   <li key={row.employeeId}>
                     <button
                       onClick={() => setSelectedEmployeeId(row.employeeId)}
-                      className={`w-full px-4 py-3 text-left transition-colors hover:bg-purple-50 ${
-                        selectedEmployee?.employeeId === row.employeeId ? 'bg-purple-50 border-l-2 border-purple-600' : ''
+                      className={`w-full px-4 py-3 text-left transition-colors hover:bg-indigo-50 ${
+                        selectedEmployee?.employeeId === row.employeeId ? 'bg-indigo-50 border-l-2 border-indigo-600' : ''
                       }`}
                     >
                       <p className="text-sm font-medium text-gray-800">{row.employeeName}</p>
@@ -132,9 +132,9 @@ export default function PayslipsPage() {
           ) : (
             <>
               {/* Header */}
-              <div className="border-b border-gray-200 bg-gradient-to-r from-purple-600 to-purple-700 px-6 py-5 text-white rounded-t-xl">
+              <div className="border-b border-gray-200 bg-gradient-to-r from-indigo-600 to-indigo-700 px-6 py-5 text-white rounded-t-xl">
                 <h2 className="text-lg font-bold">급여명세서</h2>
-                <p className="mt-1 text-sm text-purple-200">
+                <p className="mt-1 text-sm text-indigo-200">
                   {year}년 {month}월
                 </p>
               </div>

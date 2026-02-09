@@ -26,3 +26,5 @@ export { PremiumCalculator } from './PremiumCalculator';
 export type { PremiumResult } from './PremiumCalculator';
 export { ProrationCalculator } from './ProrationCalculator';
 export type { ProrationResult } from './ProrationCalculator';
+export { calculateServiceMonths, findMatchingTier, calculateProRata, calculateLegalAnnualLeave } from './LeaveAccrualCalculator';
+export type { AccrualTier } from './LeaveAccrualCalculator';

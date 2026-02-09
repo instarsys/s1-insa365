@@ -81,8 +81,8 @@ export default function EmployeeMyPage() {
           <CardBody className="p-4">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50">
-                  <Calendar className="h-4 w-4 text-purple-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50">
+                  <Calendar className="h-4 w-4 text-indigo-600" />
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400">입사일</p>
@@ -92,8 +92,8 @@ export default function EmployeeMyPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50">
-                  <Mail className="h-4 w-4 text-purple-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50">
+                  <Mail className="h-4 w-4 text-indigo-600" />
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-400">이메일</p>
@@ -101,8 +101,8 @@ export default function EmployeeMyPage() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-50">
-                  <Phone className="h-4 w-4 text-purple-600" />
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-50">
+                  <Phone className="h-4 w-4 text-indigo-600" />
                 </div>
                 <div className="flex flex-1 items-center justify-between">
                   <div>
@@ -126,7 +126,7 @@ export default function EmployeeMyPage() {
                     )}
                   </div>
                   {!phoneEditing && (
-                    <button onClick={() => setPhoneEditing(true)} className="text-xs text-purple-600">
+                    <button onClick={() => setPhoneEditing(true)} className="text-xs text-indigo-600">
                       수정
                     </button>
                   )}
@@ -223,7 +223,7 @@ export default function EmployeeMyPage() {
               type="checkbox"
               checked={notifPayroll}
               onChange={(e) => setNotifPayroll(e.target.checked)}
-              className="h-5 w-5 accent-purple-600"
+              className="h-5 w-5 accent-indigo-600"
             />
           </label>
           <label className="flex items-center justify-between">
@@ -232,7 +232,7 @@ export default function EmployeeMyPage() {
               type="checkbox"
               checked={notifAttendance}
               onChange={(e) => setNotifAttendance(e.target.checked)}
-              className="h-5 w-5 accent-purple-600"
+              className="h-5 w-5 accent-indigo-600"
             />
           </label>
           <label className="flex items-center justify-between">
@@ -241,7 +241,7 @@ export default function EmployeeMyPage() {
               type="checkbox"
               checked={notifLeave}
               onChange={(e) => setNotifLeave(e.target.checked)}
-              className="h-5 w-5 accent-purple-600"
+              className="h-5 w-5 accent-indigo-600"
             />
           </label>
         </div>

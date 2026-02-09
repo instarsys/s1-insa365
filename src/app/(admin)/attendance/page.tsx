@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
 
 export default function AttendancePage() {
-  redirect('/attendance/daily');
+  redirect('/attendance/calendar');
 }

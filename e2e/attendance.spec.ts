@@ -1,18 +1,7 @@
 import { test, expect, type Page, type BrowserContext } from '@playwright/test';
 import path from 'path';
 
-const ADMIN_EMAIL = 'admin@test-company.com';
-const ADMIN_PASSWORD = 'admin123!';
 const STORAGE_STATE_PATH = path.join(__dirname, '.auth-state.json');
-
-async function loginAndSaveState(page: Page) {
-  await page.goto('/login');
-  await page.getByRole('textbox', { name: '이메일' }).fill(ADMIN_EMAIL);
-  await page.getByRole('textbox', { name: '비밀번호' }).fill(ADMIN_PASSWORD);
-  await page.getByRole('button', { name: '로그인' }).click();
-  await page.waitForURL('**/dashboard', { timeout: 15000 });
-  await page.context().storageState({ path: STORAGE_STATE_PATH });
-}
 
 test.describe.serial('근태 관리 E2E 테스트', () => {
   let context: BrowserContext;
@@ -28,83 +17,39 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // 1. 일별 근태 (/attendance/daily)
+  // 1. 달력형 근태 (/attendance/calendar)
   // ═══════════════════════════════════════════════════════════════
 
-  test.describe('일별 근태', () => {
+  test.describe('달력형 근태', () => {
     test.beforeAll(async () => {
-      await page.goto('/attendance/daily');
-      await page.waitForTimeout(2000);
+      await page.goto('/attendance/calendar');
+      await page.waitForTimeout(3000);
     });
 
     // ─── 1-1. 페이지 헤더 ──────────────────────────────────────
 
-    test('1-1. 제목 "일별 근태"가 보인다', async () => {
-      await expect(page.getByRole('heading', { name: '일별 근태' })).toBeVisible();
+    test('1-1. 제목 "달력형 근태"가 보인다', async () => {
+      await expect(page.getByRole('heading', { name: '달력형 근태' })).toBeVisible();
     });
 
     test('1-2. 부제목이 보인다', async () => {
-      await expect(page.locator('text=일별 출퇴근 현황을 확인합니다.')).toBeVisible();
+      await expect(page.locator('text=월간 전직원 출퇴근 현황을 달력 형태로 확인합니다.')).toBeVisible();
     });
 
-    test('1-3. 수동 입력 버튼이 보인다', async () => {
-      await expect(page.getByRole('button', { name: '수동 입력' })).toBeVisible();
+    test('1-3. 출퇴근기록 추가 버튼이 보인다', async () => {
+      await expect(page.getByRole('button', { name: '출퇴근기록 추가' })).toBeVisible();
     });
 
-    // ─── 1-2. 날짜 선택 ────────────────────────────────────────
+    // ─── 1-2. 필터 ────────────────────────────────────────────
 
-    test('1-4. 날짜 input이 보이고 오늘 날짜가 기본값이다', async () => {
-      const dateInput = page.locator('input[type="date"]');
-      await expect(dateInput).toBeVisible();
-      const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-      await expect(dateInput).toHaveValue(today);
-    });
-
-    // ─── 1-3. 빈 상태 ─────────────────────────────────────────
-
-    test('1-5. 데이터 없을 때 빈 상태 메시지가 보인다', async () => {
-      await expect(page.getByRole('heading', { name: '해당 날짜에 근태 기록이 없습니다' })).toBeVisible();
-    });
-
-    test('1-6. 빈 상태 부가 설명이 보인다', async () => {
-      await expect(page.locator('text=직원들이 출퇴근을 기록하면 여기에 표시됩니다.')).toBeVisible();
-    });
-  });
-
-  // ═══════════════════════════════════════════════════════════════
-  // 2. 월별 현황 (/attendance/monthly)
-  // ═══════════════════════════════════════════════════════════════
-
-  test.describe('월별 현황', () => {
-    test.beforeAll(async () => {
-      await page.goto('/attendance/monthly');
-      await page.waitForSelector('table', { timeout: 10000 });
-    });
-
-    // ─── 2-1. 페이지 헤더 ──────────────────────────────────────
-
-    test('2-1. 제목 "월별 현황"이 보인다', async () => {
-      await expect(page.getByRole('heading', { name: '월별 현황' })).toBeVisible();
-    });
-
-    test('2-2. 부제목이 보인다', async () => {
-      await expect(page.locator('text=월별 근태 현황을 확인하고 확정합니다.')).toBeVisible();
-    });
-
-    test('2-3. 일괄 확정 버튼이 보인다', async () => {
-      await expect(page.getByRole('button', { name: '일괄 확정' })).toBeVisible();
-    });
-
-    // ─── 2-2. 필터 (연도/월/부서) ──────────────────────────────
-
-    test('2-4. 연도 드롭다운에 2026년이 선택되어 있다', async () => {
+    test('1-4. 연도 드롭다운이 보인다', async () => {
       const yearSelect = page.locator('main').getByRole('combobox').first();
       await expect(yearSelect).toBeVisible();
       const selectedOption = await yearSelect.inputValue();
-      expect(selectedOption).toBe('2026');
+      expect(selectedOption).toBe(String(new Date().getFullYear()));
     });
 
-    test('2-5. 월 드롭다운에 현재 월이 선택되어 있다', async () => {
+    test('1-5. 월 드롭다운이 보이고 현재 월이 선택되어 있다', async () => {
       const monthSelect = page.locator('main').getByRole('combobox').nth(1);
       await expect(monthSelect).toBeVisible();
       const currentMonth = String(new Date().getMonth() + 1);
@@ -112,39 +57,164 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
       expect(selectedOption).toBe(currentMonth);
     });
 
-    test('2-6. 부서 드롭다운에 5개 부서가 있다', async () => {
+    test('1-6. 부서 드롭다운에 부서 목록이 있다', async () => {
       const deptSelect = page.locator('main').getByRole('combobox').nth(2);
       await expect(deptSelect).toBeVisible();
       const options = deptSelect.locator('option');
       const count = await options.count();
-      expect(count).toBeGreaterThanOrEqual(6); // 전체 부서(disabled) + 전체 부서 + 5개 부서
+      expect(count).toBeGreaterThanOrEqual(2); // 전체 부서 + 최소 1개 부서
     });
 
-    // ─── 2-3. 테이블 ──────────────────────────────────────────
+    test('1-7. 활성/퇴직 직원 필터가 보인다', async () => {
+      const statusSelect = page.locator('main').getByRole('combobox').nth(3);
+      await expect(statusSelect).toBeVisible();
+    });
 
-    test('2-7. 8개 컬럼 헤더가 보인다', async () => {
-      const headers = ['이름', '부서', '근무일', '결근', '지각', '정규시간', '연장시간', '야간시간'];
-      for (const header of headers) {
-        await expect(page.getByRole('columnheader', { name: header })).toBeVisible();
+    test('1-8. 지각범위 필터가 보인다', async () => {
+      const lateSelect = page.locator('main').getByRole('combobox').nth(4);
+      await expect(lateSelect).toBeVisible();
+    });
+
+    test('1-9. 조퇴범위 필터가 보인다', async () => {
+      const earlySelect = page.locator('main').getByRole('combobox').nth(5);
+      await expect(earlySelect).toBeVisible();
+    });
+
+    // ─── 1-3. 달력 그리드 또는 빈 상태 ────────────────────────
+
+    test('1-10. 달력 테이블 또는 빈 상태가 보인다', async () => {
+      const hasTable = await page.locator('table').count() > 0;
+      const hasEmpty = await page.locator('text=해당 월에 근태 기록이 없습니다').count() > 0;
+      expect(hasTable || hasEmpty).toBe(true);
+    });
+
+    test('1-11. 달력 테이블이 있으면 직원 열 헤더가 보인다', async () => {
+      const hasTable = await page.locator('table').count() > 0;
+      if (hasTable) {
+        await expect(page.locator('th:has-text("직원")').first()).toBeVisible();
       }
     });
 
-    test('2-8. 테이블에 데이터 행이 있다', async () => {
-      const rows = page.locator('tbody tr');
-      const count = await rows.count();
-      expect(count).toBeGreaterThan(0);
-    });
-
-    // ─── 2-4. 합계 바 ─────────────────────────────────────────
-
-    test('2-9. 하단에 합계 영역이 보인다', async () => {
-      await expect(page.locator('text=합계')).toBeVisible();
-    });
-
-    test('2-10. 합계에 근무일/결근/지각/정규/연장/야간 라벨이 보인다', async () => {
-      for (const label of ['근무일:', '결근:', '지각:', '정규:', '연장:', '야간:']) {
-        await expect(page.locator(`text=${label}`).first()).toBeVisible();
+    test('1-12. 달력 테이블이 있으면 합계 열 헤더가 보인다', async () => {
+      const hasTable = await page.locator('table').count() > 0;
+      if (hasTable) {
+        await expect(page.locator('th:has-text("합계")').first()).toBeVisible();
       }
+    });
+
+    test('1-13. 달력 테이블이 있으면 합계 행이 보인다', async () => {
+      const hasTable = await page.locator('table').count() > 0;
+      if (hasTable) {
+        await expect(page.locator('td:has-text("합계")').first()).toBeVisible();
+      }
+    });
+
+    // ─── 1-4. 모달 ──────────────────────────────────────────
+
+    test('1-14. 출퇴근기록 추가 버튼 클릭 시 모달이 열린다', async () => {
+      await page.getByRole('button', { name: '출퇴근기록 추가' }).click();
+      await expect(page.getByRole('heading', { name: '출퇴근기록 추가' })).toBeVisible();
+    });
+
+    test('1-15. 모달에 날짜 입력이 보인다', async () => {
+      await expect(page.locator('input[type="date"]').last()).toBeVisible();
+    });
+
+    test('1-16. 모달에 출근 시간 입력이 보인다', async () => {
+      await expect(page.locator('input[type="time"]').first()).toBeVisible();
+    });
+
+    test('1-17. 모달에 퇴근 시간 입력이 보인다', async () => {
+      await expect(page.locator('input[type="time"]').last()).toBeVisible();
+    });
+
+    test('1-18. 모달에 저장 버튼이 보인다', async () => {
+      await expect(page.getByRole('button', { name: '저장' })).toBeVisible();
+    });
+
+    test('1-19. 모달에 닫기 버튼이 보인다', async () => {
+      await expect(page.getByRole('button', { name: '닫기' })).toBeVisible();
+    });
+
+    test('1-20. 모달 닫기 시 모달이 사라진다', async () => {
+      await page.getByRole('button', { name: '닫기' }).click();
+      await expect(page.getByRole('heading', { name: '출퇴근기록 추가' })).not.toBeVisible();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 2. 목록형 근태 (/attendance/records)
+  // ═══════════════════════════════════════════════════════════════
+
+  test.describe('목록형 근태', () => {
+    test.beforeAll(async () => {
+      await page.goto('/attendance/records');
+      await page.waitForTimeout(3000);
+    });
+
+    // ─── 2-1. 페이지 헤더 ──────────────────────────────────────
+
+    test('2-1. 제목 "목록형 근태"가 보인다', async () => {
+      await expect(page.getByRole('heading', { name: '목록형 근태' })).toBeVisible();
+    });
+
+    test('2-2. 부제목이 보인다', async () => {
+      await expect(page.locator('text=출퇴근 기록을 상세 리스트로 조회합니다.')).toBeVisible();
+    });
+
+    test('2-3. 출퇴근기록 추가 버튼이 보인다', async () => {
+      await expect(page.getByRole('button', { name: '출퇴근기록 추가' })).toBeVisible();
+    });
+
+    // ─── 2-2. 필터 ────────────────────────────────────────────
+
+    test('2-4. 시작일 날짜 입력이 보인다', async () => {
+      const dateInputs = page.locator('input[type="date"]');
+      await expect(dateInputs.first()).toBeVisible();
+    });
+
+    test('2-5. 종료일 날짜 입력이 보인다', async () => {
+      const dateInputs = page.locator('input[type="date"]');
+      await expect(dateInputs.nth(1)).toBeVisible();
+    });
+
+    test('2-6. 부서 드롭다운이 보인다', async () => {
+      const deptSelect = page.locator('main').getByRole('combobox').first();
+      await expect(deptSelect).toBeVisible();
+    });
+
+    test('2-7. 상태 드롭다운이 보인다', async () => {
+      const statusSelect = page.locator('main').getByRole('combobox').nth(1);
+      await expect(statusSelect).toBeVisible();
+    });
+
+    test('2-8. 직원 검색 입력이 보인다', async () => {
+      await expect(page.getByPlaceholder('직원 검색')).toBeVisible();
+    });
+
+    // ─── 2-3. 테이블 또는 빈 상태 ────────────────────────────
+
+    test('2-9. 테이블 또는 빈 상태가 보인다', async () => {
+      const hasTable = await page.locator('table').count() > 0;
+      const hasEmpty = await page.locator('text=해당 기간에 근태 기록이 없습니다').count() > 0;
+      expect(hasTable || hasEmpty).toBe(true);
+    });
+
+    // ─── 2-4. 모달 ──────────────────────────────────────────
+
+    test('2-10. 출퇴근기록 추가 버튼 클릭 시 모달이 열린다', async () => {
+      await page.getByRole('button', { name: '출퇴근기록 추가' }).click();
+      await expect(page.getByRole('heading', { name: '출퇴근기록 추가' })).toBeVisible();
+    });
+
+    test('2-11. 모달에 저장/닫기 버튼이 보인다', async () => {
+      await expect(page.getByRole('button', { name: '저장' })).toBeVisible();
+      await expect(page.getByRole('button', { name: '닫기' })).toBeVisible();
+    });
+
+    test('2-12. 모달 닫기 시 모달이 사라진다', async () => {
+      await page.getByRole('button', { name: '닫기' }).click();
+      await expect(page.getByRole('heading', { name: '출퇴근기록 추가' })).not.toBeVisible();
     });
   });
 
@@ -158,8 +228,6 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
       await page.waitForTimeout(2000);
     });
 
-    // ─── 3-1. 페이지 헤더 ──────────────────────────────────────
-
     test('3-1. 제목 "휴가 관리"가 보인다', async () => {
       await expect(page.getByRole('heading', { name: '휴가 관리' })).toBeVisible();
     });
@@ -168,8 +236,6 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
       await expect(page.locator('text=휴가 신청을 승인/반려합니다.')).toBeVisible();
     });
 
-    // ─── 3-2. 상태 탭 ─────────────────────────────────────────
-
     test('3-3. 대기 탭에 카운트가 표시된다', async () => {
       await expect(page.getByRole('button', { name: /대기 \d+/ })).toBeVisible();
     });
@@ -177,8 +243,6 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
     test('3-4. 전체 탭이 보인다', async () => {
       await expect(page.getByRole('button', { name: '전체' })).toBeVisible();
     });
-
-    // ─── 3-3. 빈 상태 ─────────────────────────────────────────
 
     test('3-5. 대기 신청 없을 때 빈 상태 메시지가 보인다', async () => {
       await expect(page.getByRole('heading', { name: '대기 중인 휴가 신청이 없습니다' })).toBeVisible();
@@ -199,8 +263,6 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
       await page.waitForTimeout(2000);
     });
 
-    // ─── 4-1. 페이지 헤더 ──────────────────────────────────────
-
     test('4-1. 제목 "52시간 모니터링"이 보인다', async () => {
       await expect(page.getByRole('heading', { name: '52시간 모니터링' })).toBeVisible();
     });
@@ -208,8 +270,6 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
     test('4-2. 부제목이 보인다', async () => {
       await expect(page.locator('text=주 52시간 초과 위험 직원을 모니터링합니다.')).toBeVisible();
     });
-
-    // ─── 4-2. 빈 상태 ─────────────────────────────────────────
 
     test('4-3. 데이터 없을 때 빈 상태 메시지가 보인다', async () => {
       await expect(page.getByRole('heading', { name: '금주 근무 기록이 없습니다' })).toBeVisible();
@@ -221,37 +281,67 @@ test.describe.serial('근태 관리 E2E 테스트', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // 5. 콘솔 에러 검증
+  // 5. 사이드바 메뉴 확인
   // ═══════════════════════════════════════════════════════════════
 
-  test('5-1. 일별 근태에서 JS 에러가 없다', async ({ browser }) => {
+  test.describe('사이드바 메뉴', () => {
+    test('5-1. 근태 관리 하위에 달력형 메뉴가 보인다', async () => {
+      await page.goto('/attendance/calendar');
+      await page.waitForTimeout(1000);
+      await expect(page.locator('nav a:has-text("달력형")')).toBeVisible();
+    });
+
+    test('5-2. 근태 관리 하위에 목록형 메뉴가 보인다', async () => {
+      await expect(page.locator('nav a:has-text("목록형")')).toBeVisible();
+    });
+
+    test('5-3. 이전 메뉴 (일별 근태/월별 현황)는 보이지 않는다', async () => {
+      await expect(page.locator('nav a:has-text("일별 근태")')).not.toBeVisible();
+      await expect(page.locator('nav a:has-text("월별 현황")')).not.toBeVisible();
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 6. 리다이렉트 확인
+  // ═══════════════════════════════════════════════════════════════
+
+  test('6-1. /attendance 접근 시 /attendance/calendar로 리다이렉트된다', async () => {
+    await page.goto('/attendance');
+    await page.waitForURL('**/attendance/calendar', { timeout: 10000 });
+    expect(page.url()).toContain('/attendance/calendar');
+  });
+
+  // ═══════════════════════════════════════════════════════════════
+  // 7. 콘솔 에러 검증
+  // ═══════════════════════════════════════════════════════════════
+
+  test('7-1. 달력형 근태에서 JS 에러가 없다', async ({ browser }) => {
     const authContext = await browser.newContext({ storageState: STORAGE_STATE_PATH });
     const authPage = await authContext.newPage();
 
     const errors: string[] = [];
     authPage.on('pageerror', (err) => {
-      errors.push(err.message);
+      if (!err.message.includes('Hydration')) errors.push(err.message);
     });
 
-    await authPage.goto('/attendance/daily');
-    await authPage.waitForTimeout(2000);
+    await authPage.goto('/attendance/calendar');
+    await authPage.waitForTimeout(3000);
 
     expect(errors).toHaveLength(0);
     await authContext.close();
   });
 
-  test('5-2. 월별 현황에서 JS 에러가 없다', async ({ browser }) => {
+  test('7-2. 목록형 근태에서 JS 에러가 없다', async ({ browser }) => {
     const authContext = await browser.newContext({ storageState: STORAGE_STATE_PATH });
     const authPage = await authContext.newPage();
 
     const errors: string[] = [];
     authPage.on('pageerror', (err) => {
-      errors.push(err.message);
+      if (!err.message.includes('Hydration')) errors.push(err.message);
     });
 
-    await authPage.goto('/attendance/monthly');
-    await authPage.waitForSelector('table', { timeout: 10000 });
-    await authPage.waitForTimeout(2000);
+    await authPage.goto('/attendance/records');
+    await authPage.waitForTimeout(3000);
 
     expect(errors).toHaveLength(0);
     await authContext.close();

@@ -24,9 +24,9 @@ function Tabs({ tabs, activeKey, onChange, className }: TabsProps) {
             onClick={() => onChange(tab.key)}
             className={cn(
               'relative px-4 py-2.5 text-sm font-medium transition-colors',
-              'hover:text-purple-600',
+              'hover:text-indigo-600',
               isActive
-                ? 'text-purple-600 font-semibold'
+                ? 'text-indigo-600 font-semibold'
                 : 'text-gray-500',
             )}
           >
@@ -37,7 +37,7 @@ function Tabs({ tabs, activeKey, onChange, className }: TabsProps) {
                   className={cn(
                     'inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-medium',
                     isActive
-                      ? 'bg-purple-100 text-purple-700'
+                      ? 'bg-indigo-100 text-indigo-700'
                       : 'bg-gray-100 text-gray-500',
                   )}
                 >
@@ -47,7 +47,7 @@ function Tabs({ tabs, activeKey, onChange, className }: TabsProps) {
             </span>
             {/* Active indicator */}
             {isActive && (
-              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-purple-600" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600" />
             )}
           </button>
         );

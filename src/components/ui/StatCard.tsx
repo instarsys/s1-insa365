@@ -28,7 +28,7 @@ function StatCard({ title, value, change, changeLabel, icon, className }: StatCa
           <p className="mt-1 text-2xl font-bold text-gray-800">{value}</p>
         </div>
         {icon && (
-          <div className="rounded-lg bg-purple-50 p-2 text-purple-600">{icon}</div>
+          <div className="rounded-lg bg-indigo-50 p-2 text-indigo-600">{icon}</div>
         )}
       </div>
       {change != null && (

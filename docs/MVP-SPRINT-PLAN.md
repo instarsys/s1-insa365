@@ -4,6 +4,7 @@
 > v1.1 (2026-02-08): Gusto UI/UX 벤치마크 6개 항목 구현 완료 반영
 > v1.2 (2026-02-08): Super Admin 전용 콘솔 분리 완료 반영 (Sprint 4 법정파라미터/감사로그 → /super-admin 이동)
 > v1.3 (2026-02-09): Sprint 1-6 전체 완료 + E2E 563 테스트 전체 PASS 반영
+> v1.4 (2026-02-09): 시프티(Shiftee) 벤치마크 분석 + 근태 UI 개선 반영
 
 ## Context
 
@@ -352,3 +353,36 @@ Sprint 1 (Foundation) ──→ Sprint 2 (Payroll E2E) ──→ Sprint 6 (Polis
 ### 남은 작업
 - **Go/No-Go 체크리스트**: 수동 검증 항목 (급여 정확도, 온보딩 시간 측정)
 - **배포 설정**: .env.production, Docker build, Sentry DSN
+
+---
+
+## 시프티(Shiftee) 벤치마크 (2026-02-09)
+
+### 분석 범위
+14개 페이지 Playwright 심층 분석: 출퇴근기록(달력형/목록형), 수정 모달, 휴가(내역/발생), 관리(직원/지점/출퇴근장소/직무/근로정보/휴가유형/휴가그룹/발생규칙)
+
+### MVP 적용 완료
+| 개선사항 | 파일 | 상태 |
+|---------|------|------|
+| 미퇴근 빨간 ● 표시 | `AttendanceCalendarCell.tsx` | ✅ |
+| 달력형 페이지네이션 옵션 (50/100/200/500) | `attendance/calendar/page.tsx` | ✅ |
+| 휴가 표시 토글 (체크박스) | `calendar/page.tsx` + Grid + Cell | ✅ |
+| 목록형 페이지네이션 옵션 (10/25/50/100) | `attendance/records/page.tsx` | ✅ |
+| 요약 바 총 시간(h) 추가 | `attendance/records/page.tsx` | ✅ |
+
+### Post-MVP 적용 대상 (시프티 GAP)
+| 항목 | 우선순위 | 설명 |
+|------|---------|------|
+| 지점별 색상 바 | Medium | 달력형 셀 좌측에 부서/지점별 고유 컬러 |
+| 컬럼별 검색 필터 | Medium | 목록형 테이블 각 헤더 아래 인풋 |
+| 비활성화 토글 | Low | 직원/부서/지점 "비활성화된 항목 보기" |
+| 다운로드/업로드 | Medium | 모든 관리 페이지 Excel/CSV |
+| 휴가 3뷰 탭 | High | 유형별/목록/월별 뷰 전환 |
+| 휴가 관리 달력 모달 | Medium | 달력에서 날짜 선택하여 휴가 부여 |
+| 휴가 그룹 계층 | High | 그룹→유형 2단계 계층 구조 |
+| 휴가 자동 발생 규칙 | High | 입사일 기준 연차 자동 부여 |
+| GPS 장소명 표시 | Low | 좌표 대신 WorkLocation 이름 표시 |
+| 출퇴근 장소 반경 설정 UI | Medium | GPS 반경(26~100m) + WiFi 인증 |
+
+### 상세 분석 문서
+→ `docs/shiftee-benchmark.md`

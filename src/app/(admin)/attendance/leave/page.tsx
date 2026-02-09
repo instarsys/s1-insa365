@@ -1,12 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
 import {
-  Button, Table, Badge, Tabs, Modal, Textarea, Spinner, EmptyState, useToast,
+  Button, Table, Badge, Tabs, Modal, Select, Textarea, Spinner, EmptyState, useToast,
 } from '@/components/ui';
-import { useLeaveRequests, useLeaveMutations } from '@/hooks';
+import { useLeaveRequests, useLeaveBalances, useLeaveMutations, useLeaveHistory } from '@/hooks';
+import { LeaveHistoryTypeView } from '@/components/leave/LeaveHistoryTypeView';
+import { LeaveHistoryListView } from '@/components/leave/LeaveHistoryListView';
+import { LeaveHistoryMonthlyView } from '@/components/leave/LeaveHistoryMonthlyView';
 import { formatDate } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
 import { CalendarDays, Check, X } from 'lucide-react';
@@ -16,18 +19,6 @@ interface LeaveBalance {
   totalDays: number;
   usedDays: number;
   remainingDays: number;
-}
-
-function getLeaveTypeBadge(type: string) {
-  switch (type) {
-    case 'ANNUAL': return <Badge variant="info">연차</Badge>;
-    case 'HALF_DAY': return <Badge variant="info">반차</Badge>;
-    case 'SICK': return <Badge variant="warning">병가</Badge>;
-    case 'FAMILY_EVENT': return <Badge variant="success">경조사</Badge>;
-    case 'UNPAID': return <Badge variant="gray">무급휴가</Badge>;
-    case 'OTHER': return <Badge variant="gray">기타</Badge>;
-    default: return <Badge variant="gray">{type}</Badge>;
-  }
 }
 
 function getStatusBadge(status: string) {
@@ -42,15 +33,48 @@ function getStatusBadge(status: string) {
 
 export default function LeaveManagementPage() {
   const toast = useToast();
+  const currentYear = new Date().getFullYear();
   const [activeTab, setActiveTab] = useState('pending');
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
   const [rejectTargetId, setRejectTargetId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [typeFilter, setTypeFilter] = useState('');
+  const [deptFilter, setDeptFilter] = useState('');
+  const [historyYear, setHistoryYear] = useState(currentYear);
 
   const statusFilter = activeTab === 'pending' ? 'PENDING' : undefined;
-  const { requests, isLoading, mutate } = useLeaveRequests({ status: statusFilter });
+  const { requests, isLoading, mutate } = useLeaveRequests({
+    status: statusFilter,
+    type: typeFilter || undefined,
+    departmentId: deptFilter || undefined,
+  });
   const { approve, reject } = useLeaveMutations();
+  const { balances: leaveBalancesList, isLoading: balancesLoading } = useLeaveBalances();
+
+  // 3뷰 데이터
+  const historyView = activeTab === 'byType' ? 'type' : activeTab === 'byList' ? 'list' : activeTab === 'byMonth' ? 'monthly' : null;
+  const { data: historyData, isLoading: historyLoading } = useLeaveHistory(
+    historyView ? { view: historyView, year: historyYear, departmentId: deptFilter || undefined } : undefined,
+  );
+
+  // Department options for filter
+  const { data: deptData } = useSWR<{ items: { id: string; name: string }[] }>('/api/departments', fetcher);
+  const departmentOptions = useMemo(() => [
+    { value: '', label: '전체 부서' },
+    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ], [deptData]);
+
+  const leaveTypeOptions = useMemo(() => [
+    { value: '', label: '전체 유형' },
+    { value: 'ANNUAL', label: '연차' },
+    { value: 'HALF_DAY_AM', label: '반차(오전)' },
+    { value: 'HALF_DAY_PM', label: '반차(오후)' },
+    { value: 'SICK', label: '병가' },
+    { value: 'FAMILY_EVENT', label: '경조사' },
+    { value: 'UNPAID', label: '무급휴가' },
+    { value: 'OTHER', label: '기타' },
+  ], []);
 
   // Fetch all balances
   const { data: balancesData } = useSWR<{ items: LeaveBalance[] }>(
@@ -65,9 +89,17 @@ export default function LeaveManagementPage() {
 
   const pendingCount = requests.filter((r) => r.status === 'PENDING').length;
 
+  const yearOptions = Array.from({ length: 5 }, (_, i) => {
+    const y = currentYear - 2 + i;
+    return { value: String(y), label: `${y}년` };
+  });
+
   const tabsWithCount = [
-    { key: 'pending', label: '대기', count: activeTab === 'all' ? undefined : pendingCount },
-    { key: 'all', label: '전체' },
+    { key: 'pending', label: '대기', count: pendingCount || undefined },
+    { key: 'byType', label: '유형별' },
+    { key: 'byList', label: '목록' },
+    { key: 'byMonth', label: '월별' },
+    { key: 'balances', label: '연차 관리' },
   ];
 
   const handleApprove = async (id: string) => {
@@ -108,7 +140,7 @@ export default function LeaveManagementPage() {
     }
   };
 
-  const columns = [
+  const columns: { key: string; label: string; sortable?: boolean; render?: (row: Record<string, unknown>) => ReactNode }[] = [
     {
       key: 'createdAt',
       label: '신청일',
@@ -117,9 +149,12 @@ export default function LeaveManagementPage() {
     },
     { key: 'userName', label: '이름' },
     {
-      key: 'type',
+      key: 'leaveTypeName',
       label: '유형',
-      render: (row: Record<string, unknown>) => getLeaveTypeBadge(row.type as string),
+      render: (row: Record<string, unknown>) => {
+        const config = row.leaveTypeConfig as { name: string } | undefined;
+        return <Badge variant="info">{config?.name ?? (row.type as string)}</Badge>;
+      },
     },
     {
       key: 'startDate',
@@ -190,9 +225,12 @@ export default function LeaveManagementPage() {
     },
   ];
 
+  const showPendingOrAll = activeTab === 'pending' || activeTab === 'all';
+  const showHistoryViews = activeTab === 'byType' || activeTab === 'byList' || activeTab === 'byMonth';
+
   return (
     <div>
-      <PageHeader title="휴가 관리" subtitle="휴가 신청을 승인/반려합니다." />
+      <PageHeader title="휴가 관리" subtitle="휴가 신청을 승인/반려하고 내역을 관리합니다." />
 
       <Tabs
         tabs={tabsWithCount}
@@ -201,21 +239,104 @@ export default function LeaveManagementPage() {
         className="mb-6"
       />
 
-      {isLoading ? (
-        <Spinner text="휴가 목록을 불러오는 중..." className="py-20" />
-      ) : requests.length === 0 ? (
-        <EmptyState
-          icon={<CalendarDays className="h-12 w-12" />}
-          title={activeTab === 'pending' ? '대기 중인 휴가 신청이 없습니다' : '휴가 신청 기록이 없습니다'}
-          description="직원이 휴가를 신청하면 여기에 표시됩니다."
-        />
-      ) : (
-        <div className="rounded-lg border border-gray-200">
-          <Table
-            columns={columns}
-            data={requests as unknown as Record<string, unknown>[]}
-          />
+      {/* Filters */}
+      {(showPendingOrAll || showHistoryViews) && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          {showPendingOrAll && (
+            <Select options={leaveTypeOptions} value={typeFilter} onChange={setTypeFilter} wrapperClassName="w-40" />
+          )}
+          <Select options={departmentOptions} value={deptFilter} onChange={setDeptFilter} wrapperClassName="w-40" />
+          {showHistoryViews && (
+            <Select options={yearOptions} value={String(historyYear)} onChange={(v) => setHistoryYear(Number(v))} wrapperClassName="w-32" />
+          )}
         </div>
+      )}
+
+      {/* 대기 탭 */}
+      {showPendingOrAll && (
+        isLoading ? (
+          <Spinner text="휴가 목록을 불러오는 중..." className="py-20" />
+        ) : requests.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-12 w-12" />}
+            title={activeTab === 'pending' ? '대기 중인 휴가 신청이 없습니다' : '휴가 신청 기록이 없습니다'}
+            description="직원이 휴가를 신청하면 여기에 표시됩니다."
+          />
+        ) : (
+          <div className="rounded-lg border border-gray-200">
+            <Table
+              columns={columns}
+              data={requests as unknown as Record<string, unknown>[]}
+            />
+          </div>
+        )
+      )}
+
+      {/* 유형별 뷰 */}
+      {activeTab === 'byType' && (
+        historyLoading ? (
+          <Spinner text="내역을 불러오는 중..." className="py-20" />
+        ) : (
+          <LeaveHistoryTypeView items={(historyData as { items?: Record<string, unknown>[] })?.items as never[] ?? []} />
+        )
+      )}
+
+      {/* 목록 뷰 */}
+      {activeTab === 'byList' && (
+        historyLoading ? (
+          <Spinner text="내역을 불러오는 중..." className="py-20" />
+        ) : (
+          <LeaveHistoryListView items={(historyData as { items?: Record<string, unknown>[] })?.items as never[] ?? []} />
+        )
+      )}
+
+      {/* 월별 뷰 */}
+      {activeTab === 'byMonth' && (
+        historyLoading ? (
+          <Spinner text="내역을 불러오는 중..." className="py-20" />
+        ) : (
+          <LeaveHistoryMonthlyView items={(historyData as { items?: Record<string, unknown>[] })?.items as never[] ?? []} year={historyYear} />
+        )
+      )}
+
+      {/* 연차 관리 탭 */}
+      {activeTab === 'balances' && (
+        balancesLoading ? (
+          <Spinner text="연차 정보를 불러오는 중..." className="py-20" />
+        ) : leaveBalancesList.length === 0 ? (
+          <EmptyState
+            icon={<CalendarDays className="h-12 w-12" />}
+            title="연차 잔여일수 데이터가 없습니다"
+            description="직원의 연차 정보가 등록되면 여기에 표시됩니다."
+          />
+        ) : (
+          <div className="rounded-lg border border-gray-200">
+            <Table
+              columns={[
+                { key: 'userName', label: '직원', sortable: true },
+                { key: 'departmentName', label: '부서', render: (row: Record<string, unknown>) => (row.departmentName as string) || '-' },
+                { key: 'totalDays', label: '총 휴가일수', render: (row: Record<string, unknown>) => `${row.totalDays}일` },
+                { key: 'usedDays', label: '사용일수', render: (row: Record<string, unknown>) => `${row.usedDays}일` },
+                {
+                  key: 'remainingDays',
+                  label: '잔여일수',
+                  sortable: true,
+                  render: (row: Record<string, unknown>) => {
+                    const remaining = row.remainingDays as number;
+                    return (
+                      <span className={remaining === 0 ? 'font-semibold text-red-600' : remaining <= 5 ? 'font-medium text-amber-600' : 'text-gray-700'}>
+                        {remaining}일
+                        {remaining === 0 && <span className="ml-1 text-[10px]">소진</span>}
+                        {remaining > 0 && remaining <= 5 && <span className="ml-1 text-[10px] text-amber-500">부족</span>}
+                      </span>
+                    );
+                  },
+                },
+              ]}
+              data={leaveBalancesList as unknown as Record<string, unknown>[]}
+            />
+          </div>
+        )
       )}
 
       {/* Reject Modal */}

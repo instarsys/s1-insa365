@@ -9,13 +9,14 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(createLeaveRequestSchema, body);
     if (!validation.success) return validation.response;
-    const { type, startDate, endDate, days, reason } = validation.data;
+    const { type, leaveTypeConfigId, startDate, endDate, days, reason } = validation.data;
 
     const leaveRequest = await prisma.leaveRequest.create({
       data: {
         companyId: auth.companyId,
         userId: auth.userId,
         type,
+        leaveTypeConfigId: leaveTypeConfigId ?? null,
         startDate: new Date(startDate),
         endDate: new Date(endDate),
         days,

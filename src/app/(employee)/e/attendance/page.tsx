@@ -111,7 +111,7 @@ function WeeklyView({ items }: { items: AttendanceItem[] }) {
                 <div
                   className={cn(
                     'w-6 rounded-t-md transition-all',
-                    day.hours > 0 ? 'bg-purple-500' : 'bg-gray-100',
+                    day.hours > 0 ? 'bg-indigo-500' : 'bg-gray-100',
                   )}
                   style={{ height: `${barHeight}%` }}
                 />
@@ -127,7 +127,7 @@ function WeeklyView({ items }: { items: AttendanceItem[] }) {
         <CardBody className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">이번 주 총 근무</span>
-            <span className="text-sm font-bold text-purple-600">{totalHours}시간</span>
+            <span className="text-sm font-bold text-indigo-600">{totalHours}시간</span>
           </div>
         </CardBody>
       </Card>
@@ -183,7 +183,7 @@ function MonthlyView({ items, year, month }: { items: AttendanceItem[]; year: nu
                   className={cn(
                     'text-xs',
                     day.date === today.getDate() && month === today.getMonth() + 1 && year === today.getFullYear()
-                      ? 'font-bold text-purple-600'
+                      ? 'font-bold text-indigo-600'
                       : 'text-gray-700',
                   )}
                 >
@@ -214,7 +214,7 @@ function MonthlyView({ items, year, month }: { items: AttendanceItem[]; year: nu
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-500">이번 달 근무</span>
             <div className="text-right">
-              <p className="text-sm font-bold text-purple-600">{totalHours}시간</p>
+              <p className="text-sm font-bold text-indigo-600">{totalHours}시간</p>
               <p className="text-[10px] text-gray-400">{workDays}일 근무</p>
             </div>
           </div>

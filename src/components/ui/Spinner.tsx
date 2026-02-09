@@ -18,7 +18,7 @@ const sizeStyles: Record<SpinnerSize, string> = {
 function Spinner({ size = 'md', text, className }: SpinnerProps) {
   return (
     <div className={cn('flex items-center justify-center gap-2', className)}>
-      <Loader2 className={cn('animate-spin text-purple-600', sizeStyles[size])} />
+      <Loader2 className={cn('animate-spin text-indigo-600', sizeStyles[size])} />
       {text && <span className="text-sm text-gray-500">{text}</span>}
     </div>
   );

@@ -60,9 +60,10 @@ const menuItems: MenuItemConfig[] = [
     section: '근태',
     allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
-      { label: '일별 근태', href: '/attendance/daily' },
-      { label: '월별 현황', href: '/attendance/monthly' },
+      { label: '달력형', href: '/attendance/calendar' },
+      { label: '목록형', href: '/attendance/records' },
       { label: '휴가 관리', href: '/attendance/leave' },
+      { label: '휴가 발생', href: '/attendance/leave/accruals' },
       { label: '52시간 모니터링', href: '/attendance/overtime' },
     ],
   },
@@ -113,6 +114,9 @@ const menuItems: MenuItemConfig[] = [
       { label: '회사 정보', href: '/settings/company' },
       { label: '근무 정책', href: '/settings/work-policy' },
       { label: '급여 규칙', href: '/settings/salary-rules' },
+      { label: '휴가 유형', href: '/settings/leave-types' },
+      { label: '휴가 그룹', href: '/settings/leave-groups' },
+      { label: '발생 규칙', href: '/settings/leave-accrual-rules' },
       { label: '플랜/결제', href: '/settings/billing' },
     ],
   },
@@ -195,11 +199,11 @@ export function AdminSidebar() {
                   className={cn(
                     'relative flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                     active
-                      ? 'bg-purple-50 text-purple-600 before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:bg-purple-600'
+                      ? 'bg-indigo-50 text-indigo-600 before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:bg-indigo-600'
                       : 'text-gray-700 hover:bg-gray-50',
                   )}
                 >
-                  <Icon className={cn('h-5 w-5', active ? 'text-purple-600' : 'text-gray-500')} />
+                  <Icon className={cn('h-5 w-5', active ? 'text-indigo-600' : 'text-gray-500')} />
                   <span className="flex-1 text-left">{item.label}</span>
                   {isExpanded ? (
                     <ChevronDown className="h-4 w-4 text-gray-400" />
@@ -213,11 +217,11 @@ export function AdminSidebar() {
                   className={cn(
                     'relative flex items-center gap-3 px-4 py-2.5 text-sm transition-colors',
                     active
-                      ? 'bg-purple-50 text-purple-600 before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:bg-purple-600'
+                      ? 'bg-indigo-50 text-indigo-600 before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:bg-indigo-600'
                       : 'text-gray-700 hover:bg-gray-50',
                   )}
                 >
-                  <Icon className={cn('h-5 w-5', active ? 'text-purple-600' : 'text-gray-500')} />
+                  <Icon className={cn('h-5 w-5', active ? 'text-indigo-600' : 'text-gray-500')} />
                   <span>{item.label}</span>
                 </Link>
               )}
@@ -232,7 +236,7 @@ export function AdminSidebar() {
                       className={cn(
                         'flex items-center py-2 pl-8 pr-4 text-sm transition-colors',
                         isActive(child.href)
-                          ? 'text-purple-600 font-medium'
+                          ? 'text-indigo-600 font-medium'
                           : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50',
                       )}
                     >

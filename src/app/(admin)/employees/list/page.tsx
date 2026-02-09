@@ -226,6 +226,7 @@ export default function EmployeeListPage() {
           value={departmentFilter}
           onChange={setDepartmentFilter}
           placeholder="전체 부서"
+          wrapperClassName="w-40"
         />
       </div>
 
