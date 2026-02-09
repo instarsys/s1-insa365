@@ -47,7 +47,7 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
 }
 
 // --- Auth Redirect ---
-const publicPaths = ['/login', '/signup', '/super-admin/login', '/api/auth', '/api/health'];
+const publicPaths = ['/login', '/signup', '/super-admin/login', '/api/auth', '/api/health', '/about', '/contact', '/terms', '/privacy'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -56,6 +56,15 @@ export function proxy(request: NextRequest) {
   if (pathname.startsWith('/api/')) {
     const rateLimitResponse = checkRateLimit(request);
     if (rateLimitResponse) return rateLimitResponse;
+  }
+
+  // Landing page: `/` is public, but logged-in users go to dashboard
+  if (pathname === '/') {
+    const token = request.cookies.get('access_token')?.value;
+    if (token) {
+      return NextResponse.redirect(new URL('/dashboard', request.url));
+    }
+    return NextResponse.next();
   }
 
   const isPublicPath = publicPaths.some((path) => pathname.startsWith(path));
