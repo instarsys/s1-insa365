@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse, noContentResponse } from '@/presentation/api/helpers';
 
@@ -8,25 +8,19 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
+  const { positionRepo } = getContainer();
 
-  const existing = await prisma.position.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await positionRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직위');
 
   if (body.name && body.name !== existing.name) {
-    const dup = await prisma.position.findFirst({
-      where: { companyId: auth.companyId, name: body.name, deletedAt: null, NOT: { id } },
-    });
+    const dup = await positionRepo.findByNameExcept(auth.companyId, body.name, id);
     if (dup) return errorResponse('이미 존재하는 직위명입니다.', 409);
   }
 
-  const updated = await prisma.position.update({
-    where: { id },
-    data: {
-      ...(body.name && { name: body.name }),
-      ...(body.level !== undefined && { level: body.level }),
-    },
+  const updated = await positionRepo.update(auth.companyId, id, {
+    ...(body.name && { name: body.name }),
+    ...(body.level !== undefined && { level: body.level }),
   });
 
   return successResponse(updated);
@@ -34,21 +28,15 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
+  const { positionRepo, userRepo } = getContainer();
 
-  const existing = await prisma.position.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await positionRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직위');
 
-  const userCount = await prisma.user.count({
-    where: { positionId: id, companyId: auth.companyId, deletedAt: null },
-  });
+  const userCount = await userRepo.countByPosition(auth.companyId, id);
   if (userCount > 0) return errorResponse('소속 직원이 있는 직위는 삭제할 수 없습니다.', 400);
 
-  await prisma.position.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  await positionRepo.softDelete(auth.companyId, id);
 
   return noContentResponse();
 }

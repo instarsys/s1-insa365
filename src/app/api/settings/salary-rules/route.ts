@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
-  const rules = await prisma.salaryRule.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-  });
+  const rules = await getContainer().salaryRuleRepo.findAllOrdered(auth.companyId);
 
   return successResponse({ items: rules });
 }
@@ -25,26 +22,22 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     return errorResponse('코드, 이름, 유형은 필수입니다.', 400);
   }
 
-  const existing = await prisma.salaryRule.findFirst({
-    where: { companyId: auth.companyId, code, deletedAt: null },
-  });
+  const existing = await getContainer().salaryRuleRepo.findByCode(auth.companyId, code);
   if (existing) return errorResponse('이미 존재하는 코드입니다.', 409);
 
-  const rule = await prisma.salaryRule.create({
-    data: {
-      companyId: auth.companyId,
-      code,
-      name,
-      type,
-      paymentType: paymentType ?? 'FIXED',
-      paymentCycle: paymentCycle ?? 'MONTHLY',
-      defaultAmount: defaultAmount ?? null,
-      isOrdinaryWage: isOrdinaryWage ?? false,
-      isTaxExempt: isTaxExempt ?? false,
-      taxExemptCode: taxExemptCode ?? null,
-      formula: formula ?? null,
-      description: description ?? null,
-    },
+  const rule = await getContainer().salaryRuleRepo.create(auth.companyId, {
+    companyId: auth.companyId,
+    code,
+    name,
+    type,
+    paymentType: paymentType ?? 'FIXED',
+    paymentCycle: paymentCycle ?? 'MONTHLY',
+    defaultAmount: defaultAmount ?? null,
+    isOrdinaryWage: isOrdinaryWage ?? false,
+    isTaxExempt: isTaxExempt ?? false,
+    taxExemptCode: taxExemptCode ?? null,
+    formula: formula ?? null,
+    description: description ?? null,
   });
 
   await auditLogService.log({

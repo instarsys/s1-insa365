@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
@@ -16,53 +16,16 @@ import { createEmployeeSchema } from '@/presentation/api/schemas';
 async function handleGet(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { page, limit, search, departmentId, status } = parseSearchParams(url);
-  const skip = (page - 1) * limit;
 
-  const where = {
-    companyId: auth.companyId,
-    deletedAt: null,
-    ...(departmentId && { departmentId }),
-    ...(status && { employeeStatus: status as 'ACTIVE' | 'ON_LEAVE' | 'RESIGNED' | 'TERMINATED' }),
-    ...(search && {
-      OR: [
-        { name: { contains: search, mode: 'insensitive' as const } },
-        { email: { contains: search, mode: 'insensitive' as const } },
-        { employeeNumber: { contains: search, mode: 'insensitive' as const } },
-      ],
-    }),
-  };
-
-  const [employees, total] = await Promise.all([
-    prisma.user.findMany({
-      where,
-      select: {
-        id: true,
-        employeeNumber: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
-        employeeStatus: true,
-        joinDate: true,
-        resignDate: true,
-        departmentId: true,
-        positionId: true,
-        department: { select: { id: true, name: true } },
-        position: { select: { id: true, name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    prisma.user.count({ where }),
-  ]);
+  const { employeeRepo } = getContainer();
+  const result = await employeeRepo.findAll(auth.companyId, { search, departmentId, status, page, limit });
 
   return successResponse({
-    items: employees,
-    total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
+    items: result.items,
+    total: result.total,
+    page: result.page,
+    limit: result.limit,
+    totalPages: Math.ceil(result.total / result.limit),
   });
 }
 
@@ -73,66 +36,52 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName } = validation.data;
 
-    const existing = await prisma.user.findFirst({
-      where: { companyId: auth.companyId, email, deletedAt: null },
-    });
+    const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
+
+    const existing = await employeeRepo.findByEmail(auth.companyId, email);
     if (existing) {
       return errorResponse('이미 사용 중인 이메일입니다.', 409);
     }
 
     // Generate employee number
-    const lastEmployee = await prisma.user.findFirst({
-      where: { companyId: auth.companyId },
-      orderBy: { createdAt: 'desc' },
-      select: { employeeNumber: true },
-    });
-
-    let nextNumber = 1;
-    if (lastEmployee?.employeeNumber) {
-      const match = lastEmployee.employeeNumber.match(/\d+$/);
-      if (match) nextNumber = parseInt(match[0], 10) + 1;
-    }
-    const employeeNumber = `EA${nextNumber.toString().padStart(4, '0')}`;
+    const employeeNumber = await employeeRepo.getNextEmployeeNumber(auth.companyId, 'A');
 
     const hashedPassword = await passwordService.hash(password);
 
-    const user = await prisma.user.create({
-      data: {
-        companyId: auth.companyId,
-        name,
-        email,
-        password: hashedPassword,
-        phone: phone ?? null,
-        role: role ?? 'EMPLOYEE',
-        employeeNumber,
-        departmentId: departmentId ?? null,
-        positionId: positionId ?? null,
-        workPolicyId: workPolicyId ?? null,
-        workLocationId: workLocationId ?? null,
-        joinDate: joinDate ? new Date(joinDate) : null,
-        dependents: dependents ?? 1,
-        encryptedRrn: rrn ? encryptionService.encrypt(rrn) : null,
-        encryptedBankAccount: bankAccount ? encryptionService.encrypt(bankAccount) : null,
-        bankName: bankName ?? null,
-      },
-      select: {
-        id: true,
-        employeeNumber: true,
-        name: true,
-        email: true,
-        role: true,
-        employeeStatus: true,
-      },
+    const created = await employeeRepo.createUnchecked(auth.companyId, {
+      companyId: auth.companyId,
+      name,
+      email,
+      password: hashedPassword,
+      phone: phone ?? null,
+      role: role ?? 'EMPLOYEE',
+      employeeNumber,
+      departmentId: departmentId ?? null,
+      positionId: positionId ?? null,
+      workPolicyId: workPolicyId ?? null,
+      workLocationId: workLocationId ?? null,
+      joinDate: joinDate ? new Date(joinDate) : null,
+      dependents: dependents ?? 1,
+      encryptedRrn: rrn ? encryptionService.encrypt(rrn) : null,
+      encryptedBankAccount: bankAccount ? encryptionService.encrypt(bankAccount) : null,
+      bankName: bankName ?? null,
     });
+    const user = {
+      id: created.id,
+      employeeNumber: created.employeeNumber,
+      name: created.name,
+      email: created.email,
+      role: created.role,
+      employeeStatus: created.employeeStatus,
+    };
 
     // Copy salary rules to employee salary items
-    const salaryRules = await prisma.salaryRule.findMany({
-      where: { companyId: auth.companyId, isActive: true, deletedAt: null },
-    });
+    const salaryRules = await salaryRuleRepo.findAll(auth.companyId);
+    const activeRules = salaryRules.filter((rule) => rule.isActive);
 
-    if (salaryRules.length > 0) {
-      await prisma.employeeSalaryItem.createMany({
-        data: salaryRules.map((rule) => ({
+    if (activeRules.length > 0) {
+      await employeeSalaryItemRepo.createMany(
+        activeRules.map((rule) => ({
           companyId: auth.companyId,
           userId: user.id,
           code: rule.code,
@@ -147,7 +96,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           sortOrder: rule.sortOrder,
           formula: rule.formula,
         })),
-      });
+      );
     }
 
     await auditLogService.log({

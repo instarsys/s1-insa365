@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse, validateBody } from '@/presentation/api/helpers';
 import { createLeaveAccrualRuleSchema } from '@/presentation/api/schemas';
+import { getContainer } from '@/infrastructure/di/container';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -11,9 +11,8 @@ async function putHandler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
   try {
-    const rule = await prisma.leaveAccrualRule.findFirst({
-      where: { id, companyId: auth.companyId, deletedAt: null },
-    });
+    const { leaveAccrualRuleRepo } = getContainer();
+    const rule = await leaveAccrualRuleRepo.findById(auth.companyId, id);
     if (!rule) return notFoundResponse('발생 규칙');
 
     const body = await request.json();
@@ -21,41 +20,25 @@ async function putHandler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const data = validation.data;
 
-    const updated = await prisma.$transaction(async (tx) => {
-      await tx.leaveAccrualRule.update({
-        where: { id },
-        data: {
-          ...(data.name !== undefined && { name: data.name }),
-          ...(data.leaveGroupId !== undefined && { leaveGroupId: data.leaveGroupId }),
-          ...(data.accrualBasis !== undefined && { accrualBasis: data.accrualBasis }),
-          ...(data.accrualUnit !== undefined && { accrualUnit: data.accrualUnit }),
-          ...(data.proRataFirstYear !== undefined && { proRataFirstYear: data.proRataFirstYear }),
-          ...(data.description !== undefined && { description: data.description }),
-        },
-      });
-
-      if (data.tiers) {
-        await tx.leaveAccrualRuleTier.deleteMany({ where: { accrualRuleId: id } });
-        await tx.leaveAccrualRuleTier.createMany({
-          data: data.tiers.map((tier) => ({
-            accrualRuleId: id,
-            serviceMonthFrom: tier.serviceMonthFrom,
-            serviceMonthTo: tier.serviceMonthTo,
-            accrualDays: tier.accrualDays,
-            validMonths: tier.validMonths ?? null,
-            sortOrder: tier.sortOrder,
-          })),
-        });
-      }
-
-      return tx.leaveAccrualRule.findUnique({
-        where: { id },
-        include: {
-          leaveGroup: { select: { id: true, name: true } },
-          tiers: { orderBy: { sortOrder: 'asc' } },
-        },
-      });
-    });
+    const updated = await leaveAccrualRuleRepo.updateWithTiers(
+      auth.companyId,
+      id,
+      {
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.leaveGroupId !== undefined && { leaveGroupId: data.leaveGroupId }),
+        ...(data.accrualBasis !== undefined && { accrualBasis: data.accrualBasis }),
+        ...(data.accrualUnit !== undefined && { accrualUnit: data.accrualUnit }),
+        ...(data.proRataFirstYear !== undefined && { proRataFirstYear: data.proRataFirstYear }),
+        ...(data.description !== undefined && { description: data.description }),
+      },
+      data.tiers?.map((tier) => ({
+        serviceMonthFrom: tier.serviceMonthFrom,
+        serviceMonthTo: tier.serviceMonthTo,
+        accrualDays: tier.accrualDays,
+        validMonths: tier.validMonths ?? null,
+        sortOrder: tier.sortOrder,
+      })),
+    );
 
     return successResponse(updated);
   } catch {
@@ -66,15 +49,11 @@ async function putHandler(request: NextRequest, auth: AuthContext) {
 async function deleteHandler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const rule = await prisma.leaveAccrualRule.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const { leaveAccrualRuleRepo } = getContainer();
+  const rule = await leaveAccrualRuleRepo.findById(auth.companyId, id);
   if (!rule) return notFoundResponse('발생 규칙');
 
-  await prisma.leaveAccrualRule.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  await leaveAccrualRuleRepo.softDelete(auth.companyId, id);
 
   return new NextResponse(null, { status: 204 });
 }

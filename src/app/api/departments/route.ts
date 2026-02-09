@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
-  const departments = await prisma.department.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    orderBy: { sortOrder: 'asc' },
-    include: { _count: { select: { users: { where: { deletedAt: null } } } } },
-  });
+  const { departmentRepo } = getContainer();
+  const departments = await departmentRepo.findAllWithUserCount(auth.companyId);
 
   return successResponse({ items: departments });
 }
@@ -18,19 +15,17 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
 
   if (!name) return errorResponse('부서명을 입력해주세요.', 400);
 
-  const existing = await prisma.department.findFirst({
-    where: { companyId: auth.companyId, name, deletedAt: null },
-  });
+  const { departmentRepo } = getContainer();
+
+  const existing = await departmentRepo.findByName(auth.companyId, name);
   if (existing) return errorResponse('이미 존재하는 부서명입니다.', 409);
 
-  const department = await prisma.department.create({
-    data: {
-      companyId: auth.companyId,
-      name,
-      code: code ?? null,
-      parentId: parentId ?? null,
-      sortOrder: sortOrder ?? 0,
-    },
+  const department = await departmentRepo.create(auth.companyId, {
+    companyId: auth.companyId,
+    name,
+    code: code ?? null,
+    parentId: parentId ?? null,
+    sortOrder: sortOrder ?? 0,
   });
 
   return createdResponse(department);

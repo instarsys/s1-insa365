@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,19 +11,17 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const { reason } = await request.json();
 
-  const calc = await prisma.salaryCalculation.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const { salaryCalcRepo } = getContainer();
+
+  // Verify ownership
+  const calc = await salaryCalcRepo.findByIdWithDetails(auth.companyId, id);
 
   if (!calc) return notFoundResponse('급여 계산');
   if (calc.status !== 'DRAFT') return errorResponse('임시 상태의 급여만 건너뛸 수 있습니다.', 400);
 
-  const updated = await prisma.salaryCalculation.update({
-    where: { id },
-    data: {
-      status: 'SKIPPED',
-      skipReason: reason ?? null,
-    },
+  const updated = await salaryCalcRepo.update(id, {
+    status: 'SKIPPED',
+    skipReason: reason ?? null,
   });
 
   await auditLogService.log({

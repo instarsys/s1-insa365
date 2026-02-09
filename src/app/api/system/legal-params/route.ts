@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -9,12 +9,9 @@ async function handleGet(request: NextRequest, _auth: AuthContext) {
   const url = new URL(request.url);
   const category = url.searchParams.get('category');
 
-  const params = await prisma.legalParameter.findMany({
-    where: {
-      ...(category && { category: category as 'WORK_HOURS' | 'OVERTIME' | 'TAX' | 'SEVERANCE' | 'PENSION' }),
-    },
-    orderBy: [{ category: 'asc' }, { key: 'asc' }],
-  });
+  const params = category
+    ? await getContainer().legalParameterRepo.findByCategory(category)
+    : await getContainer().legalParameterRepo.findAll();
 
   return successResponse({ items: params });
 }
@@ -27,11 +24,11 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     return errorResponse('필수 항목을 모두 입력해주세요.', 400);
   }
 
-  const existing = await prisma.legalParameter.findFirst({ where: { key } });
+  const existing = await getContainer().legalParameterRepo.findByKey(key);
   if (existing) return errorResponse('이미 존재하는 키입니다.', 409);
 
-  const param = await prisma.legalParameter.create({
-    data: { category, key, value: String(value), description: description ?? null, unit: unit ?? null },
+  const param = await getContainer().legalParameterRepo.create({
+    category, key, value: String(value), description: description ?? null, unit: unit ?? null,
   });
 
   await auditLogService.log({

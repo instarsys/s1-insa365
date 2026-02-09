@@ -1,14 +1,15 @@
 import { prisma } from '../prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
 
 export class SalaryAttendanceDataRepository {
-  async findByPeriod(companyId: string, userId: string, year: number, month: number) {
+  async findByEmployeeAndPeriod(companyId: string, userId: string, year: number, month: number) {
     return prisma.salaryAttendanceData.findFirst({
       where: { companyId, userId, year, month },
       orderBy: { version: 'desc' },
     });
   }
 
-  async findAllByPeriod(companyId: string, year: number, month: number) {
+  async findByPeriod(companyId: string, year: number, month: number) {
     // Get latest version for each user
     const data = await prisma.salaryAttendanceData.findMany({
       where: { companyId, year, month },
@@ -22,5 +23,14 @@ export class SalaryAttendanceDataRepository {
       seen.add(d.userId);
       return true;
     });
+  }
+
+  async create(data: Prisma.SalaryAttendanceDataUncheckedCreateInput) {
+    return prisma.salaryAttendanceData.create({ data });
+  }
+
+  async createMany(dataArr: Prisma.SalaryAttendanceDataCreateManyInput[]) {
+    const result = await prisma.salaryAttendanceData.createMany({ data: dataArr });
+    return result.count;
   }
 }

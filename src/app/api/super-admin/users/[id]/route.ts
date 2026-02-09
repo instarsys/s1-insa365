@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, forbiddenResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   if (auth.role !== 'SYSTEM_ADMIN') return forbiddenResponse();
@@ -12,20 +12,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const id = segments[segments.length - 1];
 
   try {
+    const { userRepo } = getContainer();
+
     const body = await request.json();
     const { role, employeeStatus } = body;
 
-    const user = await prisma.user.findUnique({ where: { id } });
-    if (!user || user.deletedAt) return notFoundResponse('사용자');
+    const user = await userRepo.findGlobalById(id);
+    if (!user) return notFoundResponse('사용자');
 
     const updateData: Record<string, unknown> = {};
     if (role) updateData.role = role;
     if (employeeStatus) updateData.employeeStatus = employeeStatus;
 
-    const updated = await prisma.user.update({
-      where: { id },
-      data: updateData,
-    });
+    const updated = await userRepo.updateGlobal(id, updateData);
 
     return successResponse({
       id: updated.id,

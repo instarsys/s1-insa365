@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -10,16 +10,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
-
-  const attendances = await prisma.attendance.findMany({
-    where: {
-      companyId: auth.companyId,
-      date: { gte: startDate, lte: endDate },
-      deletedAt: null,
-    },
-  });
+  const { attendanceRepo } = getContainer();
+  const attendances = await attendanceRepo.findAllByMonth(auth.companyId, year, month);
 
   const summary = {
     year,

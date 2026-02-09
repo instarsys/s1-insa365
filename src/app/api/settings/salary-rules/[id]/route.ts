@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,26 +11,21 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.salaryRule.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await getContainer().salaryRuleRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('급여 항목');
 
-  const updated = await prisma.salaryRule.update({
-    where: { id },
-    data: {
-      ...(body.name && { name: body.name }),
-      ...(body.paymentType && { paymentType: body.paymentType }),
-      ...(body.paymentCycle && { paymentCycle: body.paymentCycle }),
-      ...(body.defaultAmount !== undefined && { defaultAmount: body.defaultAmount }),
-      ...(body.isOrdinaryWage !== undefined && { isOrdinaryWage: body.isOrdinaryWage }),
-      ...(body.isTaxExempt !== undefined && { isTaxExempt: body.isTaxExempt }),
-      ...(body.taxExemptCode !== undefined && { taxExemptCode: body.taxExemptCode }),
-      ...(body.isActive !== undefined && { isActive: body.isActive }),
-      ...(body.formula !== undefined && { formula: body.formula }),
-      ...(body.description !== undefined && { description: body.description }),
-      ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
-    },
+  const updated = await getContainer().salaryRuleRepo.update(auth.companyId, id, {
+    ...(body.name && { name: body.name }),
+    ...(body.paymentType && { paymentType: body.paymentType }),
+    ...(body.paymentCycle && { paymentCycle: body.paymentCycle }),
+    ...(body.defaultAmount !== undefined && { defaultAmount: body.defaultAmount }),
+    ...(body.isOrdinaryWage !== undefined && { isOrdinaryWage: body.isOrdinaryWage }),
+    ...(body.isTaxExempt !== undefined && { isTaxExempt: body.isTaxExempt }),
+    ...(body.taxExemptCode !== undefined && { taxExemptCode: body.taxExemptCode }),
+    ...(body.isActive !== undefined && { isActive: body.isActive }),
+    ...(body.formula !== undefined && { formula: body.formula }),
+    ...(body.description !== undefined && { description: body.description }),
+    ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
   });
 
   await auditLogService.log({
@@ -49,15 +44,10 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.salaryRule.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await getContainer().salaryRuleRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('급여 항목');
 
-  await prisma.salaryRule.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  await getContainer().salaryRuleRepo.softDelete(auth.companyId, id);
 
   await auditLogService.log({
     userId: auth.userId,

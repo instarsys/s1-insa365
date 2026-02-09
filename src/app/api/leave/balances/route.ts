@@ -1,26 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(_request: NextRequest, auth: AuthContext) {
   const currentYear = new Date().getFullYear();
 
-  const balances = await prisma.leaveBalance.findMany({
-    where: {
-      companyId: auth.companyId,
-      year: currentYear,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          department: { select: { name: true } },
-        },
-      },
-    },
-  });
+  const { leaveBalanceRepo } = getContainer();
+
+  const balances = await leaveBalanceRepo.findAllByYearWithUser(auth.companyId, currentYear);
 
   // Aggregate per userId (sum across leaveTypes)
   const userMap = new Map<string, {

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -10,10 +10,7 @@ async function handleGet(request: NextRequest, _auth: AuthContext) {
   const { year } = parseSearchParams(url);
   const targetYear = year ?? new Date().getFullYear();
 
-  const brackets = await prisma.taxBracket.findMany({
-    where: { year: targetYear },
-    orderBy: [{ dependents: 'asc' }, { minIncome: 'asc' }],
-  });
+  const brackets = await getContainer().taxBracketRepo.findAllByYear(targetYear);
 
   return successResponse({ year: targetYear, items: brackets });
 }
@@ -26,9 +23,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     return errorResponse('필수 항목을 모두 입력해주세요.', 400);
   }
 
-  const bracket = await prisma.taxBracket.create({
-    data: { year, minIncome, maxIncome, dependents, taxAmount },
-  });
+  const bracket = await getContainer().taxBracketRepo.create({ year, minIncome, maxIncome, dependents, taxAmount });
 
   await auditLogService.log({
     userId: auth.userId,

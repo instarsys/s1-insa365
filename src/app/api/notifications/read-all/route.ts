@@ -1,17 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
 
 async function handler(_request: NextRequest, auth: AuthContext) {
-  const result = await prisma.notification.updateMany({
-    where: {
-      userId: auth.userId,
-      companyId: auth.companyId,
-      isRead: false,
-    },
-    data: { isRead: true, readAt: new Date() },
-  });
+  const { notificationRepo } = getContainer();
+  const result = await notificationRepo.markAllRead(auth.companyId, auth.userId);
 
   return successResponse({ updatedCount: result.count });
 }

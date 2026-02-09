@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { generateAccrualsSchema } from '@/presentation/api/schemas';
 import { calculateServiceMonths, findMatchingTier, type AccrualTier } from '@/domain/services/LeaveAccrualCalculator';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
@@ -13,39 +13,15 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { year, ruleId } = validation.data;
 
-    const rules = await prisma.leaveAccrualRule.findMany({
-      where: {
-        companyId: auth.companyId,
-        deletedAt: null,
-        isActive: true,
-        ...(ruleId && { id: ruleId }),
-      },
-      include: {
-        tiers: { orderBy: { sortOrder: 'asc' } },
-        leaveGroup: {
-          include: {
-            leaveTypeConfigs: {
-              where: { deletedAt: null, isActive: true },
-              take: 1,
-              orderBy: { sortOrder: 'asc' },
-            },
-          },
-        },
-      },
-    });
+    const { leaveAccrualRuleRepo, userRepo, leaveAccrualRecordRepo } = getContainer();
+
+    const rules = await leaveAccrualRuleRepo.findActiveWithLeaveTypes(auth.companyId, ruleId);
 
     if (rules.length === 0) {
       return errorResponse('활성 발생 규칙이 없습니다.', 404);
     }
 
-    const employees = await prisma.user.findMany({
-      where: {
-        companyId: auth.companyId,
-        employeeStatus: 'ACTIVE',
-        deletedAt: null,
-      },
-      select: { id: true, joinDate: true },
-    });
+    const employees = await userRepo.findActiveWithJoinDate(auth.companyId);
 
     let generated = 0;
     let skipped = 0;
@@ -73,14 +49,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
           continue;
         }
 
-        const existingRecord = await prisma.leaveAccrualRecord.findFirst({
-          where: {
-            companyId: auth.companyId,
-            userId: emp.id,
-            accrualRuleId: rule.id,
-            year,
-          },
-        });
+        const existingRecord = await leaveAccrualRecordRepo.findByUserAndRuleAndYear(
+          auth.companyId, emp.id, rule.id, year,
+        );
 
         if (existingRecord) {
           skipped++;
@@ -95,45 +66,28 @@ async function handler(request: NextRequest, auth: AuthContext) {
           continue;
         }
 
-        await prisma.$transaction(async (tx) => {
-          await tx.leaveAccrualRecord.create({
-            data: {
-              companyId: auth.companyId,
-              userId: emp.id,
-              leaveTypeConfigId: leaveTypeConfig.id,
-              accrualRuleId: rule.id,
-              year,
-              accrualDays: matchedTier.accrualDays,
-              periodStart,
-              periodEnd,
-              expiresAt: matchedTier.validMonths
-                ? new Date(year, matchedTier.validMonths, 0)
-                : null,
-              source: 'RULE',
-            },
-          });
-
-          await tx.leaveBalance.upsert({
-            where: {
-              companyId_userId_year: {
-                companyId: auth.companyId,
-                userId: emp.id,
-                year,
-              },
-            },
-            create: {
-              companyId: auth.companyId,
-              userId: emp.id,
-              year,
-              totalDays: matchedTier.accrualDays,
-              remainingDays: matchedTier.accrualDays,
-            },
-            update: {
-              totalDays: { increment: matchedTier.accrualDays },
-              remainingDays: { increment: matchedTier.accrualDays },
-            },
-          });
-        });
+        await leaveAccrualRecordRepo.createWithBalanceUpdate(
+          {
+            companyId: auth.companyId,
+            userId: emp.id,
+            leaveTypeConfigId: leaveTypeConfig.id,
+            accrualRuleId: rule.id,
+            year,
+            accrualDays: matchedTier.accrualDays,
+            periodStart,
+            periodEnd,
+            expiresAt: matchedTier.validMonths
+              ? new Date(year, matchedTier.validMonths, 0)
+              : null,
+            source: 'RULE',
+          },
+          {
+            companyId: auth.companyId,
+            userId: emp.id,
+            year,
+            accrualDays: matchedTier.accrualDays,
+          },
+        );
 
         generated++;
       }

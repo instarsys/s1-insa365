@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { getAuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
@@ -9,15 +9,8 @@ export async function POST(request: NextRequest) {
     const auth = getAuthContext(request);
 
     if (auth) {
-      const user = await prisma.user.findFirst({
-        where: { id: auth.userId, companyId: auth.companyId, deletedAt: null },
-      });
-      if (user) {
-        await prisma.user.update({
-          where: { id: auth.userId },
-          data: { refreshToken: null },
-        });
-      }
+      const { userRepo } = getContainer();
+      await userRepo.updateRefreshToken(auth.companyId, auth.userId, null);
 
       await auditLogService.log({
         userId: auth.userId,

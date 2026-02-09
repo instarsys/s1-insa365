@@ -42,4 +42,24 @@ export class PositionRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async findAllWithUserCount(companyId: string) {
+    return prisma.position.findMany({
+      where: { companyId, deletedAt: null },
+      include: { _count: { select: { users: { where: { deletedAt: null } } } } },
+      orderBy: { level: 'asc' },
+    });
+  }
+
+  async findByName(companyId: string, name: string) {
+    return prisma.position.findFirst({
+      where: { companyId, name, deletedAt: null },
+    });
+  }
+
+  async findByNameExcept(companyId: string, name: string, excludeId: string) {
+    return prisma.position.findFirst({
+      where: { companyId, name, deletedAt: null, NOT: { id: excludeId } },
+    });
+  }
 }

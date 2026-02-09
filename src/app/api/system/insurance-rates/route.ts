@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -7,9 +7,7 @@ import { successResponse, createdResponse, errorResponse, validateBody } from '@
 import { createInsuranceRateSchema } from '@/presentation/api/schemas';
 
 async function handleGet(_request: NextRequest, _auth: AuthContext) {
-  const rates = await prisma.insuranceRate.findMany({
-    orderBy: [{ type: 'asc' }, { effectiveStartDate: 'desc' }],
-  });
+  const rates = await getContainer().insuranceRateRepo.findAll();
 
   return successResponse({ items: rates });
 }
@@ -20,17 +18,15 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   if (!validation.success) return validation.response;
   const { type, employeeRate, employerRate, minBase, maxBase, effectiveStartDate, effectiveEndDate, description } = validation.data;
 
-  const rate = await prisma.insuranceRate.create({
-    data: {
-      type,
-      employeeRate,
-      employerRate,
-      minBase: minBase ?? null,
-      maxBase: maxBase ?? null,
-      effectiveStartDate: new Date(effectiveStartDate),
-      effectiveEndDate: new Date(effectiveEndDate),
-      description: description ?? null,
-    },
+  const rate = await getContainer().insuranceRateRepo.create({
+    type,
+    employeeRate,
+    employerRate,
+    minBase: minBase ?? null,
+    maxBase: maxBase ?? null,
+    effectiveStartDate: new Date(effectiveStartDate),
+    effectiveEndDate: new Date(effectiveEndDate),
+    description: description ?? null,
   });
 
   await auditLogService.log({

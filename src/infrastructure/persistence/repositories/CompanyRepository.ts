@@ -18,4 +18,16 @@ export class CompanyRepository {
       data,
     });
   }
+
+  async findAll() {
+    return prisma.company.findMany({
+      where: { deletedAt: null },
+      include: { _count: { select: { users: { where: { deletedAt: null } } } } },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async countAll() {
+    return prisma.company.count({ where: { deletedAt: null } });
+  }
 }

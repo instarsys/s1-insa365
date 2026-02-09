@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,16 +11,13 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.legalParameter.findUnique({ where: { id } });
+  const existing = await getContainer().legalParameterRepo.findById(id);
   if (!existing) return notFoundResponse('법정 파라미터');
 
-  const updated = await prisma.legalParameter.update({
-    where: { id },
-    data: {
-      ...(body.value !== undefined && { value: String(body.value) }),
-      ...(body.description !== undefined && { description: body.description }),
-      ...(body.unit !== undefined && { unit: body.unit }),
-    },
+  const updated = await getContainer().legalParameterRepo.update(id, {
+    ...(body.value !== undefined && { value: String(body.value) }),
+    ...(body.description !== undefined && { description: body.description }),
+    ...(body.unit !== undefined && { unit: body.unit }),
   });
 
   await auditLogService.log({
@@ -39,10 +36,10 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.legalParameter.findUnique({ where: { id } });
+  const existing = await getContainer().legalParameterRepo.findById(id);
   if (!existing) return notFoundResponse('법정 파라미터');
 
-  await prisma.legalParameter.delete({ where: { id } });
+  await getContainer().legalParameterRepo.delete(id);
 
   await auditLogService.log({
     userId: auth.userId,

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -25,20 +25,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (m > 12) { m = 1; y++; }
   }
 
-  const calculations = await prisma.salaryCalculation.findMany({
-    where: {
-      companyId: auth.companyId,
-      deletedAt: null,
-      status: { in: ['CONFIRMED', 'PAID'] },
-      OR: months.map((ym) => ({ year: ym.year, month: ym.month })),
-    },
-    select: {
-      year: true,
-      month: true,
-      totalPay: true,
-      netPay: true,
-    },
-  });
+  const { salaryCalcRepo } = getContainer();
+  const calculations = await salaryCalcRepo.findConfirmedByPeriods(auth.companyId, months);
 
   const items = months.map((ym) => {
     const monthCalcs = calculations.filter((c) => c.year === ym.year && c.month === ym.month);

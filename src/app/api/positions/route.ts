@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
-  const positions = await prisma.position.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    orderBy: { level: 'desc' },
-    include: { _count: { select: { users: { where: { deletedAt: null } } } } },
-  });
+  const positions = await getContainer().positionRepo.findAllWithUserCount(auth.companyId);
 
   return successResponse({ items: positions });
 }
@@ -18,17 +14,15 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
 
   if (!name) return errorResponse('직위명을 입력해주세요.', 400);
 
-  const existing = await prisma.position.findFirst({
-    where: { companyId: auth.companyId, name, deletedAt: null },
-  });
+  const { positionRepo } = getContainer();
+
+  const existing = await positionRepo.findByName(auth.companyId, name);
   if (existing) return errorResponse('이미 존재하는 직위명입니다.', 409);
 
-  const position = await prisma.position.create({
-    data: {
-      companyId: auth.companyId,
-      name,
-      level: level ?? 0,
-    },
+  const position = await positionRepo.create(auth.companyId, {
+    companyId: auth.companyId,
+    name,
+    level: level ?? 0,
   });
 
   return createdResponse(position);

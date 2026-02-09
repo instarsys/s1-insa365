@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
@@ -17,10 +17,9 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { email, password } = validation.data;
 
-    const user = await prisma.user.findFirst({
-      where: { email, deletedAt: null },
-      include: { company: true },
-    });
+    const { userRepo } = getContainer();
+
+    const user = await userRepo.findByEmail(email);
 
     if (!user || !(await passwordService.verify(password, user.password))) {
       return errorResponse('이메일 또는 비밀번호가 올바르지 않습니다.', 401);
@@ -36,10 +35,7 @@ export async function POST(request: NextRequest) {
     const accessToken = jwtService.generateAccessToken(tokenPayload);
     const refreshToken = jwtService.generateRefreshToken(tokenPayload);
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken },
-    });
+    await userRepo.updateRefreshToken(user.companyId, user.id, refreshToken);
 
     await auditLogService.log({
       userId: user.id,

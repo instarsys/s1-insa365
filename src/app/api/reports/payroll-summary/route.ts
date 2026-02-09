@@ -1,17 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, parseSearchParams } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { year } = parseSearchParams(url);
   const targetYear = year ?? new Date().getFullYear();
 
-  const monthlies = await prisma.payrollMonthly.findMany({
-    where: { companyId: auth.companyId, year: targetYear },
-  });
+  const { payrollMonthlyRepo } = getContainer();
+  const monthlies = await payrollMonthlyRepo.findByYear(auth.companyId, targetYear);
 
   const monthlyTotals = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse } from '@/presentation/api/helpers';
@@ -9,33 +9,17 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const calc = await prisma.salaryCalculation.findFirst({
-    where: {
-      id,
-      companyId: auth.companyId,
-      deletedAt: null,
-      ...(auth.role === 'EMPLOYEE' && { userId: auth.userId }),
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          employeeNumber: true,
-          department: { select: { name: true } },
-          position: { select: { name: true } },
-          joinDate: true,
-        },
-      },
-    },
-  });
+  const { salaryCalcRepo, companyRepo } = getContainer();
+
+  const calc = await salaryCalcRepo.findByIdWithDetails(
+    auth.companyId,
+    id,
+    auth.role === 'EMPLOYEE' ? auth.userId : undefined,
+  );
 
   if (!calc) return notFoundResponse('급여명세서');
 
-  const company = await prisma.company.findUnique({
-    where: { id: auth.companyId },
-    select: { name: true, businessNumber: true, representativeName: true },
-  });
+  const company = await companyRepo.findById(auth.companyId);
 
   await auditLogService.log({
     userId: auth.userId,

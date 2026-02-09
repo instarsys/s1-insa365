@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse, noContentResponse } from '@/presentation/api/helpers';
@@ -10,28 +10,20 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.workPolicy.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await getContainer().workPolicyRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('근무 정책');
 
   if (body.isDefault) {
-    await prisma.workPolicy.updateMany({
-      where: { companyId: auth.companyId, isDefault: true, NOT: { id } },
-      data: { isDefault: false },
-    });
+    await getContainer().workPolicyRepo.unsetDefaultExcept(auth.companyId, id);
   }
 
-  const updated = await prisma.workPolicy.update({
-    where: { id },
-    data: {
-      ...(body.name && { name: body.name }),
-      ...(body.startTime && { startTime: body.startTime }),
-      ...(body.endTime && { endTime: body.endTime }),
-      ...(body.breakMinutes !== undefined && { breakMinutes: body.breakMinutes }),
-      ...(body.workDays && { workDays: body.workDays }),
-      ...(body.isDefault !== undefined && { isDefault: body.isDefault }),
-    },
+  const updated = await getContainer().workPolicyRepo.update(auth.companyId, id, {
+    ...(body.name && { name: body.name }),
+    ...(body.startTime && { startTime: body.startTime }),
+    ...(body.endTime && { endTime: body.endTime }),
+    ...(body.breakMinutes !== undefined && { breakMinutes: body.breakMinutes }),
+    ...(body.workDays && { workDays: body.workDays }),
+    ...(body.isDefault !== undefined && { isDefault: body.isDefault }),
   });
 
   return successResponse(updated);
@@ -40,20 +32,15 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.workPolicy.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const existing = await getContainer().workPolicyRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('근무 정책');
 
   if (existing.isDefault) return errorResponse('기본 근무 정책은 삭제할 수 없습니다.', 400);
 
-  const userCount = await prisma.user.count({ where: { workPolicyId: id, companyId: auth.companyId, deletedAt: null } });
+  const userCount = await getContainer().userRepo.countByWorkPolicy(auth.companyId, id);
   if (userCount > 0) return errorResponse('소속 직원이 있는 근무 정책은 삭제할 수 없습니다.', 400);
 
-  await prisma.workPolicy.update({
-    where: { id },
-    data: { deletedAt: new Date() },
-  });
+  await getContainer().workPolicyRepo.softDelete(auth.companyId, id);
 
   return noContentResponse();
 }

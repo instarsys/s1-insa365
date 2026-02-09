@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { createLeaveRequestSchema } from '@/presentation/api/schemas';
@@ -11,18 +11,18 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { type, leaveTypeConfigId, startDate, endDate, days, reason } = validation.data;
 
-    const leaveRequest = await prisma.leaveRequest.create({
-      data: {
-        companyId: auth.companyId,
-        userId: auth.userId,
-        type,
-        leaveTypeConfigId: leaveTypeConfigId ?? null,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        days,
-        reason: reason ?? null,
-        status: 'PENDING',
-      },
+    const { leaveRequestRepo } = getContainer();
+
+    const leaveRequest = await leaveRequestRepo.create(auth.companyId, {
+      companyId: auth.companyId,
+      userId: auth.userId,
+      type,
+      leaveTypeConfigId: leaveTypeConfigId ?? null,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      days,
+      reason: reason ?? null,
+      status: 'PENDING',
     });
 
     return createdResponse(leaveRequest);

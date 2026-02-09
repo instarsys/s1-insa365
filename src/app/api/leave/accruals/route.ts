@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -11,26 +11,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const userId = url.searchParams.get('userId') ?? undefined;
   const departmentId = url.searchParams.get('departmentId') ?? undefined;
 
-  const records = await prisma.leaveAccrualRecord.findMany({
-    where: {
-      companyId: auth.companyId,
-      year,
-      ...(userId && { userId }),
-      ...(departmentId && { user: { departmentId } }),
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          joinDate: true,
-          department: { select: { name: true } },
-        },
-      },
-      leaveTypeConfig: { select: { id: true, name: true, code: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const { leaveAccrualRecordRepo } = getContainer();
+
+  const records = await leaveAccrualRecordRepo.findAll(auth.companyId, { year, userId, departmentId });
 
   const userMap = new Map<string, {
     userId: string;

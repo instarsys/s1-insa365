@@ -1,18 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, forbiddenResponse, errorResponse, createdResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function getHandler(request: NextRequest, auth: AuthContext) {
   if (auth.role !== 'SYSTEM_ADMIN') return forbiddenResponse();
 
   try {
-    const companies = await prisma.company.findMany({
-      include: {
-        _count: { select: { users: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    const { companyRepo } = getContainer();
+
+    const companies = await companyRepo.findAll();
 
     return successResponse({
       items: companies.map((c) => ({
@@ -38,6 +35,8 @@ async function postHandler(request: NextRequest, auth: AuthContext) {
   if (auth.role !== 'SYSTEM_ADMIN') return forbiddenResponse();
 
   try {
+    const { companyRepo } = getContainer();
+
     const body = await request.json();
     const { name, businessNumber, representativeName, email, phone } = body;
 
@@ -45,16 +44,14 @@ async function postHandler(request: NextRequest, auth: AuthContext) {
       return errorResponse('회사명과 사업자번호는 필수입니다.');
     }
 
-    const company = await prisma.company.create({
-      data: {
-        name,
-        businessNumber,
-        representativeName: representativeName ?? '',
-        email: email ?? '',
-        phone: phone ?? '',
-        payDay: 25,
-        monthlyWorkHours: 209,
-      },
+    const company = await companyRepo.create({
+      name,
+      businessNumber,
+      representativeName: representativeName ?? '',
+      email: email ?? '',
+      phone: phone ?? '',
+      payDay: 25,
+      monthlyWorkHours: 209,
     });
 
     return createdResponse({ id: company.id, name: company.name });

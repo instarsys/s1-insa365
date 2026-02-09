@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
@@ -16,19 +16,8 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handleGet(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const user = await prisma.user.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-    include: {
-      department: { select: { id: true, name: true } },
-      position: { select: { id: true, name: true } },
-      workPolicy: { select: { id: true, name: true, startTime: true, endTime: true } },
-      workLocation: { select: { id: true, name: true } },
-      employeeSalaryItems: {
-        where: { deletedAt: null, isActive: true },
-        orderBy: { sortOrder: 'asc' },
-      },
-    },
-  });
+  const { employeeRepo } = getContainer();
+  const user = await employeeRepo.findByIdWithDetails(auth.companyId, id);
 
   if (!user) return notFoundResponse('직원');
 
@@ -47,9 +36,9 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const validation = validateBody(updateEmployeeSchema, body);
   if (!validation.success) return validation.response;
 
-  const existing = await prisma.user.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const { employeeRepo } = getContainer();
+
+  const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
 
   const { rrn, bankAccount, bankName, ...updateData } = validation.data;
@@ -74,18 +63,17 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   delete data.refreshToken;
   delete data.employeeNumber;
 
-  const updated = await prisma.user.update({
-    where: { id },
-    data,
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      employeeNumber: true,
-      role: true,
-      employeeStatus: true,
-    },
-  });
+  const updatedFull = await employeeRepo.update(auth.companyId, id, data);
+  const updated = updatedFull ? {
+    id: updatedFull.id,
+    name: updatedFull.name,
+    email: updatedFull.email,
+    employeeNumber: updatedFull.employeeNumber,
+    role: updatedFull.role,
+    employeeStatus: updatedFull.employeeStatus,
+  } : null;
+
+  if (!updated) return notFoundResponse('직원');
 
   await auditLogService.log({
     userId: auth.userId,
@@ -103,19 +91,12 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.user.findFirst({
-    where: { id, companyId: auth.companyId, deletedAt: null },
-  });
+  const { employeeRepo } = getContainer();
+
+  const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
 
-  await prisma.user.update({
-    where: { id },
-    data: {
-      deletedAt: new Date(),
-      employeeStatus: 'TERMINATED',
-      resignDate: new Date(),
-    },
-  });
+  await employeeRepo.terminate(auth.companyId, id);
 
   await auditLogService.log({
     userId: auth.userId,

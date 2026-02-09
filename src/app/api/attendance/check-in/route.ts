@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { checkInSchema } from '@/presentation/api/schemas';
@@ -14,14 +14,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        companyId: auth.companyId,
-        userId: auth.userId,
-        date: today,
-        deletedAt: null,
-      },
-    });
+    const { attendanceRepo } = getContainer();
+
+    const existing = await attendanceRepo.findByDate(auth.companyId, auth.userId, today);
 
     if (existing?.checkInTime) {
       return errorResponse('이미 출근 기록이 있습니다.', 400);
@@ -30,16 +25,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const now = new Date();
 
     const attendance = existing
-      ? await prisma.attendance.update({
-          where: { id: existing.id },
-          data: {
+      ? await attendanceRepo.update(auth.companyId, existing.id, {
             checkInTime: now,
             checkInLatitude: latitude ?? null,
             checkInLongitude: longitude ?? null,
-          },
-        })
-      : await prisma.attendance.create({
-          data: {
+          })
+      : await attendanceRepo.create(auth.companyId, {
             companyId: auth.companyId,
             userId: auth.userId,
             date: today,
@@ -47,8 +38,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
             checkInLatitude: latitude ?? null,
             checkInLongitude: longitude ?? null,
             status: 'ON_TIME',
-          },
-        });
+          });
 
     return createdResponse(attendance);
   } catch {

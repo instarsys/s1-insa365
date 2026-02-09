@@ -2,7 +2,13 @@ import { prisma } from '../prisma/client';
 import type { Prisma } from '@/generated/prisma/client';
 
 export class PayrollMonthlyRepository {
-  async findByPeriod(companyId: string, userId: string, year: number) {
+  async findByEmployeeAndPeriod(companyId: string, userId: string, year: number, month: number) {
+    return prisma.payrollMonthly.findFirst({
+      where: { companyId, userId, year, month },
+    });
+  }
+
+  async findByEmployeeAndYear(companyId: string, userId: string, year: number) {
     return prisma.payrollMonthly.findMany({
       where: { companyId, userId, year },
       orderBy: { month: 'asc' },
@@ -17,8 +23,19 @@ export class PayrollMonthlyRepository {
     });
   }
 
-  async createMany(data: Prisma.PayrollMonthlyCreateManyInput[]) {
-    return prisma.payrollMonthly.createMany({ data });
+  async create(data: Prisma.PayrollMonthlyUncheckedCreateInput) {
+    return prisma.payrollMonthly.create({ data });
+  }
+
+  async createMany(dataArr: Prisma.PayrollMonthlyCreateManyInput[]) {
+    const result = await prisma.payrollMonthly.createMany({ data: dataArr });
+    return result.count;
+  }
+
+  async deleteByPeriod(companyId: string, year: number, month: number) {
+    await prisma.payrollMonthly.deleteMany({
+      where: { companyId, year, month },
+    });
   }
 
   async upsert(companyId: string, userId: string, year: number, month: number, data: Prisma.PayrollMonthlyUncheckedCreateInput) {
@@ -28,6 +45,13 @@ export class PayrollMonthlyRepository {
       },
       create: { ...data, companyId, userId, year, month },
       update: data,
+    });
+  }
+
+  async findByYear(companyId: string, year: number) {
+    return prisma.payrollMonthly.findMany({
+      where: { companyId, year },
+      orderBy: { month: 'asc' },
     });
   }
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -20,54 +20,21 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const endDate = new Date(year, month - 1, daysInMonth);
   endDate.setHours(23, 59, 59, 999);
 
-  const userWhere = {
-    companyId: auth.companyId,
-    deletedAt: null,
-    employeeStatus: employeeStatus as 'ACTIVE' | 'RESIGNED',
-    ...(departmentId && { departmentId }),
-  };
+  const { userRepo, attendanceRepo } = getContainer();
 
-  const skip = (page - 1) * limit;
-
-  const [users, totalEmployees] = await Promise.all([
-    prisma.user.findMany({
-      where: userWhere,
-      select: {
-        id: true,
-        name: true,
-        employeeNumber: true,
-        department: { select: { name: true } },
-      },
-      orderBy: { name: 'asc' },
-      skip,
-      take: limit,
-    }),
-    prisma.user.count({ where: userWhere }),
-  ]);
+  const { items: users, total: totalEmployees } = await userRepo.findForCalendar(
+    auth.companyId,
+    { employeeStatus, departmentId, page, limit },
+  );
 
   const userIds = users.map((u) => u.id);
 
-  const attendances = userIds.length > 0
-    ? await prisma.attendance.findMany({
-        where: {
-          companyId: auth.companyId,
-          userId: { in: userIds },
-          date: { gte: startDate, lte: endDate },
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          userId: true,
-          date: true,
-          checkInTime: true,
-          checkOutTime: true,
-          status: true,
-          isConfirmed: true,
-          totalMinutes: true,
-          note: true,
-        },
-      })
-    : [];
+  const attendances = await attendanceRepo.findByUserIdsAndDateRange(
+    auth.companyId,
+    userIds,
+    startDate,
+    endDate,
+  );
 
   // Build per-user, per-day map
   const items = users.map((user) => {

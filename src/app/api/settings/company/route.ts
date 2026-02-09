@@ -1,13 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
-  const company = await prisma.company.findFirst({
-    where: { id: auth.companyId, deletedAt: null },
-  });
+  const company = await getContainer().companyRepo.findById(auth.companyId);
 
   if (!company) return notFoundResponse('회사');
 
@@ -31,12 +29,9 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     if (body[field] !== undefined) updateData[field] = body[field];
   }
 
-  const existing = await prisma.company.findUnique({ where: { id: auth.companyId } });
+  const existing = await getContainer().companyRepo.findById(auth.companyId);
 
-  const updated = await prisma.company.update({
-    where: { id: auth.companyId },
-    data: updateData,
-  });
+  const updated = await getContainer().companyRepo.update(auth.companyId, updateData);
 
   await auditLogService.log({
     userId: auth.userId,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, parseSearchParams } from '@/presentation/api/helpers';
 
@@ -11,13 +11,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
   // EMPLOYEE sees own balance, MANAGER+ can query specific user
   const targetUserId = auth.role === 'EMPLOYEE' ? auth.userId : (userId ?? auth.userId);
 
-  const balance = await prisma.leaveBalance.findFirst({
-    where: {
-      companyId: auth.companyId,
-      userId: targetUserId,
-      year: targetYear,
-    },
-  });
+  const { leaveBalanceRepo } = getContainer();
+
+  const balance = await leaveBalanceRepo.findByUserAndYear(auth.companyId, targetUserId, targetYear);
 
   return successResponse({
     balance: balance ?? {

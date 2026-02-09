@@ -22,7 +22,13 @@ export class InsuranceRateRepository {
     });
   }
 
-  async findAll(page = 1, limit = 50) {
+  async findAll() {
+    return prisma.insuranceRate.findMany({
+      orderBy: [{ type: 'asc' }, { effectiveStartDate: 'desc' }],
+    });
+  }
+
+  async findAllPaginated(page = 1, limit = 50) {
     const [items, total] = await Promise.all([
       prisma.insuranceRate.findMany({
         skip: (page - 1) * limit,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
 
@@ -9,50 +9,28 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-  const calculations = await prisma.salaryCalculation.findMany({
-    where: {
-      companyId: auth.companyId,
-      year,
-      month,
-      deletedAt: null,
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          employeeNumber: true,
-          department: { select: { name: true } },
-          position: { select: { name: true } },
-          employeeSalaryItems: {
-            where: { deletedAt: null, isActive: true },
-            orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
-          },
-        },
-      },
-    },
-    orderBy: { user: { name: 'asc' } },
-  });
+  const { salaryCalcRepo } = getContainer();
+
+  const calculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
 
   const items = calculations.map((calc) => ({
     employeeId: calc.userId,
-    employeeName: calc.user.name,
-    employeeNumber: calc.user.employeeNumber ?? '',
-    departmentName: calc.user.department?.name,
+    employeeName: calc.user?.name ?? '',
+    employeeNumber: calc.user?.employeeNumber ?? '',
+    departmentName: calc.user?.department?.name,
     basePay: Number(calc.basePay),
-    items: calc.user.employeeSalaryItems.map((item) => ({
+    items: (calc.user as { employeeSalaryItems?: { code: string; name: string; amount: unknown; type: string }[] })?.employeeSalaryItems?.map((item) => ({
       code: item.code,
       name: item.name,
       amount: Number(item.amount),
       type: item.type,
-    })),
+    })) ?? [],
     totalPay: Number(calc.totalPay),
     totalDeduction: Number(calc.totalDeduction),
     netPay: Number(calc.netPay),
     status: calc.status,
     isSkipped: calc.status === 'SKIPPED',
-    skipReason: calc.skipReason ?? undefined,
-    // Breakdown for inline editing
+    skipReason: (calc as { skipReason?: string }).skipReason ?? undefined,
     fixedAllowances: Number(calc.fixedAllowances),
     variableAllowances: Number(calc.variableAllowances),
     overtimePay: Number(calc.overtimePay),

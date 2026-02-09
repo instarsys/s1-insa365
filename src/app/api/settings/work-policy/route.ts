@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
-  const policies = await prisma.workPolicy.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    orderBy: { createdAt: 'asc' },
-    include: { _count: { select: { users: { where: { deletedAt: null } } } } },
-  });
+  const policies = await getContainer().workPolicyRepo.findAllWithUserCount(auth.companyId);
 
   return successResponse({ items: policies });
 }
@@ -25,22 +21,16 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   }
 
   if (isDefault) {
-    await prisma.workPolicy.updateMany({
-      where: { companyId: auth.companyId, isDefault: true },
-      data: { isDefault: false },
-    });
+    await getContainer().workPolicyRepo.unsetDefault(auth.companyId);
   }
 
-  const policy = await prisma.workPolicy.create({
-    data: {
-      companyId: auth.companyId,
-      name,
-      startTime,
-      endTime,
-      breakMinutes: breakMinutes ?? 60,
-      workDays: workDays ?? '1,2,3,4,5',
-      isDefault: isDefault ?? false,
-    },
+  const policy = await getContainer().workPolicyRepo.create(auth.companyId, {
+    name,
+    startTime,
+    endTime,
+    breakMinutes: breakMinutes ?? 60,
+    workDays: workDays ?? '1,2,3,4,5',
+    isDefault: isDefault ?? false,
   });
 
   return createdResponse(policy);

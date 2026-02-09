@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,15 +11,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-    const confirmed = await prisma.salaryCalculation.findMany({
-      where: {
-        companyId: auth.companyId,
-        year,
-        month,
-        status: 'CONFIRMED',
-        deletedAt: null,
-      },
-    });
+    const { salaryCalcRepo } = getContainer();
+
+    const calculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
+    const confirmed = calculations.filter((c) => c.status === 'CONFIRMED');
 
     if (confirmed.length === 0) {
       return errorResponse('취소할 확정 급여가 없습니다.', 400);
@@ -28,26 +23,17 @@ async function handler(request: NextRequest, auth: AuthContext) {
     // Check 24h cancel window
     const firstConfirmed = confirmed[0];
     if (firstConfirmed.confirmedAt) {
-      const hoursSinceConfirm = (Date.now() - firstConfirmed.confirmedAt.getTime()) / (1000 * 60 * 60);
+      const confirmedTime = typeof firstConfirmed.confirmedAt === 'string'
+        ? new Date(firstConfirmed.confirmedAt).getTime()
+        : firstConfirmed.confirmedAt.getTime();
+      const hoursSinceConfirm = (Date.now() - confirmedTime) / (1000 * 60 * 60);
       if (hoursSinceConfirm > 24) {
         return errorResponse('확정 후 24시간이 지나 취소할 수 없습니다.', 400);
       }
     }
 
-    await prisma.salaryCalculation.updateMany({
-      where: {
-        companyId: auth.companyId,
-        year,
-        month,
-        status: 'CONFIRMED',
-        deletedAt: null,
-      },
-      data: {
-        status: 'DRAFT',
-        confirmedAt: null,
-        confirmedBy: null,
-      },
-    });
+    // Revert CONFIRMED → DRAFT
+    await salaryCalcRepo.revertConfirmedToDraft(auth.companyId, year, month);
 
     await auditLogService.log({
       userId: auth.userId,

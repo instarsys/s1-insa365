@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -18,37 +18,13 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const startDate = new Date(startYear, startMonth - 1, 1);
   const endDate = new Date(endYear, endMonth, 0);
 
-  const departments = await prisma.department.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    select: { id: true, name: true },
-    orderBy: { sortOrder: 'asc' },
-  });
+  const { departmentRepo, attendanceRepo, employeeRepo } = getContainer();
 
-  const attendances = await prisma.attendance.findMany({
-    where: {
-      companyId: auth.companyId,
-      deletedAt: null,
-      date: { gte: startDate, lte: endDate },
-    },
-    select: {
-      status: true,
-      regularMinutes: true,
-      overtimeMinutes: true,
-      totalMinutes: true,
-      user: { select: { departmentId: true } },
-    },
-  });
-
-  const employeeCounts = await prisma.user.groupBy({
-    by: ['departmentId'],
-    where: {
-      companyId: auth.companyId,
-      deletedAt: null,
-      employeeStatus: 'ACTIVE',
-    },
-    _count: true,
-  });
-  const countMap = new Map(employeeCounts.map((e) => [e.departmentId, e._count]));
+  const [departments, attendances, countMap] = await Promise.all([
+    departmentRepo.findAll(auth.companyId),
+    attendanceRepo.findAllByDateRange(auth.companyId, startDate, endDate),
+    employeeRepo.countByDepartment(auth.companyId),
+  ]);
 
   const items = departments.map((dept) => {
     const deptAttendances = attendances.filter((a) => a.user.departmentId === dept.id);

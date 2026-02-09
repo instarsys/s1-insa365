@@ -30,3 +30,6 @@ export { NotificationRepository } from './NotificationRepository';
 export type { NotificationFilters } from './NotificationRepository';
 
 export { UserRepository } from './UserRepository';
+
+export { WorkPolicyRepository } from './WorkPolicyRepository';
+export { AuditLogRepository } from './AuditLogRepository';

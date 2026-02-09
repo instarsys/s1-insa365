@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
 
@@ -9,13 +9,13 @@ async function handler(_request: NextRequest, auth: AuthContext) {
   const currentMonth = now.getMonth() + 1;
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
+  const { leaveRequestRepo, attendanceRepo, salaryCalcRepo, notificationRepo } = getContainer();
+
   const todos = [];
 
   // 1. Pending leave requests (for managers)
   if (auth.role !== 'EMPLOYEE') {
-    const pendingLeaves = await prisma.leaveRequest.count({
-      where: { companyId: auth.companyId, status: 'PENDING', deletedAt: null },
-    });
+    const pendingLeaves = await leaveRequestRepo.countPending(auth.companyId);
     if (pendingLeaves > 0) {
       todos.push({
         id: 'leave-approval',
@@ -31,14 +31,11 @@ async function handler(_request: NextRequest, auth: AuthContext) {
 
   // 2. Unconfirmed attendance
   if (auth.role !== 'EMPLOYEE') {
-    const unconfirmedCount = await prisma.attendance.count({
-      where: {
-        companyId: auth.companyId,
-        date: { gte: new Date(currentYear, currentMonth - 1, 1), lt: today },
-        isConfirmed: false,
-        deletedAt: null,
-      },
-    });
+    const unconfirmedCount = await attendanceRepo.countUnconfirmedByPeriod(
+      auth.companyId,
+      new Date(currentYear, currentMonth - 1, 1),
+      today,
+    );
     if (unconfirmedCount > 0) {
       todos.push({
         id: 'attendance-confirm',
@@ -54,15 +51,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
 
   // 3. Draft payroll
   if (auth.role === 'COMPANY_ADMIN' || auth.role === 'SYSTEM_ADMIN') {
-    const draftPayroll = await prisma.salaryCalculation.count({
-      where: {
-        companyId: auth.companyId,
-        year: currentYear,
-        month: currentMonth,
-        status: 'DRAFT',
-        deletedAt: null,
-      },
-    });
+    const draftPayroll = await salaryCalcRepo.countDraftByMonth(auth.companyId, currentYear, currentMonth);
     if (draftPayroll > 0) {
       todos.push({
         id: 'payroll-confirm',
@@ -78,19 +67,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
 
   // 4. 52-hour violations
   if (auth.role !== 'EMPLOYEE') {
-    const weekStart = new Date(today);
-    weekStart.setDate(today.getDate() - 7);
-
-    const overtimeEmployees = await prisma.attendance.groupBy({
-      by: ['userId'],
-      where: {
-        companyId: auth.companyId,
-        date: { gte: weekStart, lte: today },
-        deletedAt: null,
-      },
-      _sum: { totalMinutes: true },
-      having: { totalMinutes: { _sum: { gt: 2880 } } }, // 48h warning threshold
-    });
+    const overtimeEmployees = await attendanceRepo.getOvertimeWarnings(auth.companyId, 7, 48 * 60);
 
     if (overtimeEmployees.length > 0) {
       todos.push({
@@ -106,9 +83,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
   }
 
   // 5. Unread notifications (for employees)
-  const unreadCount = await prisma.notification.count({
-    where: { userId: auth.userId, isRead: false },
-  });
+  const unreadCount = await notificationRepo.getUnreadCount(auth.companyId, auth.userId);
   if (unreadCount > 0) {
     todos.push({
       id: 'unread-notifications',

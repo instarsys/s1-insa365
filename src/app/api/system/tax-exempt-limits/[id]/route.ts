@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,16 +11,13 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.taxExemptLimit.findUnique({ where: { id } });
+  const existing = await getContainer().taxExemptLimitRepo.findById(id);
   if (!existing) return notFoundResponse('비과세 한도');
 
-  const updated = await prisma.taxExemptLimit.update({
-    where: { id },
-    data: {
-      ...(body.name && { name: body.name }),
-      ...(body.monthlyLimit !== undefined && { monthlyLimit: body.monthlyLimit }),
-      ...(body.description !== undefined && { description: body.description }),
-    },
+  const updated = await getContainer().taxExemptLimitRepo.update(id, {
+    ...(body.name && { name: body.name }),
+    ...(body.monthlyLimit !== undefined && { monthlyLimit: body.monthlyLimit }),
+    ...(body.description !== undefined && { description: body.description }),
   });
 
   await auditLogService.log({
@@ -39,10 +36,10 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.taxExemptLimit.findUnique({ where: { id } });
+  const existing = await getContainer().taxExemptLimitRepo.findById(id);
   if (!existing) return notFoundResponse('비과세 한도');
 
-  await prisma.taxExemptLimit.delete({ where: { id } });
+  await getContainer().taxExemptLimitRepo.delete(id);
 
   await auditLogService.log({
     userId: auth.userId,

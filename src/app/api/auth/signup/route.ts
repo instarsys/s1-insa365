@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
@@ -16,15 +16,17 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { companyName, businessNumber, representativeName, name, email, password } = validation.data;
 
-    const existingUser = await prisma.user.findFirst({
-      where: { email, deletedAt: null },
-    });
+    const { userRepo } = getContainer();
+
+    const existingUser = await userRepo.findByEmail(email);
     if (existingUser) {
       return errorResponse('이미 사용 중인 이메일입니다.', 409);
     }
 
     const hashedPassword = await passwordService.hash(password);
 
+    // Complex transaction with multiple models — use prisma directly
+    const { prisma } = await import('@/infrastructure/persistence/prisma/client');
     const result = await prisma.$transaction(async (tx) => {
       const company = await tx.company.create({
         data: {
@@ -160,10 +162,7 @@ export async function POST(request: NextRequest) {
     const accessToken = jwtService.generateAccessToken(tokenPayload);
     const refreshToken = jwtService.generateRefreshToken(tokenPayload);
 
-    await prisma.user.update({
-      where: { id: result.user.id },
-      data: { refreshToken },
-    });
+    await userRepo.updateRefreshToken(result.company.id, result.user.id, refreshToken);
 
     const response = createdResponse({
       user: {

@@ -1,23 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(_request: NextRequest, auth: AuthContext) {
-  const locations = await prisma.workLocation.findMany({
-    where: {
-      companyId: auth.companyId,
-      deletedAt: null,
-    },
-    select: {
-      id: true,
-      name: true,
-      latitude: true,
-      longitude: true,
-      radiusMeters: true,
-    },
-    orderBy: { name: 'asc' },
-  });
+  const { workLocationRepo } = getContainer();
+  const locations = await workLocationRepo.findAll(auth.companyId);
 
   // Convert Decimal to number for client consumption
   const items = locations.map((loc) => ({

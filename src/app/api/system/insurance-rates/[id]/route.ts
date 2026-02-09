@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,20 +11,17 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.insuranceRate.findUnique({ where: { id } });
+  const existing = await getContainer().insuranceRateRepo.findById(id);
   if (!existing) return notFoundResponse('보험 요율');
 
-  const updated = await prisma.insuranceRate.update({
-    where: { id },
-    data: {
-      ...(body.employeeRate !== undefined && { employeeRate: body.employeeRate }),
-      ...(body.employerRate !== undefined && { employerRate: body.employerRate }),
-      ...(body.minBase !== undefined && { minBase: body.minBase }),
-      ...(body.maxBase !== undefined && { maxBase: body.maxBase }),
-      ...(body.effectiveStartDate && { effectiveStartDate: new Date(body.effectiveStartDate) }),
-      ...(body.effectiveEndDate && { effectiveEndDate: new Date(body.effectiveEndDate) }),
-      ...(body.description !== undefined && { description: body.description }),
-    },
+  const updated = await getContainer().insuranceRateRepo.update(id, {
+    ...(body.employeeRate !== undefined && { employeeRate: body.employeeRate }),
+    ...(body.employerRate !== undefined && { employerRate: body.employerRate }),
+    ...(body.minBase !== undefined && { minBase: body.minBase }),
+    ...(body.maxBase !== undefined && { maxBase: body.maxBase }),
+    ...(body.effectiveStartDate && { effectiveStartDate: new Date(body.effectiveStartDate) }),
+    ...(body.effectiveEndDate && { effectiveEndDate: new Date(body.effectiveEndDate) }),
+    ...(body.description !== undefined && { description: body.description }),
   });
 
   await auditLogService.log({
@@ -43,10 +40,10 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.insuranceRate.findUnique({ where: { id } });
+  const existing = await getContainer().insuranceRateRepo.findById(id);
   if (!existing) return notFoundResponse('보험 요율');
 
-  await prisma.insuranceRate.delete({ where: { id } });
+  await getContainer().insuranceRateRepo.delete(id);
 
   await auditLogService.log({
     userId: auth.userId,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -16,14 +16,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const dateObj = new Date(date);
     dateObj.setHours(0, 0, 0, 0);
 
-    const existing = await prisma.attendance.findFirst({
-      where: {
-        companyId: auth.companyId,
-        userId,
-        date: dateObj,
-        deletedAt: null,
-      },
-    });
+    const { attendanceRepo } = getContainer();
+
+    const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
     let totalMinutes = 0;
     if (checkInTime && checkOutTime) {
@@ -43,14 +38,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
     };
 
     const attendance = existing
-      ? await prisma.attendance.update({ where: { id: existing.id }, data })
-      : await prisma.attendance.create({
-          data: {
-            companyId: auth.companyId,
-            userId,
-            date: dateObj,
-            ...data,
-          },
+      ? await attendanceRepo.update(auth.companyId, existing.id, data)
+      : await attendanceRepo.create(auth.companyId, {
+          companyId: auth.companyId,
+          userId,
+          date: dateObj,
+          ...data,
         });
 
     await auditLogService.log({
@@ -58,7 +51,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       companyId: auth.companyId,
       action: existing ? 'UPDATE' : 'CREATE',
       entityType: 'Attendance',
-      entityId: attendance.id,
+      entityId: attendance!.id,
       after: { userId, date, ...data } as Record<string, unknown>,
     });
 

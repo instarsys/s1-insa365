@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -7,17 +7,11 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
+  const { notificationRepo } = getContainer();
 
-  const notification = await prisma.notification.findFirst({
-    where: { id, companyId: auth.companyId, userId: auth.userId },
-  });
+  const updated = await notificationRepo.markRead(auth.companyId, auth.userId, id);
 
-  if (!notification) return notFoundResponse('알림');
-
-  const updated = await prisma.notification.update({
-    where: { id },
-    data: { isRead: true, readAt: new Date() },
-  });
+  if (!updated) return notFoundResponse('알림');
 
   return successResponse(updated);
 }

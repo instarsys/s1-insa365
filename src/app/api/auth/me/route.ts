@@ -1,30 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(_request: NextRequest, auth: AuthContext) {
-  const user = await prisma.user.findFirst({
-    where: { id: auth.userId, companyId: auth.companyId, deletedAt: null },
-    select: {
-      id: true,
-      companyId: true,
-      name: true,
-      email: true,
-      phone: true,
-      role: true,
-      employeeNumber: true,
-      employeeStatus: true,
-      canViewSensitive: true,
-      departmentId: true,
-      positionId: true,
-      profileImageUrl: true,
-      joinDate: true,
-      department: { select: { id: true, name: true } },
-      position: { select: { id: true, name: true } },
-      company: { select: { id: true, name: true } },
-    },
-  });
+  const { userRepo } = getContainer();
+  const user = await userRepo.findByIdAndCompanyForMe(auth.companyId, auth.userId);
 
   if (!user) {
     return notFoundResponse('사용자');

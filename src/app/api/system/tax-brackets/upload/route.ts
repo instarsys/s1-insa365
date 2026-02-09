@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -14,18 +14,18 @@ async function handler(request: NextRequest, auth: AuthContext) {
     }
 
     // Delete existing brackets for the year
-    await prisma.taxBracket.deleteMany({ where: { year } });
+    await getContainer().taxBracketRepo.deleteByYear(year);
 
     // Bulk create
-    const created = await prisma.taxBracket.createMany({
-      data: brackets.map((b: { minIncome: number; maxIncome: number; dependents: number; taxAmount: number }) => ({
+    const created = await getContainer().taxBracketRepo.createMany(
+      brackets.map((b: { minIncome: number; maxIncome: number; dependents: number; taxAmount: number }) => ({
         year,
         minIncome: b.minIncome,
         maxIncome: b.maxIncome,
         dependents: b.dependents,
         taxAmount: b.taxAmount,
       })),
-    });
+    );
 
     await auditLogService.log({
       userId: auth.userId,

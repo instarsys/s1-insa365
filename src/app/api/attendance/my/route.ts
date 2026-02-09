@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
 
@@ -17,35 +17,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return errorResponse('유효한 연도와 월을 입력해주세요.', 400);
   }
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0); // last day of month
+  const { attendanceRepo } = getContainer();
+  const attendanceRecords = await attendanceRepo.findMonthly(auth.companyId, auth.userId, year, month);
 
-  const attendances = await prisma.attendance.findMany({
-    where: {
-      companyId: auth.companyId,
-      userId: auth.userId,
-      deletedAt: null,
-      date: {
-        gte: startDate,
-        lte: endDate,
-      },
-    },
-    select: {
-      date: true,
-      checkInTime: true,
-      checkOutTime: true,
-      status: true,
-      regularMinutes: true,
-      overtimeMinutes: true,
-      nightMinutes: true,
-      totalMinutes: true,
-      isHoliday: true,
-      note: true,
-    },
-    orderBy: { date: 'asc' },
-  });
-
-  const items = attendances.map((a) => ({
+  const items = attendanceRecords.map((a) => ({
     date: a.date.toISOString().slice(0, 10),
     checkInTime: a.checkInTime?.toISOString() ?? null,
     checkOutTime: a.checkOutTime?.toISOString() ?? null,

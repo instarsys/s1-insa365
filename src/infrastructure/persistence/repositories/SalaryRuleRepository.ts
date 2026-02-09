@@ -48,4 +48,11 @@ export class SalaryRuleRepository {
       data: { deletedAt: new Date() },
     });
   }
+
+  async findAllOrdered(companyId: string) {
+    return prisma.salaryRule.findMany({
+      where: { companyId, deletedAt: null },
+      orderBy: [{ type: 'asc' }, { sortOrder: 'asc' }],
+    });
+  }
 }

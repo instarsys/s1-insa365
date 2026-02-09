@@ -1,29 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, forbiddenResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   if (auth.role !== 'SYSTEM_ADMIN') return forbiddenResponse();
 
   try {
+    const { companyRepo, userRepo, salaryCalcRepo } = getContainer();
+
     const now = new Date();
     const year = now.getFullYear();
     const month = now.getMonth() + 1;
 
     const [companyCount, userCount, payrollStats] = await Promise.all([
-      prisma.company.count(),
-      prisma.user.count({ where: { deletedAt: null } }),
-      prisma.salaryCalculation.groupBy({
-        by: ['status'],
-        where: { year, month },
-        _count: { id: true },
-      }),
+      companyRepo.countAll(),
+      userRepo.countAll(),
+      salaryCalcRepo.groupByStatusGlobal(year, month),
     ]);
 
     const payrollByStatus: Record<string, number> = {};
     for (const s of payrollStats) {
-      payrollByStatus[s.status] = s._count.id;
+      payrollByStatus[s.status] = s.count;
     }
 
     return successResponse({

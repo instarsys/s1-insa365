@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -9,37 +9,14 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-  const startDate = new Date(year, month - 1, 1);
-  const endDate = new Date(year, month, 0);
+  const { attendanceRepo } = getContainer();
 
-  const employees = await prisma.user.findMany({
-    where: {
-      companyId: auth.companyId,
-      deletedAt: null,
-      employeeStatus: 'ACTIVE',
-      ...(departmentId && { departmentId }),
-    },
-    select: {
-      id: true,
-      name: true,
-      employeeNumber: true,
-      department: { select: { name: true } },
-      attendances: {
-        where: {
-          date: { gte: startDate, lte: endDate },
-          deletedAt: null,
-        },
-        select: {
-          date: true,
-          regularMinutes: true,
-          overtimeMinutes: true,
-          nightMinutes: true,
-          nightOvertimeMinutes: true,
-          totalMinutes: true,
-        },
-      },
-    },
-  });
+  const employees = await attendanceRepo.findEmployeesWithWeeklyAttendances(
+    auth.companyId,
+    year,
+    month,
+    { departmentId },
+  );
 
   // Group by week and check 52h limit
   const WEEKLY_LIMIT_MINUTES = 52 * 60;

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 type RouteContext = { params: Promise<{ userId: string }> };
 
@@ -14,30 +14,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return errorResponse('연도와 총 일수를 입력해주세요.', 400);
   }
 
-  const balance = await prisma.leaveBalance.upsert({
-    where: {
-      companyId_userId_year: {
-        companyId: auth.companyId,
-        userId,
-        year,
-      },
-    },
-    update: {
-      totalDays,
-      remainingDays: totalDays - Number((await prisma.leaveBalance.findFirst({
-        where: { companyId: auth.companyId, userId, year },
-        select: { usedDays: true },
-      }))?.usedDays ?? 0),
-    },
-    create: {
-      companyId: auth.companyId,
-      userId,
-      year,
-      totalDays,
-      usedDays: 0,
-      remainingDays: totalDays,
-    },
-  });
+  const { leaveBalanceRepo } = getContainer();
+
+  const balance = await leaveBalanceRepo.upsertTotalDays(auth.companyId, userId, year, totalDays);
 
   return successResponse(balance);
 }

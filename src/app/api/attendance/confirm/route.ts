@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -16,53 +16,26 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const userWhere = {
-      companyId: auth.companyId,
-      deletedAt: null,
-      employeeStatus: 'ACTIVE' as const,
-      ...(userIds && { id: { in: userIds } }),
-    };
+    const { userRepo, attendanceRepo, salaryAttendanceRepo } = getContainer();
 
-    const employees = await prisma.user.findMany({
-      where: userWhere,
-      select: { id: true },
-    });
-
+    const employees = await userRepo.findActiveUsers(auth.companyId, userIds);
     const empIds = employees.map((e) => e.id);
 
     // Mark attendances as confirmed
-    await prisma.attendance.updateMany({
-      where: {
-        companyId: auth.companyId,
-        userId: { in: empIds },
-        date: { gte: startDate, lte: endDate },
-        deletedAt: null,
-        isConfirmed: false,
-      },
-      data: { isConfirmed: true },
-    });
+    await attendanceRepo.confirmByDateRange(auth.companyId, empIds, startDate, endDate);
 
     // Create SalaryAttendanceData snapshots
     const now = new Date();
     for (const empId of empIds) {
-      const attendances = await prisma.attendance.findMany({
-        where: {
-          companyId: auth.companyId,
-          userId: empId,
-          date: { gte: startDate, lte: endDate },
-          deletedAt: null,
-        },
-      });
+      const attendances = await attendanceRepo.findMonthly(auth.companyId, empId, year, month);
 
-      const existing = await prisma.salaryAttendanceData.findFirst({
-        where: { companyId: auth.companyId, userId: empId, year, month },
-        orderBy: { version: 'desc' },
-      });
+      const existing = await salaryAttendanceRepo.findByEmployeeAndPeriod(
+        auth.companyId, empId, year, month,
+      );
 
       const workDays = attendances.filter((a) => a.checkInTime).length;
 
-      await prisma.salaryAttendanceData.create({
-        data: {
+      await salaryAttendanceRepo.create({
           companyId: auth.companyId,
           userId: empId,
           year,
@@ -84,7 +57,6 @@ async function handler(request: NextRequest, auth: AuthContext) {
           confirmedAt: now,
           confirmedBy: auth.userId,
           version: (existing?.version ?? 0) + 1,
-        },
       });
     }
 

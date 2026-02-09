@@ -1,5 +1,5 @@
 import { prisma } from '../prisma/client';
-import type { Prisma, LeaveStatus } from '@/generated/prisma/client';
+import type { Prisma, LeaveStatus, LeaveType } from '@/generated/prisma/client';
 
 export interface LeaveRequestFilters {
   userId?: string;
@@ -62,5 +62,206 @@ export class LeaveRequestRepository {
       data,
       include: { user: { include: { department: true, position: true } } },
     });
+  }
+
+  async countPending(companyId: string) {
+    return prisma.leaveRequest.count({
+      where: { companyId, status: 'PENDING', deletedAt: null },
+    });
+  }
+
+  async findByIdWithConfig(companyId: string, id: string) {
+    return prisma.leaveRequest.findFirst({
+      where: { id, companyId, deletedAt: null },
+      include: {
+        user: { include: { department: true, position: true } },
+        leaveTypeConfig: { select: { deductsFromBalance: true } },
+      },
+    });
+  }
+
+  async findAllWithConfig(companyId: string, filters: LeaveRequestFilters & { leaveType?: string } = {}) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const where: Prisma.LeaveRequestWhereInput = { companyId, deletedAt: null };
+    if (filters.userId) where.userId = filters.userId;
+    if (filters.status) where.status = filters.status;
+    if (filters.leaveType) where.type = filters.leaveType as LeaveType;
+    if (filters.startDate || filters.endDate) {
+      where.startDate = {};
+      if (filters.startDate) where.startDate.gte = filters.startDate;
+      if (filters.endDate) where.startDate.lte = filters.endDate;
+    }
+    const [items, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        include: {
+          user: { include: { department: true, position: true } },
+          leaveTypeConfig: { include: { leaveGroup: { select: { id: true, name: true } } } },
+        },
+        skip: (page - 1) * limit,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.leaveRequest.count({ where }),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  async findByYear(companyId: string, year: number, filters: { userId?: string; departmentId?: string } = {}) {
+    const startOfYear = new Date(year, 0, 1);
+    const endOfYear = new Date(year, 11, 31);
+    const where: Prisma.LeaveRequestWhereInput = {
+      companyId,
+      deletedAt: null,
+      startDate: { gte: startOfYear, lte: endOfYear },
+    };
+    if (filters.userId) where.userId = filters.userId;
+    if (filters.departmentId) where.user = { departmentId: filters.departmentId };
+    return prisma.leaveRequest.findMany({
+      where,
+      include: {
+        user: { include: { department: true } },
+        leaveTypeConfig: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { startDate: 'desc' },
+    });
+  }
+
+  /** history type 뷰: leaveTypeConfig 기준 그룹핑용 */
+  async findByYearForTypeView(companyId: string, year: number, filters: { userId?: string; departmentId?: string } = {}) {
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    const where: Prisma.LeaveRequestWhereInput = {
+      companyId,
+      deletedAt: null,
+      startDate: { gte: yearStart },
+      endDate: { lte: yearEnd },
+      ...(filters.userId && { userId: filters.userId }),
+      ...(filters.departmentId && { user: { departmentId: filters.departmentId } }),
+    };
+    return prisma.leaveRequest.findMany({
+      where,
+      include: {
+        leaveTypeConfig: { select: { id: true, code: true, name: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { startDate: 'desc' },
+    });
+  }
+
+  /** history monthly 뷰: 월별 그리드용 */
+  async findByYearForMonthlyView(companyId: string, year: number, filters: { userId?: string; departmentId?: string } = {}) {
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    const where: Prisma.LeaveRequestWhereInput = {
+      companyId,
+      deletedAt: null,
+      startDate: { gte: yearStart },
+      endDate: { lte: yearEnd },
+      ...(filters.userId && { userId: filters.userId }),
+      ...(filters.departmentId && { user: { departmentId: filters.departmentId } }),
+    };
+    return prisma.leaveRequest.findMany({
+      where,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            department: { select: { name: true } },
+          },
+        },
+        leaveTypeConfig: { select: { code: true, name: true } },
+      },
+      orderBy: { startDate: 'asc' },
+    });
+  }
+
+  /** history list 뷰: 전체 목록 (leaveTypeConfig + employeeNumber 포함) */
+  async findByYearForListView(companyId: string, year: number, filters: { userId?: string; departmentId?: string } = {}) {
+    const yearStart = new Date(year, 0, 1);
+    const yearEnd = new Date(year, 11, 31);
+    const where: Prisma.LeaveRequestWhereInput = {
+      companyId,
+      deletedAt: null,
+      startDate: { gte: yearStart },
+      endDate: { lte: yearEnd },
+      ...(filters.userId && { userId: filters.userId }),
+      ...(filters.departmentId && { user: { departmentId: filters.departmentId } }),
+    };
+    return prisma.leaveRequest.findMany({
+      where,
+      include: {
+        leaveTypeConfig: { select: { id: true, code: true, name: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            employeeNumber: true,
+            department: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** requests 페이지: leaveGroup 포함 조회 + 페이지네이션 + 유형 필터 */
+  async findAllWithGroupAndPagination(
+    companyId: string,
+    filters: {
+      userId?: string;
+      status?: LeaveStatus;
+      type?: string;
+      departmentId?: string;
+      page?: number;
+      limit?: number;
+    } = {},
+  ) {
+    const page = filters.page || 1;
+    const limit = filters.limit || 20;
+    const where: Prisma.LeaveRequestWhereInput = {
+      companyId,
+      deletedAt: null,
+      ...(filters.userId && { userId: filters.userId }),
+      ...(filters.status && { status: filters.status }),
+      ...(filters.type && { type: filters.type as LeaveType }),
+      ...(filters.departmentId && { user: { departmentId: filters.departmentId } }),
+    };
+    const [items, total] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              employeeNumber: true,
+              department: { select: { name: true } },
+            },
+          },
+          leaveTypeConfig: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              leaveGroup: { select: { name: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.leaveRequest.count({ where }),
+    ]);
+    return { items, total, page, limit };
   }
 }

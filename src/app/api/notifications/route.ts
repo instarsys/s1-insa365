@@ -1,36 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, parseSearchParams } from '@/presentation/api/helpers';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { page, limit } = parseSearchParams(url);
-  const skip = (page - 1) * limit;
+  const { notificationRepo } = getContainer();
 
-  const where = {
-    companyId: auth.companyId,
-    userId: auth.userId,
-  };
-
-  const [items, total, unreadCount] = await Promise.all([
-    prisma.notification.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
-    prisma.notification.count({ where }),
-    prisma.notification.count({ where: { ...where, isRead: false } }),
+  const [result, unreadCount] = await Promise.all([
+    notificationRepo.findByUser(auth.companyId, auth.userId, { page, limit }),
+    notificationRepo.getUnreadCount(auth.companyId, auth.userId),
   ]);
 
   return successResponse({
-    items,
-    total,
+    items: result.items,
+    total: result.total,
     unreadCount,
     page,
     limit,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.ceil(result.total / limit),
   });
 }
 

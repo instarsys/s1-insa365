@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,13 +17,8 @@ export async function POST(request: NextRequest) {
       return errorResponse('유효하지 않은 리프레시 토큰입니다.', 401);
     }
 
-    const user = await prisma.user.findFirst({
-      where: {
-        id: payload.userId,
-        refreshToken,
-        deletedAt: null,
-      },
-    });
+    const { userRepo } = getContainer();
+    const user = await userRepo.findByIdAndRefreshToken(payload.userId, refreshToken);
 
     if (!user) {
       return errorResponse('유효하지 않은 리프레시 토큰입니다.', 401);

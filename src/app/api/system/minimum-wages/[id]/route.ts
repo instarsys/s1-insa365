@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -11,16 +11,13 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const existing = await prisma.minimumWage.findUnique({ where: { id } });
+  const existing = await getContainer().minimumWageRepo.findById(id);
   if (!existing) return notFoundResponse('최저임금');
 
-  const updated = await prisma.minimumWage.update({
-    where: { id },
-    data: {
-      ...(body.hourlyWage !== undefined && { hourlyWage: body.hourlyWage }),
-      ...(body.monthlyWage !== undefined && { monthlyWage: body.monthlyWage }),
-      ...(body.description !== undefined && { description: body.description }),
-    },
+  const updated = await getContainer().minimumWageRepo.update(id, {
+    ...(body.hourlyWage !== undefined && { hourlyWage: body.hourlyWage }),
+    ...(body.monthlyWage !== undefined && { monthlyWage: body.monthlyWage }),
+    ...(body.description !== undefined && { description: body.description }),
   });
 
   await auditLogService.log({
@@ -39,10 +36,10 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const existing = await prisma.minimumWage.findUnique({ where: { id } });
+  const existing = await getContainer().minimumWageRepo.findById(id);
   if (!existing) return notFoundResponse('최저임금');
 
-  await prisma.minimumWage.delete({ where: { id } });
+  await getContainer().minimumWageRepo.delete(id);
 
   await auditLogService.log({
     userId: auth.userId,

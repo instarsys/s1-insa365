@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -10,24 +10,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-  const departments = await prisma.department.findMany({
-    where: { companyId: auth.companyId, deletedAt: null },
-    select: { id: true, name: true },
-    orderBy: { sortOrder: 'asc' },
-  });
+  const { departmentRepo, salaryCalcRepo } = getContainer();
 
-  const calculations = await prisma.salaryCalculation.findMany({
-    where: {
-      companyId: auth.companyId,
-      year,
-      month,
-      deletedAt: null,
-      status: { in: ['CONFIRMED', 'PAID'] },
-    },
-    include: {
-      user: { select: { departmentId: true } },
-    },
-  });
+  const [departments, calculations] = await Promise.all([
+    departmentRepo.findAll(auth.companyId),
+    salaryCalcRepo.findConfirmedWithDepartment(auth.companyId, year, month),
+  ]);
 
   const departmentCosts = departments.map((dept) => {
     const deptCalcs = calculations.filter((c) => c.user.departmentId === dept.id);

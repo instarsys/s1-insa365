@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { successResponse } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -12,33 +12,11 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const departmentId = url.searchParams.get('departmentId') ?? undefined;
   const userId = url.searchParams.get('userId') ?? undefined;
 
-  const yearStart = new Date(year, 0, 1);
-  const yearEnd = new Date(year, 11, 31);
-
-  const baseWhere = {
-    companyId: auth.companyId,
-    deletedAt: null,
-    startDate: { gte: yearStart },
-    endDate: { lte: yearEnd },
-    ...(userId && { userId }),
-    ...(departmentId && { user: { departmentId } }),
-  };
+  const { leaveRequestRepo } = getContainer();
+  const filters = { userId, departmentId };
 
   if (view === 'type') {
-    const requests = await prisma.leaveRequest.findMany({
-      where: baseWhere,
-      include: {
-        leaveTypeConfig: { select: { id: true, code: true, name: true } },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            department: { select: { name: true } },
-          },
-        },
-      },
-      orderBy: { startDate: 'desc' },
-    });
+    const requests = await leaveRequestRepo.findByYearForTypeView(auth.companyId, year, filters);
 
     const grouped: Record<string, {
       code: string;
@@ -63,20 +41,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   }
 
   if (view === 'monthly') {
-    const requests = await prisma.leaveRequest.findMany({
-      where: baseWhere,
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            department: { select: { name: true } },
-          },
-        },
-        leaveTypeConfig: { select: { code: true, name: true } },
-      },
-      orderBy: { startDate: 'asc' },
-    });
+    const requests = await leaveRequestRepo.findByYearForMonthlyView(auth.companyId, year, filters);
 
     const monthlyGrid: Record<string, {
       userId: string;
@@ -115,21 +80,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   }
 
   // Default: list view
-  const requests = await prisma.leaveRequest.findMany({
-    where: baseWhere,
-    include: {
-      leaveTypeConfig: { select: { id: true, code: true, name: true } },
-      user: {
-        select: {
-          id: true,
-          name: true,
-          employeeNumber: true,
-          department: { select: { name: true } },
-        },
-      },
-    },
-    orderBy: { createdAt: 'desc' },
-  });
+  const requests = await leaveRequestRepo.findByYearForListView(auth.companyId, year, filters);
 
   return successResponse({ view: 'list', year, items: requests });
 }

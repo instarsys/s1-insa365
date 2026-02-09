@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
+import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
 
@@ -10,14 +10,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const attendance = await prisma.attendance.findFirst({
-      where: {
-        companyId: auth.companyId,
-        userId: auth.userId,
-        date: today,
-        deletedAt: null,
-      },
-    });
+    const { attendanceRepo } = getContainer();
+
+    const attendance = await attendanceRepo.findByDate(auth.companyId, auth.userId, today);
 
     if (!attendance) {
       return errorResponse('출근 기록이 없습니다. 먼저 출근해주세요.', 400);
@@ -36,15 +31,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
       );
     }
 
-    const updated = await prisma.attendance.update({
-      where: { id: attendance.id },
-      data: {
+    const updated = await attendanceRepo.update(auth.companyId, attendance.id, {
         checkOutTime: now,
         checkOutLatitude: latitude ?? null,
         checkOutLongitude: longitude ?? null,
         totalMinutes,
-      },
-    });
+      });
 
     return successResponse(updated);
   } catch {

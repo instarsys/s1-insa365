@@ -31,4 +31,8 @@ export class TaxBracketRepository {
   async findById(id: string) {
     return prisma.taxBracket.findUnique({ where: { id } });
   }
+
+  async create(data: Prisma.TaxBracketCreateInput) {
+    return prisma.taxBracket.create({ data });
+  }
 }

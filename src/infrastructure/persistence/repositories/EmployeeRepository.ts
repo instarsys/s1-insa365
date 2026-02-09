@@ -25,6 +25,7 @@ export class EmployeeRepository {
     if (filters.search) {
       where.OR = [
         { name: { contains: filters.search, mode: 'insensitive' } },
+        { email: { contains: filters.search, mode: 'insensitive' } },
         { employeeNumber: { contains: filters.search, mode: 'insensitive' } },
       ];
     }
@@ -64,15 +65,43 @@ export class EmployeeRepository {
     });
   }
 
-  async softDelete(companyId: string, id: string) {
+  async softDelete(companyId: string, id: string, resignDate?: Date) {
     const existing = await prisma.user.findFirst({
       where: { id, companyId, deletedAt: null },
     });
     if (!existing) return null;
     await prisma.user.update({
       where: { id },
-      data: { deletedAt: new Date(), employeeStatus: 'RESIGNED' },
+      data: {
+        deletedAt: new Date(),
+        employeeStatus: 'RESIGNED',
+        ...(resignDate && { resignDate }),
+      },
     });
+  }
+
+  async countByStatus(companyId: string, status: string) {
+    return prisma.user.count({
+      where: {
+        companyId,
+        employeeStatus: status as Prisma.EnumEmployeeStatusFilter['equals'],
+        deletedAt: null,
+      },
+    });
+  }
+
+  /** 부서별 활성 직원 수 (리포트용) */
+  async countByDepartment(companyId: string) {
+    const result = await prisma.user.groupBy({
+      by: ['departmentId'],
+      where: {
+        companyId,
+        deletedAt: null,
+        employeeStatus: 'ACTIVE',
+      },
+      _count: true,
+    });
+    return new Map(result.map((r) => [r.departmentId, r._count]));
   }
 
   async findByEmail(companyId: string, email: string) {
@@ -90,5 +119,38 @@ export class EmployeeRepository {
       ? parseInt(lastEmployee.employeeNumber.slice(2), 10)
       : 0;
     return `E${prefix}${String(lastNum + 1).padStart(4, '0')}`;
+  }
+
+  async findByIdWithDetails(companyId: string, id: string) {
+    return prisma.user.findFirst({
+      where: { id, companyId, deletedAt: null },
+      include: {
+        company: true,
+        department: true,
+        position: true,
+        workPolicy: true,
+        workLocation: true,
+        employeeSalaryItems: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
+      },
+    });
+  }
+
+  async createUnchecked(companyId: string, data: Prisma.UserUncheckedCreateInput) {
+    return prisma.user.create({
+      data: { ...data, companyId },
+      include: { department: true, position: true },
+    });
+  }
+
+  async terminate(companyId: string, id: string) {
+    const existing = await prisma.user.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return null;
+    return prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date(), employeeStatus: 'TERMINATED', resignDate: new Date() },
+      include: { department: true, position: true },
+    });
   }
 }

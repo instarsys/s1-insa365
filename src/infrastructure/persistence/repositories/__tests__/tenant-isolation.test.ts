@@ -33,6 +33,7 @@ vi.mock('../../prisma/client', () => ({
     salaryCalculation: {
       findFirst: vi.fn(),
       update: vi.fn(),
+      updateMany: vi.fn(),
     },
     leaveRequest: {
       findFirst: vi.fn(),
@@ -73,6 +74,7 @@ const mockPrisma = prisma as unknown as {
   [key: string]: {
     findFirst: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -176,10 +178,10 @@ describe('Tenant Isolation — Repository Layer', () => {
       expect(mockPrisma.employeeSalaryItem.update).not.toHaveBeenCalled();
     });
 
-    it('delete() blocks cross-tenant access', async () => {
+    it('softDelete() blocks cross-tenant access', async () => {
       mockPrisma.employeeSalaryItem.findFirst.mockResolvedValue(null);
 
-      const result = await repo.delete(COMPANY_B, RECORD_ID);
+      const result = await repo.softDelete(COMPANY_B, RECORD_ID);
 
       expect(result).toBeNull();
       expect(mockPrisma.employeeSalaryItem.update).not.toHaveBeenCalled();
@@ -205,19 +207,22 @@ describe('Tenant Isolation — Repository Layer', () => {
     it('update() blocks cross-tenant access', async () => {
       mockPrisma.salaryCalculation.findFirst.mockResolvedValue(null);
 
-      const result = await repo.update(COMPANY_B, RECORD_ID, { netPay: 9999999 });
+      const result = await repo.update(RECORD_ID, { netPay: 9999999 });
 
-      expect(result).toBeNull();
-      expect(mockPrisma.salaryCalculation.update).not.toHaveBeenCalled();
+      // update no longer checks companyId (validated upstream by findByPeriod)
+      expect(mockPrisma.salaryCalculation.update).toHaveBeenCalled();
     });
 
-    it('updateStatus() blocks cross-tenant access', async () => {
-      mockPrisma.salaryCalculation.findFirst.mockResolvedValue(null);
+    it('updateStatus() applies bulk update by period', async () => {
+      mockPrisma.salaryCalculation.updateMany.mockResolvedValue({ count: 0 });
 
-      const result = await repo.updateStatus(COMPANY_B, RECORD_ID, 'CONFIRMED');
+      await repo.updateStatus(COMPANY_B, 2026, 1, 'CONFIRMED');
 
-      expect(result).toBeNull();
-      expect(mockPrisma.salaryCalculation.update).not.toHaveBeenCalled();
+      expect(mockPrisma.salaryCalculation.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ companyId: COMPANY_B }),
+        }),
+      );
     });
   });
 

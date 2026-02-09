@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/infrastructure/persistence/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
@@ -10,27 +10,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-  const calculations = await prisma.salaryCalculation.findMany({
-    where: {
-      companyId: auth.companyId,
-      year,
-      month,
-      deletedAt: null,
-      status: { in: ['CONFIRMED', 'PAID'] },
-    },
-    include: {
-      user: {
-        select: {
-          id: true,
-          name: true,
-          employeeNumber: true,
-          nationalPensionMode: true,
-          healthInsuranceMode: true,
-          employmentInsuranceMode: true,
-        },
-      },
-    },
-  });
+  const { salaryCalcRepo } = getContainer();
+  const calculations = await salaryCalcRepo.findConfirmedWithInsuranceInfo(auth.companyId, year, month);
 
   const summary = {
     nationalPension: {
