@@ -49,7 +49,7 @@ export class SalaryItem {
     this.type = props.type;
     this.paymentType = props.paymentType;
     this.paymentCycle = props.paymentCycle;
-    this.amount = props.amount;
+    this.amount = Number(props.amount); // Prisma Decimal → plain number 변환 (문자열 연결 방지)
     this.isOrdinaryWage = props.isOrdinaryWage;
     this.isTaxExempt = props.isTaxExempt;
     this.taxExemptCode = props.taxExemptCode;

@@ -68,11 +68,10 @@ export class SalaryCalculationRepository {
     });
   }
 
-  /** 기간별 DRAFT 급여계산 soft delete */
+  /** 기간별 미확정 급여계산 hard delete (재계산 시 유니크 제약 충돌 방지, soft-deleted 포함) */
   async deleteByPeriod(companyId: string, year: number, month: number) {
-    await prisma.salaryCalculation.updateMany({
-      where: { companyId, year, month, deletedAt: null, status: 'DRAFT' },
-      data: { deletedAt: new Date() },
+    await prisma.salaryCalculation.deleteMany({
+      where: { companyId, year, month, status: { notIn: ['CONFIRMED', 'PAID'] } },
     });
   }
 

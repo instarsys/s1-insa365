@@ -49,9 +49,11 @@ export class CalculatePayrollUseCase {
       if (hasConfirmed) {
         throw new ValidationError('Payroll for this period is already confirmed');
       }
-      // Delete existing DRAFT calculations for recalculation
-      await this.salaryCalcRepo.deleteByPeriod(companyId, year, month);
     }
+
+    // Always delete non-confirmed records to handle soft-deleted leftovers
+    // (soft-deleted records still hold unique constraint on company_id+user_id+year+month)
+    await this.salaryCalcRepo.deleteByPeriod(companyId, year, month);
 
     // Load company settings
     const company = await this.companyRepo.findById(companyId);
@@ -74,10 +76,10 @@ export class CalculatePayrollUseCase {
     // Load tax brackets
     const taxBrackets = await this.taxBracketRepo.findAllByYear(year);
     const taxBracketEntries: TaxBracketEntry[] = taxBrackets.map((tb) => ({
-      minIncome: tb.minIncome,
-      maxIncome: tb.maxIncome,
+      minIncome: Number(tb.minIncome),
+      maxIncome: Number(tb.maxIncome),
       dependents: tb.dependents,
-      taxAmount: tb.taxAmount,
+      taxAmount: Number(tb.taxAmount),
     }));
 
     // Load tax exempt limits
@@ -85,7 +87,7 @@ export class CalculatePayrollUseCase {
     const taxExemptEntries: TaxExemptLimitEntry[] = taxExemptLimits.map((tel) => ({
       code: tel.code,
       name: tel.name,
-      monthlyLimit: tel.monthlyLimit,
+      monthlyLimit: Number(tel.monthlyLimit),
     }));
 
     // Load all active employees
@@ -112,7 +114,7 @@ export class CalculatePayrollUseCase {
           type: si.type as SalaryItemProps['type'],
           paymentType: si.paymentType as SalaryItemProps['paymentType'],
           paymentCycle: si.paymentCycle as SalaryItemProps['paymentCycle'],
-          amount: si.amount,
+          amount: Number(si.amount),
           isOrdinaryWage: si.isOrdinaryWage,
           isTaxExempt: si.isTaxExempt,
           taxExemptCode: si.taxExemptCode ?? undefined,
@@ -152,8 +154,8 @@ export class CalculatePayrollUseCase {
             nationalPensionMode: emp.nationalPensionMode as 'AUTO' | 'MANUAL' | 'NONE',
             healthInsuranceMode: emp.healthInsuranceMode as 'AUTO' | 'MANUAL' | 'NONE',
             employmentInsuranceMode: emp.employmentInsuranceMode as 'AUTO' | 'MANUAL' | 'NONE',
-            manualNationalPensionBase: emp.manualNationalPensionBase ?? undefined,
-            manualHealthInsuranceBase: emp.manualHealthInsuranceBase ?? undefined,
+            manualNationalPensionBase: emp.manualNationalPensionBase ? Number(emp.manualNationalPensionBase) : undefined,
+            manualHealthInsuranceBase: emp.manualHealthInsuranceBase ? Number(emp.manualHealthInsuranceBase) : undefined,
           },
           salaryItems: salaryItemProps,
           attendance,
@@ -261,22 +263,23 @@ export class CalculatePayrollUseCase {
     const ltc = findRate('LONG_TERM_CARE');
     const employment = findRate('EMPLOYMENT_INSURANCE');
 
+    // Prisma Decimal → plain number 변환 (문자열 연결 방지)
     return {
       nationalPension: {
-        rate: pension?.employeeRate ?? 0.045,
-        minBase: pension?.minBase ?? 390000,
-        maxBase: pension?.maxBase ?? 6170000,
+        rate: Number(pension?.employeeRate ?? 0.045),
+        minBase: Number(pension?.minBase ?? 390000),
+        maxBase: Number(pension?.maxBase ?? 6170000),
       },
       healthInsurance: {
-        rate: health?.employeeRate ?? 0.03545,
-        minBase: health?.minBase ?? 279000,
-        maxBase: health?.maxBase ?? 12706000,
+        rate: Number(health?.employeeRate ?? 0.03545),
+        minBase: Number(health?.minBase ?? 279000),
+        maxBase: Number(health?.maxBase ?? 12706000),
       },
       longTermCare: {
-        rate: ltc?.employeeRate ?? 0.1295,
+        rate: Number(ltc?.employeeRate ?? 0.1295),
       },
       employmentInsurance: {
-        rate: employment?.employeeRate ?? 0.009,
+        rate: Number(employment?.employeeRate ?? 0.009),
       },
     };
   }
