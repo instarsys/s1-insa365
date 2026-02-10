@@ -3,6 +3,7 @@ import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse } from '@/presentation/api/helpers';
 
+
 async function handler(_request: NextRequest, auth: AuthContext) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -17,7 +18,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
   // Today's attendance breakdown
   const todayBreakdown = await attendanceRepo.getTodayBreakdown(auth.companyId, today);
   const present = todayBreakdown.present + todayBreakdown.late;
-  const absent = 0; // getTodayBreakdown doesn't count absent separately; absent = total - present - late - leave
+  const absent = 0;
   const late = todayBreakdown.late;
   const leave = todayBreakdown.leave;
 

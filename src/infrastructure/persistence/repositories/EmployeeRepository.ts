@@ -153,4 +153,64 @@ export class EmployeeRepository {
       include: { department: true, position: true },
     });
   }
+
+  /** 전체 직원 조회 (엑셀 내보내기용, 페이지네이션 없음) */
+  async findAllForExport(companyId: string) {
+    return prisma.user.findMany({
+      where: { companyId, deletedAt: null, employeeStatus: 'ACTIVE' },
+      include: { department: true, position: true },
+      orderBy: { employeeNumber: 'asc' },
+    });
+  }
+
+  /** 사번으로 직원 찾기 */
+  async findByEmployeeNumber(companyId: string, employeeNumber: string) {
+    return prisma.user.findFirst({
+      where: { companyId, employeeNumber, deletedAt: null },
+      include: { department: true, position: true },
+    });
+  }
+
+  /** 관리 필요 직원 5가지 알림 카운트 */
+  async getManagementAlerts(companyId: string) {
+    const now = new Date();
+    const oneMonthLater = new Date();
+    oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+
+    const [resigningSoon, noLocation, onLeaveCount] = await Promise.all([
+      // 1달 내 퇴사 예정
+      prisma.user.count({
+        where: {
+          companyId,
+          deletedAt: null,
+          employeeStatus: 'ACTIVE',
+          resignDate: { gte: now, lte: oneMonthLater },
+        },
+      }),
+      // 근무지 미배정
+      prisma.user.count({
+        where: {
+          companyId,
+          deletedAt: null,
+          employeeStatus: 'ACTIVE',
+          workLocationId: null,
+        },
+      }),
+      // 휴직 중
+      prisma.user.count({
+        where: {
+          companyId,
+          deletedAt: null,
+          employeeStatus: 'ON_LEAVE',
+        },
+      }),
+    ]);
+
+    return {
+      resigningSoon,
+      noLocation,
+      onLeave: onLeaveCount,
+      total: resigningSoon + noLocation + onLeaveCount,
+    };
+  }
 }

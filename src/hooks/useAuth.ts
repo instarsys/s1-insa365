@@ -28,9 +28,13 @@ interface SignupInput {
   companyName: string;
   businessNumber: string;
   representativeName: string;
+  employeeCountRange?: string;
   name: string;
   email: string;
   password: string;
+  termsAgreed: boolean;
+  privacyAgreed: boolean;
+  marketingAgreed?: boolean;
 }
 
 export function useAuth() {

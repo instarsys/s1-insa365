@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   Users,
   Clock,
+  CalendarDays,
   Wallet,
   FileText,
   BarChart3,
@@ -49,6 +50,7 @@ const menuItems: MenuItemConfig[] = [
     allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
     children: [
       { label: '직원 목록', href: '/employees/list' },
+      { label: '합류 초대', href: '/employees/invitations' },
       { label: '부서/직급 관리', href: '/employees/departments' },
       { label: '일괄 업로드', href: '/employees/import' },
     ],
@@ -62,9 +64,18 @@ const menuItems: MenuItemConfig[] = [
     children: [
       { label: '달력형', href: '/attendance/calendar' },
       { label: '목록형', href: '/attendance/records' },
+      { label: '52시간 모니터링', href: '/attendance/overtime' },
+    ],
+  },
+  {
+    label: '휴가 관리',
+    href: '/attendance/leave',
+    icon: CalendarDays,
+    section: '근태',
+    allowedRoles: ['COMPANY_ADMIN', 'MANAGER'],
+    children: [
       { label: '휴가 관리', href: '/attendance/leave' },
       { label: '휴가 발생', href: '/attendance/leave/accruals' },
-      { label: '52시간 모니터링', href: '/attendance/overtime' },
     ],
   },
   {

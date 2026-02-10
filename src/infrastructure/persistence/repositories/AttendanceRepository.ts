@@ -211,7 +211,7 @@ export class AttendanceRepository {
   async getTodayBreakdown(companyId: string, date: Date) {
     const where = { companyId, date, deletedAt: null };
     const [present, late, leave] = await Promise.all([
-      prisma.attendance.count({ where: { ...where, status: 'PRESENT' as AttendanceStatus } }),
+      prisma.attendance.count({ where: { ...where, status: 'ON_TIME' as AttendanceStatus } }),
       prisma.attendance.count({ where: { ...where, status: 'LATE' as AttendanceStatus } }),
       prisma.attendance.count({ where: { ...where, status: 'LEAVE' as AttendanceStatus } }),
     ]);
@@ -534,6 +534,26 @@ export class AttendanceRepository {
           },
         },
       },
+    });
+  }
+
+  /** 출퇴근 누락 조회: checkIn 있지만 checkOut 없는 기록 */
+  async findMissingCheckouts(companyId: string, startDate: Date, endDate: Date) {
+    return prisma.attendance.findMany({
+      where: {
+        companyId,
+        deletedAt: null,
+        date: { gte: startDate, lte: endDate },
+        checkInTime: { not: null },
+        checkOutTime: null,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, employeeNumber: true, department: { select: { name: true } } },
+        },
+      },
+      orderBy: { date: 'desc' },
+      take: 20,
     });
   }
 }

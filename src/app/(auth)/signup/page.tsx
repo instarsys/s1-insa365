@@ -3,12 +3,23 @@
 import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Card, CardBody, Input, Button, Stepper } from '@/components/ui';
+import { Card, CardBody, Input, Button, Stepper, Select, Checkbox } from '@/components/ui';
 import { useAuth } from '@/hooks';
+import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
 
 const steps = [
   { label: '회사 정보' },
   { label: '관리자 정보' },
+  { label: '약관 동의' },
+];
+
+const employeeCountOptions = [
+  { value: '1-10', label: '1~10명' },
+  { value: '11-30', label: '11~30명' },
+  { value: '31-50', label: '31~50명' },
+  { value: '51-100', label: '51~100명' },
+  { value: '101-300', label: '101~300명' },
+  { value: '300+', label: '300명 이상' },
 ];
 
 export default function SignupPage() {
@@ -22,6 +33,7 @@ export default function SignupPage() {
   const [companyName, setCompanyName] = useState('');
   const [businessNumber, setBusinessNumber] = useState('');
   const [representativeName, setRepresentativeName] = useState('');
+  const [employeeCountRange, setEmployeeCountRange] = useState('');
 
   // Step 2: Admin info
   const [name, setName] = useState('');
@@ -29,7 +41,21 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
 
+  // Step 3: Terms
+  const [termsAgreed, setTermsAgreed] = useState(false);
+  const [privacyAgreed, setPrivacyAgreed] = useState(false);
+  const [marketingAgreed, setMarketingAgreed] = useState(false);
+
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  const allRequiredAgreed = termsAgreed && privacyAgreed;
+  const allAgreed = termsAgreed && privacyAgreed && marketingAgreed;
+
+  const handleAgreeAll = (checked: boolean) => {
+    setTermsAgreed(checked);
+    setPrivacyAgreed(checked);
+    setMarketingAgreed(checked);
+  };
 
   const validateStep1 = () => {
     const errors: Record<string, string> = {};
@@ -52,8 +78,11 @@ export default function SignupPage() {
   };
 
   const handleNext = () => {
-    if (validateStep1()) {
+    if (step === 0 && validateStep1()) {
       setStep(1);
+      setFieldErrors({});
+    } else if (step === 1 && validateStep2()) {
+      setStep(2);
       setFieldErrors({});
     }
   };
@@ -62,7 +91,10 @@ export default function SignupPage() {
     e.preventDefault();
     setError('');
 
-    if (!validateStep2()) return;
+    if (!allRequiredAgreed) {
+      setError('필수 약관에 동의해주세요.');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -70,9 +102,13 @@ export default function SignupPage() {
         companyName,
         businessNumber,
         representativeName,
+        employeeCountRange: employeeCountRange || undefined,
         name,
         email,
         password,
+        termsAgreed,
+        privacyAgreed,
+        marketingAgreed,
       });
       router.push('/dashboard');
     } catch (err) {
@@ -94,13 +130,28 @@ export default function SignupPage() {
           <p className="mt-2 text-sm text-gray-500">한국 중소기업 급여 자동화</p>
         </div>
 
+        {/* Social Login */}
         <div className="mt-6">
+          <SocialLoginButtons />
+        </div>
+
+        {/* Divider */}
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="bg-white px-3 text-gray-400">또는 이메일로 가입</span>
+          </div>
+        </div>
+
+        <div className="mb-6">
           <Stepper steps={steps} currentStep={step} />
         </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <h2 className="text-lg font-semibold text-gray-800">
-            {step === 0 ? '회사 정보' : '관리자 정보'}
+            {step === 0 ? '회사 정보' : step === 1 ? '관리자 정보' : '약관 동의'}
           </h2>
 
           {error && (
@@ -109,6 +160,7 @@ export default function SignupPage() {
             </div>
           )}
 
+          {/* Step 1: Company Info */}
           {step === 0 && (
             <>
               <Input
@@ -132,12 +184,20 @@ export default function SignupPage() {
                 onChange={(e) => setRepresentativeName(e.target.value)}
                 error={fieldErrors.representativeName}
               />
+              <Select
+                label="직원 수 (선택)"
+                options={employeeCountOptions}
+                placeholder="직원 수를 선택해주세요"
+                value={employeeCountRange}
+                onChange={(val) => setEmployeeCountRange(val)}
+              />
               <Button type="button" className="w-full" onClick={handleNext}>
                 다음
               </Button>
             </>
           )}
 
+          {/* Step 2: Admin Info */}
           {step === 1 && (
             <>
               <Input
@@ -186,7 +246,66 @@ export default function SignupPage() {
                 >
                   이전
                 </Button>
-                <Button type="submit" className="flex-1" disabled={isSubmitting}>
+                <Button type="button" className="flex-1" onClick={handleNext}>
+                  다음
+                </Button>
+              </div>
+            </>
+          )}
+
+          {/* Step 3: Terms */}
+          {step === 2 && (
+            <>
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-3">
+                {/* 전체 동의 */}
+                <div className="border-b border-gray-200 pb-3">
+                  <Checkbox
+                    label="전체 동의하기"
+                    checked={allAgreed}
+                    onChange={handleAgreeAll}
+                    className="font-semibold"
+                  />
+                </div>
+
+                {/* 이용약관 (필수) */}
+                <Checkbox
+                  label="이용약관 동의 (필수)"
+                  checked={termsAgreed}
+                  onChange={setTermsAgreed}
+                />
+
+                {/* 개인정보 처리방침 (필수) */}
+                <Checkbox
+                  label="개인정보 처리방침 동의 (필수)"
+                  checked={privacyAgreed}
+                  onChange={setPrivacyAgreed}
+                />
+
+                {/* 마케팅 수신 (선택) */}
+                <Checkbox
+                  label="마케팅 정보 수신 동의 (선택)"
+                  checked={marketingAgreed}
+                  onChange={setMarketingAgreed}
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="flex-1"
+                  onClick={() => {
+                    setStep(1);
+                    setFieldErrors({});
+                  }}
+                >
+                  이전
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={isSubmitting || !allRequiredAgreed}
+                >
                   {isSubmitting ? '가입 중...' : '가입하기'}
                 </Button>
               </div>

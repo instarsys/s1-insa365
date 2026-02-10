@@ -12,7 +12,8 @@ import {
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
-import { Plus, Users } from 'lucide-react';
+import { Plus, Users, Download, Upload } from 'lucide-react';
+import { useEmployeeImport } from '@/hooks/useEmployeeImport';
 
 type PanelMode = 'create' | null;
 
@@ -113,6 +114,7 @@ export default function EmployeeListPage() {
   ], [activeTotal, onLeaveTotal, resignedTotal]);
 
   const { createEmployee } = useEmployeeMutations();
+  const { downloadExport } = useEmployeeImport();
 
   const [panelMode, setPanelMode] = useState<PanelMode>(null);
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
@@ -199,10 +201,20 @@ export default function EmployeeListPage() {
   return (
     <div>
       <PageHeader title="직원 목록" subtitle="전체 직원을 조회하고 관리합니다.">
-        <Button onClick={openCreate}>
-          <Plus className="h-4 w-4" />
-          직원 등록
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={downloadExport}>
+            <Download className="h-4 w-4" />
+            다운로드
+          </Button>
+          <Button variant="secondary" onClick={() => router.push('/employees/import')}>
+            <Upload className="h-4 w-4" />
+            업로드
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            직원 등록
+          </Button>
+        </div>
       </PageHeader>
 
       {/* Lifecycle Tabs */}

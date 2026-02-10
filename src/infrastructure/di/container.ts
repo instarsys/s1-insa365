@@ -35,6 +35,10 @@ import { LeaveTypeConfigRepository } from '../persistence/repositories/LeaveType
 import { LeaveAccrualRuleRepository } from '../persistence/repositories/LeaveAccrualRuleRepository';
 import { LeaveAccrualRecordRepository } from '../persistence/repositories/LeaveAccrualRecordRepository';
 import { WorkLocationRepository } from '../persistence/repositories/WorkLocationRepository';
+import { AnnouncementRepository } from '../persistence/repositories/AnnouncementRepository';
+import { InvitationRepository } from '../persistence/repositories/InvitationRepository';
+import { SubscriptionRepository } from '../persistence/repositories/SubscriptionRepository';
+import { PaymentRepository } from '../persistence/repositories/PaymentRepository';
 
 // ─── Domain Services ────────────────────────────────────────────
 import { PayrollCalculator } from '@domain/services/PayrollCalculator';
@@ -135,6 +139,10 @@ export interface Container {
   leaveAccrualRuleRepo: LeaveAccrualRuleRepository;
   leaveAccrualRecordRepo: LeaveAccrualRecordRepository;
   workLocationRepo: WorkLocationRepository;
+  announcementRepo: AnnouncementRepository;
+  invitationRepo: InvitationRepository;
+  subscriptionRepo: SubscriptionRepository;
+  paymentRepo: PaymentRepository;
 
   // Auth Use Cases
   loginUseCase: LoginUseCase;
@@ -226,6 +234,10 @@ function createContainer(): Container {
   const leaveAccrualRuleRepo = new LeaveAccrualRuleRepository();
   const leaveAccrualRecordRepo = new LeaveAccrualRecordRepository();
   const workLocationRepo = new WorkLocationRepository();
+  const announcementRepo = new AnnouncementRepository();
+  const invitationRepo = new InvitationRepository();
+  const subscriptionRepo = new SubscriptionRepository();
+  const paymentRepo = new PaymentRepository();
 
   // 2. Domain Service 어댑터 (PayrollCalculator.calculate는 static)
   const payrollCalculator = {
@@ -412,6 +424,10 @@ function createContainer(): Container {
     leaveAccrualRuleRepo,
     leaveAccrualRecordRepo,
     workLocationRepo,
+    announcementRepo,
+    invitationRepo,
+    subscriptionRepo,
+    paymentRepo,
     // Auth
     loginUseCase,
     signupUseCase,

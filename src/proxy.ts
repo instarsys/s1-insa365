@@ -47,7 +47,7 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
 }
 
 // --- Auth Redirect ---
-const publicPaths = ['/login', '/signup', '/super-admin/login', '/api/auth', '/api/health', '/about', '/contact', '/terms', '/privacy'];
+const publicPaths = ['/login', '/signup', '/join', '/super-admin/login', '/api/auth', '/api/health', '/about', '/contact', '/terms', '/privacy'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

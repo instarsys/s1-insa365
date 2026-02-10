@@ -23,7 +23,7 @@ export function getAuthContext(request: NextRequest): AuthContext | null {
 }
 
 export function withAuth(
-  handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse>,
+  handler: (request: NextRequest, context: AuthContext) => Promise<NextResponse | Response>,
 ) {
   return async (request: NextRequest, _routeContext?: { params?: Promise<Record<string, string>> }) => {
     const auth = getAuthContext(request);

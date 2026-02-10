@@ -108,6 +108,13 @@ enum NotificationType {
   LEGAL_PARAM_CHANGED
 }
 
+enum AnnouncementCategory {
+  NEWS
+  NEW_FEATURE
+  NOTICE
+  UPDATE
+}
+
 enum NotificationPriority {
   LOW
   MEDIUM
@@ -138,6 +145,20 @@ enum LeaveTimeOption {
   FULL_DAY
   HALF_DAY
   HOURS
+}
+
+enum InvitationStatus {
+  PENDING
+  SENT
+  ACCEPTED
+  EXPIRED
+  CANCELLED
+}
+
+enum InviteSendMethod {
+  NONE
+  IMMEDIATE
+  SCHEDULED
 }
 
 enum LeaveAccrualBasis {
@@ -177,11 +198,13 @@ model Company {
   overtimeThresholdMinutes Int              @default(480) @map("overtime_threshold_minutes")
   prorationMethod          ProrationMethod  @default(CALENDAR_DAY) @map("proration_method")
   subscriptionPlan         SubscriptionPlan @default(TRIAL) @map("subscription_plan")
+  employeeCountRange       String?          @map("employee_count_range")
   createdAt                DateTime         @default(now()) @map("created_at")
   updatedAt                DateTime         @updatedAt @map("updated_at")
   deletedAt                DateTime?        @map("deleted_at")
 
   users              User[]
+  termsAgreements    TermsAgreement[]
   departments        Department[]
   positions          Position[]
   workPolicies       WorkPolicy[]
@@ -201,6 +224,9 @@ model Company {
   leaveTypeConfigs   LeaveTypeConfig[]
   leaveAccrualRules  LeaveAccrualRule[]
   leaveAccrualRecords LeaveAccrualRecord[]
+  announcements      Announcement[]
+  employeeInvitations EmployeeInvitation[]
+  subscription       Subscription?
 
   @@map("companies")
 }
@@ -254,6 +280,7 @@ model User {
   notifications       Notification[]
   payrollMonthlies    PayrollMonthly[]
   leaveAccrualRecords LeaveAccrualRecord[]
+  termsAgreements     TermsAgreement[]
 
   @@unique([companyId, email])
   @@unique([companyId, employeeNumber])
@@ -934,4 +961,136 @@ model LeaveAccrualRecord {
   @@index([companyId, userId, year])
   @@index([companyId])
   @@map("leave_accrual_records")
+}
+
+// ──────────────────────────────────────────────
+// TermsAgreement (약관 동의)
+// ──────────────────────────────────────────────
+
+model TermsAgreement {
+  id               String   @id @default(uuid())
+  companyId        String   @map("company_id")
+  company          Company  @relation(fields: [companyId], references: [id])
+  userId           String   @map("user_id")
+  user             User     @relation(fields: [userId], references: [id])
+  termsVersion     String   @default("1.0") @map("terms_version")
+  termsAgreed      Boolean  @map("terms_agreed")
+  privacyAgreed    Boolean  @map("privacy_agreed")
+  marketingAgreed  Boolean  @default(false) @map("marketing_agreed")
+  agreedAt         DateTime @default(now()) @map("agreed_at")
+
+  @@index([companyId])
+  @@index([userId])
+  @@map("terms_agreements")
+}
+
+// ──────────────────────────────────────────────
+// Announcement (공지사항)
+// ──────────────────────────────────────────────
+
+model Announcement {
+  id           String                @id @default(uuid())
+  companyId    String?               @map("company_id")
+  company      Company?              @relation(fields: [companyId], references: [id])
+  category     AnnouncementCategory  @default(NOTICE)
+  title        String
+  content      String?
+  isNew        Boolean               @default(true) @map("is_new")
+  publishedAt  DateTime              @default(now()) @map("published_at")
+  deletedAt    DateTime?             @map("deleted_at")
+  createdAt    DateTime              @default(now()) @map("created_at")
+  updatedAt    DateTime              @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@map("announcements")
+}
+
+// ──────────────────────────────────────────────
+// EmployeeInvitation (합류 초대)
+// ──────────────────────────────────────────────
+
+model EmployeeInvitation {
+  id            String           @id @default(uuid())
+  companyId     String           @map("company_id")
+  company       Company          @relation(fields: [companyId], references: [id])
+  userId        String?          @map("user_id")
+  inviteCode    String           @unique @map("invite_code")
+  email         String?
+  phone         String?
+  name          String
+  departmentId  String?          @map("department_id")
+  positionId    String?          @map("position_id")
+  sendMethod    InviteSendMethod @default(NONE) @map("send_method")
+  scheduledAt   DateTime?        @map("scheduled_at")
+  sentAt        DateTime?        @map("sent_at")
+  acceptedAt    DateTime?        @map("accepted_at")
+  status        InvitationStatus @default(PENDING)
+  expiresAt     DateTime         @map("expires_at")
+  createdBy     String           @map("created_by")
+  createdAt     DateTime         @default(now()) @map("created_at")
+
+  @@index([companyId])
+  @@index([companyId, status])
+  @@map("employee_invitations")
+}
+
+// ──────────────────────────────────────────────
+// Billing
+// ──────────────────────────────────────────────
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIAL_ACTIVE @map("TRIAL_ACTIVE")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+model Subscription {
+  id                  String             @id @default(uuid())
+  companyId           String             @unique @map("company_id")
+  company             Company            @relation(fields: [companyId], references: [id])
+  plan                SubscriptionPlan   @default(TRIAL)
+  status              SubscriptionStatus @default(TRIAL_ACTIVE)
+  trialEndsAt         DateTime?          @map("trial_ends_at")
+  currentPeriodStart  DateTime?          @map("current_period_start")
+  currentPeriodEnd    DateTime?          @map("current_period_end")
+  maxEmployees        Int                @default(5) @map("max_employees")
+  pricePerEmployee    Int                @default(0) @map("price_per_employee")
+  billingKey          String?            @map("billing_key")
+  lastCardDigits      String?            @map("last_card_digits")
+  cardBrand           String?            @map("card_brand")
+  pgCustomerId        String?            @map("pg_customer_id")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  payments            Payment[]
+
+  @@map("subscriptions")
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  subscriptionId   String        @map("subscription_id")
+  subscription     Subscription  @relation(fields: [subscriptionId], references: [id])
+  amount           Int
+  status           PaymentStatus @default(PENDING)
+  pgPaymentId      String?       @map("pg_payment_id")
+  description      String?
+  employeeCount    Int           @default(0) @map("employee_count")
+  periodStart      DateTime?     @map("period_start")
+  periodEnd        DateTime?     @map("period_end")
+  paidAt           DateTime?     @map("paid_at")
+  failReason       String?       @map("fail_reason")
+  receiptUrl       String?       @map("receipt_url")
+  createdAt        DateTime      @default(now()) @map("created_at")
+
+  @@index([subscriptionId])
+  @@map("payments")
 }

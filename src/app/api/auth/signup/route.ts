@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = validateBody(signupSchema, body);
     if (!validation.success) return validation.response;
-    const { companyName, businessNumber, representativeName, name, email, password } = validation.data;
+    const { companyName, businessNumber, representativeName, employeeCountRange, name, email, password, termsAgreed, privacyAgreed, marketingAgreed } = validation.data;
 
     const { userRepo } = getContainer();
 
@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
           name: companyName,
           businessNumber,
           representativeName,
+          employeeCountRange: employeeCountRange || null,
         },
       });
 
@@ -148,6 +149,17 @@ export async function POST(request: NextRequest) {
           },
         });
       }
+
+      // Terms agreement
+      await tx.termsAgreement.create({
+        data: {
+          companyId: company.id,
+          userId: user.id,
+          termsAgreed,
+          privacyAgreed,
+          marketingAgreed: marketingAgreed ?? false,
+        },
+      });
 
       return { company, user };
     });

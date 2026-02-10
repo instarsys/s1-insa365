@@ -34,7 +34,7 @@ async function refreshAccessToken(): Promise<boolean> {
 function isAuthPage(): boolean {
   if (typeof window === 'undefined') return false;
   const { pathname } = window.location;
-  return pathname === '/login' || pathname === '/signup' || pathname === '/super-admin/login';
+  return pathname === '/login' || pathname === '/signup' || pathname === '/join' || pathname === '/super-admin/login';
 }
 
 /**

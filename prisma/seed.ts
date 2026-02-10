@@ -852,6 +852,26 @@ async function main() {
 
   console.log('');
   console.log('=== Seed Complete ===');
+  // ─── Subscription (Trial) ────────────────────────────
+  const existingSub = await prisma.subscription.findUnique({ where: { companyId: company.id } });
+  if (!existingSub) {
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 14);
+    await prisma.subscription.create({
+      data: {
+        companyId: company.id,
+        plan: 'TRIAL',
+        status: 'TRIAL_ACTIVE',
+        trialEndsAt: trialEnd,
+        maxEmployees: 5,
+        pricePerEmployee: 0,
+      },
+    });
+    console.log('Subscription (TRIAL) seeded');
+  } else {
+    console.log('Subscription already exists:', existingSub.plan);
+  }
+
   console.log('Company:', company.name);
   console.log('Admin login: admin@test-company.com / admin123! (COMPANY_ADMIN)');
   console.log('System Admin login: sysadmin@insa365.com / sysadmin123! (SYSTEM_ADMIN)');
@@ -989,6 +1009,23 @@ async function seedLeaveData(companyId: string) {
   await prisma.leaveAccrualRuleTier.createMany({ data: yearlyTiers });
   console.log('Yearly accrual rule created with', preciseYearlyTiers.length, 'tiers');
   console.log('Leave data seeded successfully.');
+
+  // ─── System Announcements ────────────────────────────
+  const existingAnnouncements = await prisma.announcement.count({ where: { companyId: null } });
+  if (existingAnnouncements === 0) {
+    await prisma.announcement.createMany({
+      data: [
+        { companyId: null, category: 'NEW_FEATURE', title: 'v2.0 출시: 클린 아키텍처 전환 완료', content: '전체 API가 DI 컨테이너를 통한 의존성 주입 패턴으로 전환되었습니다.', isNew: true },
+        { companyId: null, category: 'NOTICE', title: '2026년 4대보험 요율 반영 완료', content: '국민연금, 건강보험, 장기요양보험, 고용보험 요율이 2026년 기준으로 업데이트되었습니다.', isNew: true },
+        { companyId: null, category: 'NEWS', title: '시프티 벤치마크 기반 UI 개선', content: '출퇴근 달력, 휴가 관리, 대시보드 위젯이 업그레이드되었습니다.', isNew: false },
+        { companyId: null, category: 'UPDATE', title: '52시간 경고 기능 강화', content: '주 48시간 초과 시 관리자에게 실시간 알림이 발송됩니다.', isNew: false },
+        { companyId: null, category: 'NOTICE', title: '개인정보보호법 컴플라이언스 안내', content: 'PII 암호화, 접근 로그 기록 등 법적 요구사항을 충족합니다.', isNew: false },
+      ],
+    });
+    console.log('System announcements seeded (5 items)');
+  } else {
+    console.log('System announcements already exist:', existingAnnouncements);
+  }
 }
 
 main()

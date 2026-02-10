@@ -29,6 +29,9 @@ cookie.txt
 cookies.txt
 nul
 
+# screenshots
+*.png
+
 # debug
 npm-debug.log*
 yarn-debug.log*
