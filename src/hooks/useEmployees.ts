@@ -17,6 +17,14 @@ interface Employee {
   positionName?: string;
   joinDate?: string;
   resignDate?: string;
+  resignReason?: string;
+  dependents: number;
+  bankName?: string;
+  hasBankAccount: boolean;
+  address?: string;
+  isHouseholder: boolean;
+  hireType?: string;
+  profileImageUrl?: string;
 }
 
 interface EmployeeListResponse {
@@ -76,4 +84,19 @@ export function useEmployeeMutations() {
     updateEmployee: (id: string, data: Record<string, unknown>) => apiPut(`/api/employees/${id}`, data),
     deleteEmployee: (id: string) => apiDelete(`/api/employees/${id}`),
   };
+}
+
+interface PiiResponse {
+  field: string;
+  value: string | null;
+}
+
+export function useEmployeePii(employeeId: string, field: string, enabled: boolean) {
+  const { data, error, isLoading } = useSWR<PiiResponse>(
+    enabled ? `/api/employees/${employeeId}/pii?field=${field}` : null,
+    fetcher,
+    { revalidateOnFocus: false, errorRetryCount: 0 },
+  );
+
+  return { value: data?.value ?? null, isLoading, error };
 }

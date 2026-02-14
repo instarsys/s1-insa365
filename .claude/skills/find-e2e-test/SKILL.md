@@ -1,10 +1,10 @@
 ---
 name: find-e2e-test
-description: Playwright MCP로 페이지에 접속하여 테스트할 요소를 조사하고 마크다운으로 정리합니다. 페이지 URL을 인자로 전달하세요.
-argument-hint: "[page-url]"
+description: E2E 테스트 기획/요소 분석. Playwright MCP로 페이지를 탐색하고 테스트할 요소를 정리합니다.
+argument-hint: "분석할 페이지 URL을 입력하세요"
 ---
 
-# E2E 테스트 생성기
+# E2E 테스트 기획/요소 분석
 
 너는 지금부터 Playwright로 E2E 테스트를 기획하는 QA 전문가야.
 

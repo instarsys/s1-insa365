@@ -1,18 +1,23 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
 import { Breadcrumb, PageHeader } from '@/components/layout';
 import {
   Avatar, Badge, Button, Card, CardHeader, CardTitle, CardBody,
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, useToast,
 } from '@/components/ui';
-import { useEmployee, useEmployees, useEmployeeMutations } from '@/hooks';
+import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii } from '@/hooks';
+import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
 import { formatDate, formatKRW } from '@/lib/utils';
+import { fetcher, apiPost } from '@/lib/api';
+import { HIRE_TYPE_OPTIONS, KOREAN_BANKS } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
+  Home, Users, Landmark, Camera, Eye, EyeOff,
 } from 'lucide-react';
 
 function getStatusBadge(status: string) {
@@ -32,17 +37,73 @@ const DETAIL_TABS = [
   { key: 'documents', label: '문서' },
 ];
 
+interface DepartmentItem { id: string; name: string; }
+interface PositionItem { id: string; name: string; }
+
+interface EditFormState {
+  name: string;
+  email: string;
+  phone: string;
+  departmentId: string;
+  positionId: string;
+  joinDate: string;
+  resignDate: string;
+  resignReason: string;
+  address: string;
+  isHouseholder: boolean;
+  dependents: string;
+  hireType: string;
+  bankName: string;
+  bankAccount: string;
+}
+
+const emptyEditForm: EditFormState = {
+  name: '', email: '', phone: '',
+  departmentId: '', positionId: '',
+  joinDate: '', resignDate: '', resignReason: '',
+  address: '', isHouseholder: false, dependents: '1',
+  hireType: '', bankName: '', bankAccount: '',
+};
+
 export default function EmployeeDetailPage() {
   const params = useParams();
   const router = useRouter();
   const toast = useToast();
+  const { user: authUser } = useAuth();
   const id = params.id as string;
 
   const [activeTab, setActiveTab] = useState('basic');
   const [isEditing, setIsEditing] = useState(false);
+  const [showBankAccount, setShowBankAccount] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { employee, isLoading, mutate } = useEmployee(id);
   const { updateEmployee } = useEmployeeMutations();
+
+  // Department & position lists for select dropdowns
+  const { data: deptData } = useSWR<{ items: DepartmentItem[] }>('/api/departments', fetcher);
+  const { data: posData } = useSWR<{ items: PositionItem[] }>('/api/positions', fetcher);
+
+  const departmentOptions = useMemo(() => [
+    { value: '', label: '부서 선택' },
+    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+  ], [deptData]);
+
+  const positionOptions = useMemo(() => [
+    { value: '', label: '직급 선택' },
+    ...(posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
+  ], [posData]);
+
+  const hireTypeOptions = useMemo(() => [
+    { value: '', label: '선택' },
+    ...HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
+  ], []);
+
+  const bankOptions = useMemo(() => [
+    { value: '', label: '은행 선택' },
+    ...KOREAN_BANKS.map((b) => ({ value: b.value, label: b.label })),
+  ], []);
 
   // For prev/next navigation
   const { employees: allEmployees } = useEmployees({ limit: 200 });
@@ -57,33 +118,92 @@ export default function EmployeeDetailPage() {
   const { balance } = useLeaveBalance(id);
   const { requests: leaveRequests } = useLeaveRequests({ userId: id });
 
-  // Edit form state
-  const [editForm, setEditForm] = useState<Record<string, string>>({});
+  // PII: bank account
+  const { value: decryptedBankAccount, isLoading: piiLoading } = useEmployeePii(id, 'bankAccount', showBankAccount);
 
-  const startEdit = () => {
+  // Edit form state
+  const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
+
+  const startEdit = useCallback(() => {
     if (!employee) return;
     const emp = employee as Record<string, unknown>;
     setEditForm({
       name: (emp.name as string) ?? '',
       email: (emp.email as string) ?? '',
       phone: (emp.phone as string) ?? '',
+      departmentId: (emp.departmentId as string) ?? '',
+      positionId: (emp.positionId as string) ?? '',
+      joinDate: emp.joinDate ? (emp.joinDate as string).slice(0, 10) : '',
+      resignDate: emp.resignDate ? (emp.resignDate as string).slice(0, 10) : '',
+      resignReason: (emp.resignReason as string) ?? '',
+      address: (emp.address as string) ?? '',
+      isHouseholder: (emp.isHouseholder as boolean) ?? false,
+      dependents: String((emp.dependents as number) ?? 1),
+      hireType: (emp.hireType as string) ?? '',
+      bankName: (emp.bankName as string) ?? '',
+      bankAccount: '',
     });
     setIsEditing(true);
-  };
+  }, [employee]);
 
   const cancelEdit = () => {
     setIsEditing(false);
-    setEditForm({});
+    setEditForm(emptyEditForm);
   };
 
   const saveEdit = async () => {
+    if (!editForm.name || !editForm.email || !editForm.phone) {
+      toast.error('이름, 이메일, 연락처는 필수입니다.');
+      return;
+    }
+
+    setIsSaving(true);
     try {
-      await updateEmployee(id, editForm);
+      const payload: Record<string, unknown> = {
+        name: editForm.name,
+        email: editForm.email,
+        phone: editForm.phone,
+        departmentId: editForm.departmentId || null,
+        positionId: editForm.positionId || null,
+        joinDate: editForm.joinDate || null,
+        resignDate: editForm.resignDate || null,
+        resignReason: editForm.resignReason || null,
+        address: editForm.address || null,
+        isHouseholder: editForm.isHouseholder,
+        dependents: parseInt(editForm.dependents) || 1,
+        hireType: editForm.hireType || null,
+        bankName: editForm.bankName || null,
+      };
+      if (editForm.bankAccount) {
+        payload.bankAccount = editForm.bankAccount;
+      }
+      await updateEmployee(id, payload);
       toast.success('직원 정보가 수정되었습니다.');
       setIsEditing(false);
       await mutate();
     } catch {
       toast.error('수정에 실패했습니다.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleProfileImageUpload = async (file: File) => {
+    try {
+      const { uploadUrl, imageUrl } = await apiPost<{ uploadUrl: string; imageUrl: string }>(
+        `/api/employees/${id}/profile-image`,
+        { contentType: file.type },
+      );
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      await updateEmployee(id, { profileImageUrl: imageUrl });
+      toast.success('프로필 사진이 업로드되었습니다.');
+      await mutate();
+    } catch {
+      toast.error('프로필 사진 업로드에 실패했습니다.');
     }
   };
 
@@ -109,6 +229,11 @@ export default function EmployeeDetailPage() {
   const dept = emp.department as { id: string; name: string } | null;
   const pos = emp.position as { id: string; name: string } | null;
   const salaryItems = (emp.employeeSalaryItems as Array<Record<string, unknown>>) ?? [];
+  const canViewSensitive = authUser?.canViewSensitive ?? false;
+
+  const hireTypeLabel = HIRE_TYPE_OPTIONS.find((h) => h.value === emp.hireType)?.label ?? '-';
+  const bankNameLabel = KOREAN_BANKS.find((b) => b.value === emp.bankName)?.label ?? (emp.bankName as string) ?? '-';
+  const maskedAccount = emp.hasBankAccount ? '●●●●●●●●●●' : '-';
 
   return (
     <div>
@@ -124,7 +249,33 @@ export default function EmployeeDetailPage() {
       {/* Profile Header */}
       <div className="mb-6 flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <Avatar name={(emp.name as string) || '?'} size="lg" />
+          <div className="relative">
+            <Avatar
+              name={(emp.name as string) || '?'}
+              imageUrl={emp.profileImageUrl as string | undefined}
+              size="lg"
+            />
+            {isEditing && (
+              <>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 text-white opacity-0 transition-opacity hover:opacity-100"
+                >
+                  <Camera className="h-5 w-5" />
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleProfileImageUpload(file);
+                  }}
+                />
+              </>
+            )}
+          </div>
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{emp.name as string}</h1>
@@ -170,11 +321,11 @@ export default function EmployeeDetailPage() {
         className="mb-6"
       />
 
-      {/* Tab Content */}
+      {/* Tab Content: Basic Info */}
       {activeTab === 'basic' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>기본 정보</CardTitle>
+        <div className="space-y-6">
+          {/* Edit Controls */}
+          <div className="flex justify-end">
             {!isEditing ? (
               <Button variant="ghost" size="sm" onClick={startEdit}>
                 <Pencil className="h-4 w-4" />
@@ -182,69 +333,242 @@ export default function EmployeeDetailPage() {
               </Button>
             ) : (
               <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={cancelEdit}>
+                <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={isSaving}>
                   <X className="h-4 w-4" />
                   취소
                 </Button>
-                <Button size="sm" onClick={saveEdit}>
+                <Button size="sm" onClick={saveEdit} disabled={isSaving}>
                   <Check className="h-4 w-4" />
-                  저장
+                  {isSaving ? '저장 중...' : '저장'}
                 </Button>
               </div>
             )}
-          </CardHeader>
-          <CardBody>
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <InfoItem
-                icon={<Mail className="h-4 w-4" />}
-                label="이메일"
-                value={isEditing ? undefined : (emp.email as string)}
-              >
-                {isEditing && (
+          </div>
+
+          {/* Section 1: 인사 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Briefcase className="h-4 w-4 text-gray-400" />
+                인사 정보
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <InfoItem label="사번" value={emp.employeeNumber as string} />
+                {isEditing ? (
+                  <Select
+                    label="입사구분"
+                    options={hireTypeOptions}
+                    value={editForm.hireType}
+                    onChange={(v) => setEditForm((f) => ({ ...f, hireType: v }))}
+                  />
+                ) : (
+                  <InfoItem label="입사구분" value={hireTypeLabel} />
+                )}
+                {isEditing ? (
+                  <Select
+                    label="부서"
+                    options={departmentOptions}
+                    value={editForm.departmentId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, departmentId: v }))}
+                  />
+                ) : (
+                  <InfoItem label="부서" value={dept?.name ?? '-'} />
+                )}
+                {isEditing ? (
+                  <Select
+                    label="직급"
+                    options={positionOptions}
+                    value={editForm.positionId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, positionId: v }))}
+                  />
+                ) : (
+                  <InfoItem label="직급" value={pos?.name ?? '-'} />
+                )}
+                {isEditing ? (
+                  <DatePicker
+                    label="입사일"
+                    value={editForm.joinDate}
+                    onChange={(v) => setEditForm((f) => ({ ...f, joinDate: v }))}
+                  />
+                ) : (
+                  <InfoItem label="입사일" value={emp.joinDate ? formatDate(emp.joinDate as string) : '-'} />
+                )}
+                <InfoItem
+                  label="근무지"
+                  value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
+                />
+                {isEditing ? (
+                  <DatePicker
+                    label="퇴사일"
+                    value={editForm.resignDate}
+                    onChange={(v) => setEditForm((f) => ({ ...f, resignDate: v }))}
+                  />
+                ) : (
+                  <InfoItem label="퇴사일" value={emp.resignDate ? formatDate(emp.resignDate as string) : '-'} />
+                )}
+                {isEditing ? (
                   <Input
-                    value={editForm.email ?? ''}
+                    label="퇴사사유"
+                    value={editForm.resignReason}
+                    onChange={(e) => setEditForm((f) => ({ ...f, resignReason: e.target.value }))}
+                    placeholder="사유 입력"
+                    maxLength={200}
+                  />
+                ) : (
+                  <InfoItem label="퇴사사유" value={(emp.resignReason as string) || '-'} />
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Section 2: 개인 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-4 w-4 text-gray-400" />
+                개인 정보
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {isEditing ? (
+                  <Input
+                    label="이메일"
+                    required
+                    type="email"
+                    value={editForm.email}
                     onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
                   />
+                ) : (
+                  <InfoItem label="이메일" value={emp.email as string} required />
                 )}
-              </InfoItem>
-              <InfoItem
-                icon={<Phone className="h-4 w-4" />}
-                label="연락처"
-                value={isEditing ? undefined : ((emp.phone as string) || '-')}
-              >
-                {isEditing && (
+                {isEditing ? (
                   <Input
-                    value={editForm.phone ?? ''}
+                    label="연락처"
+                    required
+                    value={editForm.phone}
                     onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
                     placeholder="010-1234-5678"
                   />
+                ) : (
+                  <InfoItem label="연락처" value={(emp.phone as string) || '-'} required />
                 )}
-              </InfoItem>
-              <InfoItem
-                icon={<Building2 className="h-4 w-4" />}
-                label="부서"
-                value={dept?.name ?? '-'}
-              />
-              <InfoItem
-                icon={<Briefcase className="h-4 w-4" />}
-                label="직급"
-                value={pos?.name ?? '-'}
-              />
-              <InfoItem
-                icon={<Calendar className="h-4 w-4" />}
-                label="입사일"
-                value={emp.joinDate ? formatDate(emp.joinDate as string) : '-'}
-              />
-              <InfoItem
-                icon={<MapPin className="h-4 w-4" />}
-                label="근무지"
-                value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
-              />
-            </div>
-          </CardBody>
-        </Card>
+                <div className="sm:col-span-2">
+                  {isEditing ? (
+                    <Input
+                      label="주소"
+                      value={editForm.address}
+                      onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                      placeholder="주소 입력"
+                      maxLength={200}
+                    />
+                  ) : (
+                    <InfoItem label="주소" value={(emp.address as string) || '-'} />
+                  )}
+                </div>
+                {isEditing ? (
+                  <div className="w-full">
+                    <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm((f) => ({ ...f, isHouseholder: !f.isHouseholder }))}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        editForm.isHouseholder ? 'bg-indigo-600' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          editForm.isHouseholder ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className="ml-2 text-sm text-gray-600">
+                      {editForm.isHouseholder ? '세대주' : '세대원'}
+                    </span>
+                  </div>
+                ) : (
+                  <InfoItem label="세대주여부" value={(emp.isHouseholder as boolean) ? '세대주' : '세대원'} />
+                )}
+                {isEditing ? (
+                  <Input
+                    label="부양가족수"
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={editForm.dependents}
+                    onChange={(e) => setEditForm((f) => ({ ...f, dependents: e.target.value }))}
+                  />
+                ) : (
+                  <InfoItem label="부양가족수" value={`${(emp.dependents as number) ?? 1}명`} />
+                )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Section 3: 급여 정보 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-gray-400" />
+                급여 정보
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {isEditing ? (
+                  <Select
+                    label="은행명"
+                    options={bankOptions}
+                    value={editForm.bankName}
+                    onChange={(v) => setEditForm((f) => ({ ...f, bankName: v }))}
+                  />
+                ) : (
+                  <InfoItem label="은행명" value={bankNameLabel} />
+                )}
+                {isEditing ? (
+                  <Input
+                    label="계좌번호"
+                    value={editForm.bankAccount}
+                    onChange={(e) => setEditForm((f) => ({ ...f, bankAccount: e.target.value }))}
+                    placeholder="계좌번호 입력 (변경 시에만)"
+                    maxLength={50}
+                  />
+                ) : (
+                  <div className="w-full">
+                    <p className="mb-1 text-xs font-medium text-gray-500">계좌번호</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm text-gray-800">
+                        {showBankAccount && decryptedBankAccount
+                          ? decryptedBankAccount
+                          : maskedAccount}
+                      </p>
+                      {(emp.hasBankAccount as boolean) && canViewSensitive && (
+                        <button
+                          onClick={() => setShowBankAccount(!showBankAccount)}
+                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+                          title={showBankAccount ? '숨기기' : '조회'}
+                        >
+                          {piiLoading ? (
+                            <Spinner className="h-4 w-4" />
+                          ) : showBankAccount ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardBody>
+          </Card>
+        </div>
       )}
 
+      {/* Tab Content: Salary */}
       {activeTab === 'salary' && (
         <Card>
           <CardHeader>
@@ -297,6 +621,7 @@ export default function EmployeeDetailPage() {
         </Card>
       )}
 
+      {/* Tab Content: Attendance */}
       {activeTab === 'attendance' && (
         <Card>
           <CardHeader>
@@ -318,9 +643,9 @@ export default function EmployeeDetailPage() {
         </Card>
       )}
 
+      {/* Tab Content: Leave */}
       {activeTab === 'leave' && (
         <div className="space-y-6">
-          {/* Leave Balance */}
           <Card>
             <CardHeader>
               <CardTitle>잔여 휴가</CardTitle>
@@ -347,7 +672,6 @@ export default function EmployeeDetailPage() {
             </CardBody>
           </Card>
 
-          {/* Leave History */}
           <Card>
             <CardHeader>
               <CardTitle>휴가 신청 이력</CardTitle>
@@ -400,6 +724,7 @@ export default function EmployeeDetailPage() {
         </div>
       )}
 
+      {/* Tab Content: Documents */}
       {activeTab === 'documents' && (
         <Card>
           <CardHeader>
@@ -419,23 +744,21 @@ export default function EmployeeDetailPage() {
 }
 
 function InfoItem({
-  icon,
   label,
   value,
-  children,
+  required,
 }: {
-  icon: React.ReactNode;
   label: string;
   value?: string;
-  children?: React.ReactNode;
+  required?: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 rounded-lg bg-gray-100 p-2 text-gray-500">{icon}</div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-medium text-gray-500">{label}</p>
-        {children ?? <p className="mt-0.5 text-sm text-gray-800">{value}</p>}
-      </div>
+    <div className="w-full">
+      <p className="mb-1 text-xs font-medium text-gray-500">
+        {label}
+        {required && <span className="ml-0.5 text-red-500">*</span>}
+      </p>
+      <p className="text-sm text-gray-800">{value || '-'}</p>
     </div>
   );
 }

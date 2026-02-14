@@ -6,7 +6,7 @@ export interface CreateEmployeeDto {
   email: string;
   password: string;
   name: string;
-  phone?: string;
+  phone: string;
   departmentId?: string;
   positionId?: string;
   workPolicyId?: string;
@@ -16,6 +16,9 @@ export interface CreateEmployeeDto {
   nationalPensionMode?: string;
   healthInsuranceMode?: string;
   employmentInsuranceMode?: string;
+  address?: string;
+  isHouseholder?: boolean;
+  hireType?: string;
 }
 
 export interface UpdateEmployeeDto {
@@ -33,6 +36,12 @@ export interface UpdateEmployeeDto {
   employmentInsuranceMode?: string;
   manualNationalPensionBase?: number | null;
   manualHealthInsuranceBase?: number | null;
+  resignDate?: string | null;
+  resignReason?: string | null;
+  address?: string | null;
+  isHouseholder?: boolean;
+  hireType?: string | null;
+  profileImageUrl?: string | null;
 }
 
 export interface EmployeeDto {
@@ -52,8 +61,13 @@ export interface EmployeeDto {
   workLocationId: string | null;
   joinDate: string | null;
   resignDate: string | null;
+  resignReason: string | null;
   dependents: number;
   bankName: string | null;
+  hasBankAccount: boolean;
+  address: string | null;
+  isHouseholder: boolean;
+  hireType: string | null;
   nationalPensionMode: string;
   healthInsuranceMode: string;
   employmentInsuranceMode: string;

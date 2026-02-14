@@ -256,7 +256,11 @@ model User {
   workLocation            WorkLocation?  @relation(fields: [workLocationId], references: [id])
   joinDate                DateTime?      @map("join_date")
   resignDate              DateTime?      @map("resign_date")
+  resignReason            String?        @map("resign_reason")
   dependents              Int            @default(1)
+  address                 String?
+  isHouseholder           Boolean        @default(false) @map("is_householder")
+  hireType                String?        @map("hire_type")
   encryptedRrn            String?        @map("encrypted_rrn")
   encryptedBankAccount    String?        @map("encrypted_bank_account")
   bankName                String?        @map("bank_name")

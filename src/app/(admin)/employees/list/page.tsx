@@ -12,6 +12,7 @@ import {
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
+import { HIRE_TYPE_OPTIONS } from '@/lib/constants';
 import { Plus, Users, Download, Upload } from 'lucide-react';
 import { useEmployeeImport } from '@/hooks/useEmployeeImport';
 
@@ -48,6 +49,10 @@ interface EmployeeForm {
   departmentId: string;
   positionId: string;
   joinDate: string;
+  hireType: string;
+  address: string;
+  isHouseholder: boolean;
+  dependents: string;
   baseSalary: string;
   insuranceMode: string;
 }
@@ -59,6 +64,10 @@ const emptyForm: EmployeeForm = {
   departmentId: '',
   positionId: '',
   joinDate: '',
+  hireType: '',
+  address: '',
+  isHouseholder: false,
+  dependents: '1',
   baseSalary: '',
   insuranceMode: 'AUTO',
 };
@@ -89,6 +98,11 @@ export default function EmployeeListPage() {
     { value: '', label: '직급 선택' },
     ...(posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
   ], [posData]);
+
+  const hireTypeOptions = useMemo(() => [
+    { value: '', label: '선택' },
+    ...HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
+  ], []);
 
   // statusTab '' = ACTIVE
   const statusFilter = statusTab || 'ACTIVE';
@@ -133,8 +147,8 @@ export default function EmployeeListPage() {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name || !form.email) {
-      toast.error('이름과 이메일은 필수입니다.');
+    if (!form.name || !form.email || !form.phone) {
+      toast.error('이름, 이메일, 연락처는 필수입니다.');
       return;
     }
 
@@ -143,10 +157,14 @@ export default function EmployeeListPage() {
       const payload = {
         name: form.name,
         email: form.email,
-        phone: form.phone || undefined,
+        phone: form.phone,
         departmentId: form.departmentId || undefined,
         positionId: form.positionId || undefined,
         joinDate: form.joinDate || undefined,
+        hireType: form.hireType || undefined,
+        address: form.address || undefined,
+        isHouseholder: form.isHouseholder,
+        dependents: parseInt(form.dependents) || 1,
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         insuranceMode: form.insuranceMode,
       };
@@ -289,15 +307,53 @@ export default function EmployeeListPage() {
         size="lg"
       >
         <div className="space-y-5">
-          <h3 className="text-sm font-semibold text-gray-700">기본 정보</h3>
+          {/* Section 1: 인사 정보 */}
+          <h3 className="text-sm font-semibold text-gray-700">인사 정보</h3>
           <Input
             label="이름"
+            required
             placeholder="홍길동"
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="부서"
+              options={departmentOptions}
+              value={form.departmentId}
+              onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
+              placeholder="부서 선택"
+            />
+            <Select
+              label="직급"
+              options={positionOptions}
+              value={form.positionId}
+              onChange={(v) => setForm((f) => ({ ...f, positionId: v }))}
+              placeholder="직급 선택"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <DatePicker
+              label="입사일"
+              value={form.joinDate}
+              onChange={(v) => setForm((f) => ({ ...f, joinDate: v }))}
+            />
+            <Select
+              label="입사구분"
+              options={hireTypeOptions}
+              value={form.hireType}
+              onChange={(v) => setForm((f) => ({ ...f, hireType: v }))}
+              placeholder="선택"
+            />
+          </div>
+
+          <hr className="border-gray-200" />
+
+          {/* Section 2: 개인 정보 */}
+          <h3 className="text-sm font-semibold text-gray-700">개인 정보</h3>
           <Input
             label="이메일"
+            required
             type="email"
             placeholder="name@company.com"
             value={form.email}
@@ -305,32 +361,50 @@ export default function EmployeeListPage() {
           />
           <Input
             label="연락처"
+            required
             placeholder="010-1234-5678"
             value={form.phone}
             onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
           />
-          <Select
-            label="부서"
-            options={departmentOptions}
-            value={form.departmentId}
-            onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
-            placeholder="부서 선택"
+          <Input
+            label="주소"
+            placeholder="주소 입력"
+            value={form.address}
+            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
           />
-          <Select
-            label="직급"
-            options={positionOptions}
-            value={form.positionId}
-            onChange={(v) => setForm((f) => ({ ...f, positionId: v }))}
-            placeholder="직급 선택"
-          />
-          <DatePicker
-            label="입사일"
-            value={form.joinDate}
-            onChange={(v) => setForm((f) => ({ ...f, joinDate: v }))}
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="w-full">
+              <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, isHouseholder: !f.isHouseholder }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  form.isHouseholder ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    form.isHouseholder ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className="ml-2 text-sm text-gray-600">
+                {form.isHouseholder ? '세대주' : '세대원'}
+              </span>
+            </div>
+            <Input
+              label="부양가족수"
+              type="number"
+              min="0"
+              max="20"
+              value={form.dependents}
+              onChange={(e) => setForm((f) => ({ ...f, dependents: e.target.value }))}
+            />
+          </div>
 
           <hr className="border-gray-200" />
 
+          {/* Section 3: 급여 정보 */}
           <h3 className="text-sm font-semibold text-gray-700">급여 정보</h3>
           <Input
             label="기본급"

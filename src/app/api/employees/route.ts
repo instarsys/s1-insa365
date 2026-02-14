@@ -34,7 +34,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(createEmployeeSchema, body);
     if (!validation.success) return validation.response;
-    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName } = validation.data;
+    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType } = validation.data;
 
     const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
 
@@ -65,6 +65,9 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       encryptedRrn: rrn ? encryptionService.encrypt(rrn) : null,
       encryptedBankAccount: bankAccount ? encryptionService.encrypt(bankAccount) : null,
       bankName: bankName ?? null,
+      address: address ?? null,
+      isHouseholder: isHouseholder ?? false,
+      hireType: hireType ?? null,
     });
     const user = {
       id: created.id,

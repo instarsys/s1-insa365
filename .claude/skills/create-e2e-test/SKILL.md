@@ -1,7 +1,7 @@
 ---
 name: create-e2e-test
-description: Playwright MCP로 E2E 테스트를 실행하고 테스트 코드를 작성합니다. 테스트할 요소 목록을 인자로 전달하세요.
-argument-hint: "[test-elements]"
+description: E2E 테스트 생성기. Playwright MCP로 테스트를 실행하고, E2E 테스트 코드를 작성합니다.
+argument-hint: "테스트할 요소나 시나리오를 설명하세요"
 ---
 
 # E2E 테스트 생성기

@@ -16,7 +16,7 @@ interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement>, 'onC
 }
 
 const Select = forwardRef<HTMLSelectElement, SelectProps>(
-  ({ className, label, options, error, placeholder, id, value, onChange, wrapperClassName, ...props }, ref) => {
+  ({ className, label, options, error, placeholder, id, value, onChange, wrapperClassName, required, ...props }, ref) => {
     const selectId = id || label?.toLowerCase().replace(/\s+/g, '-');
 
     return (
@@ -27,6 +27,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
             className="mb-1 block text-xs font-medium text-gray-700"
           >
             {label}
+            {required && <span className="ml-0.5 text-red-500">*</span>}
           </label>
         )}
         <select
