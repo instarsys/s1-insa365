@@ -12,7 +12,7 @@ import {
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
-import { HIRE_TYPE_OPTIONS } from '@/lib/constants';
+import { HIRE_TYPE_OPTIONS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
 import { Plus, Users, Download, Upload } from 'lucide-react';
 import { useEmployeeImport } from '@/hooks/useEmployeeImport';
 
@@ -53,7 +53,9 @@ interface EmployeeForm {
   address: string;
   isHouseholder: boolean;
   dependents: string;
+  salaryType: string;
   baseSalary: string;
+  hourlyRate: string;
   insuranceMode: string;
 }
 
@@ -68,7 +70,9 @@ const emptyForm: EmployeeForm = {
   address: '',
   isHouseholder: false,
   dependents: '1',
+  salaryType: 'MONTHLY',
   baseSalary: '',
+  hourlyRate: '',
   insuranceMode: 'AUTO',
 };
 
@@ -165,7 +169,9 @@ export default function EmployeeListPage() {
         address: form.address || undefined,
         isHouseholder: form.isHouseholder,
         dependents: parseInt(form.dependents) || 1,
+        salaryType: form.salaryType as 'MONTHLY' | 'HOURLY',
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
+        hourlyRate: form.salaryType === 'HOURLY' && form.hourlyRate ? Number(form.hourlyRate) : undefined,
         insuranceMode: form.insuranceMode,
       };
 
@@ -406,15 +412,41 @@ export default function EmployeeListPage() {
 
           {/* Section 3: 급여 정보 */}
           <h3 className="text-sm font-semibold text-gray-700">급여 정보</h3>
-          <Input
-            label="기본급"
-            type="number"
-            placeholder="3,000,000"
-            value={form.baseSalary}
-            onChange={(e) => setForm((f) => ({ ...f, baseSalary: e.target.value }))}
+          <Select
+            label="급여구분"
+            options={[
+              { value: 'MONTHLY', label: '월급제' },
+              { value: 'HOURLY', label: '시급제' },
+            ]}
+            value={form.salaryType}
+            onChange={(v) => setForm((f) => ({ ...f, salaryType: v }))}
           />
-          {form.baseSalary && (
-            <p className="text-xs text-gray-500">{formatKRW(Number(form.baseSalary))}</p>
+          {form.salaryType === 'MONTHLY' ? (
+            <>
+              <Input
+                label="기본급"
+                type="number"
+                placeholder="3,000,000"
+                value={form.baseSalary}
+                onChange={(e) => setForm((f) => ({ ...f, baseSalary: e.target.value }))}
+              />
+              {form.baseSalary && (
+                <p className="text-xs text-gray-500">{formatKRW(Number(form.baseSalary))}</p>
+              )}
+            </>
+          ) : (
+            <>
+              <Input
+                label="시급"
+                type="number"
+                placeholder="11,000"
+                value={form.hourlyRate}
+                onChange={(e) => setForm((f) => ({ ...f, hourlyRate: e.target.value }))}
+              />
+              {form.hourlyRate && (
+                <p className="text-xs text-gray-500">{formatKRW(Number(form.hourlyRate))}/시간</p>
+              )}
+            </>
           )}
           <Select
             label="보험 모드"

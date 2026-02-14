@@ -136,6 +136,47 @@ describe('GrossPayCalculator', () => {
     });
   });
 
+  describe('hourly salary type', () => {
+    it('should calculate basePay from hourlyRate × regularMinutes / 60', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9600, // 160 hours
+      };
+      const items: SalaryItemProps[] = [BASE_SALARY]; // BASE item is ignored for HOURLY
+      const hourlyRate = 11_000;
+      const result = GrossPayCalculator.calculate(items, attendance, hourlyRate, 1.0, 'HOURLY', hourlyRate);
+
+      // basePay = floor(11000 × 9600 / 60) = floor(1,760,000) = 1,760,000
+      expect(result.basePay).toBe(Math.floor(11_000 * 9600 / 60));
+      // fixedAllowances still comes from items
+      expect(result.fixedAllowances).toBe(0); // BASE_SALARY is BASE type, not ALLOWANCE
+    });
+
+    it('should include overtime premium for hourly employees', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9600,
+        overtimeMinutes: 300, // 5 hours OT
+      };
+      const hourlyRate = 10_320;
+      const result = GrossPayCalculator.calculate([], attendance, hourlyRate, 1.0, 'HOURLY', hourlyRate);
+
+      const expectedBase = Math.floor(10_320 * 9600 / 60);
+      const expectedOT = Math.floor(hourlyRate * 1.5 * 300 / 60);
+      expect(result.basePay).toBe(expectedBase);
+      expect(result.overtimePay).toBe(expectedOT);
+      expect(result.totalPay).toBe(expectedBase + expectedOT);
+    });
+
+    it('should handle zero regularMinutes for hourly employee', () => {
+      const attendance: AttendanceSummary = { ...ZERO_ATTENDANCE, regularMinutes: 0 };
+      const result = GrossPayCalculator.calculate([], attendance, 11_000, 1.0, 'HOURLY', 11_000);
+
+      expect(result.basePay).toBe(0);
+      expect(result.totalPay).toBe(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty salary items', () => {
       const result = GrossPayCalculator.calculate([], ZERO_ATTENDANCE, 14_354, 1.0);

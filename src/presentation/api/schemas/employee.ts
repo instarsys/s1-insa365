@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const HIRE_TYPES = ['NEW', 'EXPERIENCED', 'REHIRE', 'CONTRACT_CONVERT'] as const;
 
+export const SALARY_TYPES = ['MONTHLY', 'HOURLY'] as const;
+
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요.').max(50),
   email: z.string().email('올바른 이메일 형식이 아닙니다.'),
@@ -20,6 +22,9 @@ export const createEmployeeSchema = z.object({
   address: z.string().max(200).optional().nullable(),
   isHouseholder: z.boolean().optional(),
   hireType: z.enum(HIRE_TYPES).optional().nullable(),
+  baseSalary: z.number().min(0).optional(),
+  salaryType: z.enum(SALARY_TYPES).optional(),
+  hourlyRate: z.number().min(0).optional().nullable(),
 });
 
 export const updateEmployeeSchema = z.object({
@@ -43,6 +48,8 @@ export const updateEmployeeSchema = z.object({
   isHouseholder: z.boolean().optional(),
   hireType: z.enum(HIRE_TYPES).optional().nullable(),
   profileImageUrl: z.string().max(500).optional().nullable(),
+  salaryType: z.enum(SALARY_TYPES).optional(),
+  hourlyRate: z.number().min(0).optional().nullable(),
 }).strict();
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;

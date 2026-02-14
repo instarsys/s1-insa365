@@ -58,6 +58,8 @@ export interface PayrollInput {
     employmentInsuranceMode: 'AUTO' | 'MANUAL' | 'NONE';
     manualNationalPensionBase?: number;
     manualHealthInsuranceBase?: number;
+    salaryType: 'MONTHLY' | 'HOURLY';
+    hourlyRate?: number;
   };
   salaryItems: SalaryItemProps[];
   attendance: AttendanceSummary;

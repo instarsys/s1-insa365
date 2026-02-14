@@ -35,6 +35,8 @@ export class PayrollCalculator {
       const ordinaryWage = OrdinaryWageCalculator.calculate(
         input.salaryItems,
         input.settings.monthlyWorkHours,
+        input.employee.salaryType,
+        input.employee.hourlyRate,
       );
 
       // Proration check for mid-month join/leave
@@ -52,6 +54,8 @@ export class PayrollCalculator {
         input.attendance,
         ordinaryWage.hourlyOrdinaryWage,
         proration.ratio,
+        input.employee.salaryType,
+        input.employee.hourlyRate,
       );
 
       // Phase 3: Tax-Exempt Separation

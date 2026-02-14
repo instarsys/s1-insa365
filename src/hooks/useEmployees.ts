@@ -86,6 +86,39 @@ export function useEmployeeMutations() {
   };
 }
 
+interface SalaryItemData {
+  id: string;
+  code: string;
+  name: string;
+  type: string;
+  paymentType: string;
+  paymentCycle: string;
+  amount: number;
+  isOrdinaryWage: boolean;
+  isTaxExempt: boolean;
+  taxExemptCode?: string;
+  isActive: boolean;
+  sortOrder: number;
+  formula?: string;
+}
+
+export function useEmployeeSalaryItems(employeeId: string | null) {
+  const { data, error, isLoading, mutate } = useSWR<{ items: SalaryItemData[] }>(
+    employeeId ? `/api/employees/${employeeId}/salary-items` : null,
+    fetcher,
+    { revalidateOnFocus: true },
+  );
+
+  return { items: data?.items ?? [], isLoading, error, mutate };
+}
+
+export async function updateSalaryItems(
+  employeeId: string,
+  items: Array<{ id: string; amount?: number }>,
+) {
+  return apiPut(`/api/employees/${employeeId}/salary-items`, { items });
+}
+
 interface PiiResponse {
   field: string;
   value: string | null;

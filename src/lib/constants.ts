@@ -29,6 +29,16 @@ export const LAYOUT = {
   CONTENT_PADDING: 32,
 } as const;
 
+export const SALARY_TYPE = {
+  MONTHLY: 'MONTHLY',
+  HOURLY: 'HOURLY',
+} as const;
+
+export const SALARY_TYPE_OPTIONS = [
+  { value: 'MONTHLY', label: '월급제' },
+  { value: 'HOURLY', label: '시급제' },
+] as const;
+
 export const HIRE_TYPE_OPTIONS = [
   { value: 'NEW', label: '신규입사' },
   { value: 'EXPERIENCED', label: '경력입사' },

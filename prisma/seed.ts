@@ -314,6 +314,10 @@ async function main() {
     { name: '방혜수', email: 'bang.hs@test-company.com', num: 'EA0050', dept: 4, pos: 4, base: 2800000, joinDate: '2024-09-01', dependents: 1 },
     { name: '엄준기', email: 'eom.jg@test-company.com', num: 'EA0051', dept: 4, pos: 4, base: 3100000, joinDate: '2024-06-01', dependents: 1 },
     { name: '빈나래', email: 'bin.nr@test-company.com', num: 'EA0052', dept: 4, pos: 4, base: 2900000, joinDate: '2025-01-06', dependents: 1 },
+    // 시급제 직원 3명 (파트타임)
+    { name: '홍파트', email: 'hong.pt@test-company.com', num: 'EA0053', dept: 0, pos: 4, base: 0, joinDate: '2025-03-01', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 11000 },
+    { name: '이알바', email: 'lee.ab@test-company.com', num: 'EA0054', dept: 1, pos: 4, base: 0, joinDate: '2025-06-01', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 12000 },
+    { name: '박시급', email: 'park.sg@test-company.com', num: 'EA0055', dept: 2, pos: 4, base: 0, joinDate: '2025-04-15', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 10320 },
   ];
 
   const employees = [];
@@ -333,9 +337,11 @@ async function main() {
         dependents: emp.dependents,
         workPolicyId: workPolicy.id,
         workLocationId: workLocation.id,
+        ...('salaryType' in emp && emp.salaryType ? { salaryType: emp.salaryType } : {}),
+        ...('hourlyRate' in emp && emp.hourlyRate ? { hourlyRate: emp.hourlyRate } : {}),
       },
     });
-    employees.push({ ...user, baseSalary: emp.base });
+    employees.push({ ...user, baseSalary: emp.base, salaryType: ('salaryType' in emp ? emp.salaryType : 'MONTHLY') as string, hourlyRate: ('hourlyRate' in emp ? emp.hourlyRate : undefined) as number | undefined });
   }
   console.log('Test employees created:', employees.length);
 
@@ -343,22 +349,36 @@ async function main() {
   // Employee Salary Items (per-employee)
   // ──────────────────────────────────────────────
   // Each employee gets: A01 (base), A02 (position allowance), A05 (meals), D01-D06 (insurance/tax formulas)
+  // Hourly employees: A01 = 0 (base computed from hourlyRate × hours), no position allowance
   for (const emp of employees) {
-    const positionAllowance = emp.baseSalary >= 4500000 ? 500000
-      : emp.baseSalary >= 3500000 ? 300000
-      : 150000;
+    if (emp.salaryType === 'HOURLY') {
+      // 시급제: 기본급 0, 식대만, 수당 FORMULA
+      await prisma.employeeSalaryItem.createMany({
+        data: [
+          { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: 0, isOrdinaryWage: true, sortOrder: 1 },
+          { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
+          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'OVERTIME', amount: 0, sortOrder: 8 },
+          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'NIGHT', amount: 0, sortOrder: 9 },
+          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'HOLIDAY', amount: 0, sortOrder: 10 },
+        ],
+      });
+    } else {
+      const positionAllowance = emp.baseSalary >= 4500000 ? 500000
+        : emp.baseSalary >= 3500000 ? 300000
+        : 150000;
 
-    await prisma.employeeSalaryItem.createMany({
-      data: [
-        { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: emp.baseSalary, isOrdinaryWage: true, sortOrder: 1 },
-        { companyId: company.id, userId: emp.id, code: 'A02', name: '직책수당', type: 'ALLOWANCE', paymentType: 'FIXED', amount: positionAllowance, isOrdinaryWage: true, sortOrder: 2 },
-        { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
-        { companyId: company.id, userId: emp.id, code: 'A06', name: '차량유지비', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'VEHICLE', sortOrder: 6 },
-        { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'OVERTIME', amount: 0, sortOrder: 8 },
-        { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'NIGHT', amount: 0, sortOrder: 9 },
-        { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'HOLIDAY', amount: 0, sortOrder: 10 },
-      ],
-    });
+      await prisma.employeeSalaryItem.createMany({
+        data: [
+          { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: emp.baseSalary, isOrdinaryWage: true, sortOrder: 1 },
+          { companyId: company.id, userId: emp.id, code: 'A02', name: '직책수당', type: 'ALLOWANCE', paymentType: 'FIXED', amount: positionAllowance, isOrdinaryWage: true, sortOrder: 2 },
+          { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
+          { companyId: company.id, userId: emp.id, code: 'A06', name: '차량유지비', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'VEHICLE', sortOrder: 6 },
+          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'OVERTIME', amount: 0, sortOrder: 8 },
+          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'NIGHT', amount: 0, sortOrder: 9 },
+          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'HOLIDAY', amount: 0, sortOrder: 10 },
+        ],
+      });
+    }
   }
   console.log('Employee salary items created');
 
@@ -473,6 +493,8 @@ async function main() {
   // ──────────────────────────────────────────────
   const lastM = attendanceMonths[1];
   for (const emp of employees) {
+    // 시급제 직원은 간이 급여 계산 시드 스킵 (실제 계산은 엔진에서 처리)
+    if (emp.salaryType === 'HOURLY') continue;
     const basePay = emp.baseSalary;
     const positionAllowance = basePay >= 4500000 ? 500000 : basePay >= 3500000 ? 300000 : 150000;
     const meals = 200000;
@@ -877,7 +899,8 @@ async function main() {
   console.log('System Admin login: sysadmin@insa365.com / sysadmin123! (SYSTEM_ADMIN)');
   console.log('Manager login: manager@test-company.com / manager123!');
   console.log('Employee login: kim.ys@test-company.com / test1234! (and 14 others)');
-  console.log('Total employees:', employees.length + 2, `(${employees.length} employees + 1 admin + 1 manager)`);
+  const hourlyCount = employees.filter(e => e.salaryType === 'HOURLY').length;
+  console.log('Total employees:', employees.length + 2, `(${employees.length} employees [${hourlyCount} hourly] + 1 admin + 1 manager)`);
 }
 
 async function seedLeaveData(companyId: string) {

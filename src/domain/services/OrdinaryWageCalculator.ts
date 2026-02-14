@@ -27,11 +27,25 @@ export class OrdinaryWageCalculator {
    * Calculate ordinary wage from salary items.
    * @param salaryItemProps Raw salary item data
    * @param monthlyWorkHours Standard monthly hours (default 209)
+   * @param salaryType MONTHLY or HOURLY (default MONTHLY)
+   * @param hourlyRate Hourly rate for HOURLY employees
    */
   static calculate(
     salaryItemProps: SalaryItemProps[],
     monthlyWorkHours: number = 209,
+    salaryType: 'MONTHLY' | 'HOURLY' = 'MONTHLY',
+    hourlyRate?: number,
   ): OrdinaryWageResult {
+    // 시급제: hourlyRate를 직접 통상시급으로 사용
+    if (salaryType === 'HOURLY' && hourlyRate !== undefined) {
+      const monthlyOrdinaryWage = Math.floor(hourlyRate * monthlyWorkHours);
+      return {
+        monthlyOrdinaryWage,
+        hourlyOrdinaryWage: hourlyRate,
+        items: [{ code: 'HOURLY', name: '시급', monthlyAmount: monthlyOrdinaryWage }],
+      };
+    }
+
     const items = salaryItemProps.map((p) => new SalaryItem(p));
 
     // Filter: ordinary wage items that are not deductions

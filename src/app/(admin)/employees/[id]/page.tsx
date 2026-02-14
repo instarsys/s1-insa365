@@ -8,16 +8,16 @@ import {
   Avatar, Badge, Button, Card, CardHeader, CardTitle, CardBody,
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, useToast,
 } from '@/components/ui';
-import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii } from '@/hooks';
+import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
 import { formatDate, formatKRW } from '@/lib/utils';
-import { fetcher, apiPost } from '@/lib/api';
-import { HIRE_TYPE_OPTIONS, KOREAN_BANKS } from '@/lib/constants';
+import { fetcher, apiPost, apiPut } from '@/lib/api';
+import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
-  Home, Users, Landmark, Camera, Eye, EyeOff,
+  Home, Users, Landmark, Camera, Eye, EyeOff, Lock,
 } from 'lucide-react';
 
 function getStatusBadge(status: string) {
@@ -570,55 +570,11 @@ export default function EmployeeDetailPage() {
 
       {/* Tab Content: Salary */}
       {activeTab === 'salary' && (
-        <Card>
-          <CardHeader>
-            <CardTitle>급여 항목</CardTitle>
-            <Badge variant="info">{salaryItems.length}건</Badge>
-          </CardHeader>
-          <CardBody className="p-0">
-            {salaryItems.length === 0 ? (
-              <EmptyState
-                title="급여 항목이 없습니다"
-                description="급여 규칙 설정에서 항목을 추가하세요."
-              />
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">코드</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">유형</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">금액</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">통상임금</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">비과세</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {salaryItems.map((item) => (
-                    <tr key={item.id as string} className="hover:bg-indigo-50/30">
-                      <td className="px-4 py-3 text-gray-500">{item.code as string}</td>
-                      <td className="px-4 py-3 font-medium text-gray-800">{item.name as string}</td>
-                      <td className="px-4 py-3">
-                        <Badge variant={(item.type as string) === 'ALLOWANCE' ? 'info' : 'error'}>
-                          {(item.type as string) === 'ALLOWANCE' ? '지급' : '공제'}
-                        </Badge>
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">
-                        {formatKRW(item.amount as number)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {item.isOrdinaryWage ? <Badge variant="success">Y</Badge> : <span className="text-gray-400">-</span>}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {item.isTaxExempt ? <Badge variant="warning">Y</Badge> : <span className="text-gray-400">-</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </CardBody>
-        </Card>
+        <SalaryTab
+          employeeId={id}
+          employee={emp}
+          onEmployeeUpdate={mutate}
+        />
       )}
 
       {/* Tab Content: Attendance */}
@@ -739,6 +695,262 @@ export default function EmployeeDetailPage() {
           </CardBody>
         </Card>
       )}
+    </div>
+  );
+}
+
+function SalaryTab({
+  employeeId,
+  employee,
+  onEmployeeUpdate,
+}: {
+  employeeId: string;
+  employee: Record<string, unknown>;
+  onEmployeeUpdate: () => void;
+}) {
+  const toast = useToast();
+  const { items: salaryItems, mutate: mutateSalaryItems } = useEmployeeSalaryItems(employeeId);
+  const { updateEmployee } = useEmployeeMutations();
+
+  const [isEditingBasic, setIsEditingBasic] = useState(false);
+  const [editSalaryType, setEditSalaryType] = useState((employee.salaryType as string) || 'MONTHLY');
+  const [editHourlyRate, setEditHourlyRate] = useState(employee.hourlyRate ? String(employee.hourlyRate) : '');
+  const [isSavingBasic, setIsSavingBasic] = useState(false);
+
+  const [isEditingItems, setIsEditingItems] = useState(false);
+  const [editAmounts, setEditAmounts] = useState<Record<string, string>>({});
+  const [isSavingItems, setIsSavingItems] = useState(false);
+
+  const salaryTypeLabel = SALARY_TYPE_OPTIONS.find((o) => o.value === (employee.salaryType as string))?.label ?? '월급제';
+
+  // 통상시급 계산 (월급제: ordinaryWage items / 209, 시급제: hourlyRate)
+  const ordinaryHourly = useMemo(() => {
+    if ((employee.salaryType as string) === 'HOURLY' && employee.hourlyRate) {
+      return Number(employee.hourlyRate);
+    }
+    const ordinaryTotal = salaryItems
+      .filter((i) => i.isOrdinaryWage && i.type !== 'DEDUCTION')
+      .reduce((sum, i) => sum + Number(i.amount), 0);
+    return ordinaryTotal > 0 ? Math.floor(ordinaryTotal / 209) : 0;
+  }, [employee, salaryItems]);
+
+  const salaryTypeOptions = useMemo(() =>
+    SALARY_TYPE_OPTIONS.map((o) => ({ value: o.value, label: o.label })),
+  []);
+
+  const startEditBasic = () => {
+    setEditSalaryType((employee.salaryType as string) || 'MONTHLY');
+    setEditHourlyRate(employee.hourlyRate ? String(employee.hourlyRate) : '');
+    setIsEditingBasic(true);
+  };
+
+  const saveBasic = async () => {
+    setIsSavingBasic(true);
+    try {
+      await updateEmployee(employeeId, {
+        salaryType: editSalaryType,
+        hourlyRate: editSalaryType === 'HOURLY' && editHourlyRate ? Number(editHourlyRate) : null,
+      });
+      toast.success('급여 기본 정보가 저장되었습니다.');
+      setIsEditingBasic(false);
+      onEmployeeUpdate();
+    } catch {
+      toast.error('저장에 실패했습니다.');
+    } finally {
+      setIsSavingBasic(false);
+    }
+  };
+
+  const startEditItems = () => {
+    const amounts: Record<string, string> = {};
+    for (const item of salaryItems) {
+      if (item.paymentType === 'FIXED' || item.paymentType === 'VARIABLE') {
+        amounts[item.id] = String(Number(item.amount));
+      }
+    }
+    setEditAmounts(amounts);
+    setIsEditingItems(true);
+  };
+
+  const saveItems = async () => {
+    setIsSavingItems(true);
+    try {
+      const updates = Object.entries(editAmounts).map(([id, amount]) => ({
+        id,
+        amount: Number(amount) || 0,
+      }));
+      await updateSalaryItems(employeeId, updates);
+      toast.success('급여 항목이 저장되었습니다.');
+      setIsEditingItems(false);
+      await mutateSalaryItems();
+    } catch {
+      toast.error('저장에 실패했습니다.');
+    } finally {
+      setIsSavingItems(false);
+    }
+  };
+
+  // 합계 계산
+  const payItems = salaryItems.filter((i) => i.type !== 'DEDUCTION');
+  const deductionItems = salaryItems.filter((i) => i.type === 'DEDUCTION');
+  const totalPay = payItems.reduce((sum, i) => sum + Number(i.amount), 0);
+  const totalDeduction = deductionItems.reduce((sum, i) => sum + Number(i.amount), 0);
+
+  return (
+    <div className="space-y-6">
+      {/* 급여 기본 정보 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Landmark className="h-4 w-4 text-gray-400" />
+            급여 기본 정보
+          </CardTitle>
+          {!isEditingBasic ? (
+            <Button variant="ghost" size="sm" onClick={startEditBasic}>
+              <Pencil className="h-4 w-4" />
+              편집
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditingBasic(false)} disabled={isSavingBasic}>
+                <X className="h-4 w-4" />
+                취소
+              </Button>
+              <Button size="sm" onClick={saveBasic} disabled={isSavingBasic}>
+                <Check className="h-4 w-4" />
+                {isSavingBasic ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+            {isEditingBasic ? (
+              <Select
+                label="급여구분"
+                options={salaryTypeOptions}
+                value={editSalaryType}
+                onChange={(v) => setEditSalaryType(v)}
+              />
+            ) : (
+              <InfoItem label="급여구분" value={salaryTypeLabel} />
+            )}
+            {isEditingBasic && editSalaryType === 'HOURLY' ? (
+              <Input
+                label="시급"
+                type="number"
+                value={editHourlyRate}
+                onChange={(e) => setEditHourlyRate(e.target.value)}
+                placeholder="10,320"
+              />
+            ) : (employee.salaryType as string) === 'HOURLY' ? (
+              <InfoItem label="시급" value={formatKRW(Number(employee.hourlyRate ?? 0))} />
+            ) : null}
+            <InfoItem label="통상시급 (자동)" value={formatKRW(ordinaryHourly)} />
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* 급여 항목 테이블 */}
+      <Card>
+        <CardHeader>
+          <CardTitle>급여 항목</CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge variant="info">{salaryItems.length}건</Badge>
+            {!isEditingItems ? (
+              <Button variant="ghost" size="sm" onClick={startEditItems}>
+                <Pencil className="h-4 w-4" />
+                편집
+              </Button>
+            ) : (
+              <div className="flex gap-2">
+                <Button variant="ghost" size="sm" onClick={() => setIsEditingItems(false)} disabled={isSavingItems}>
+                  <X className="h-4 w-4" />
+                  취소
+                </Button>
+                <Button size="sm" onClick={saveItems} disabled={isSavingItems}>
+                  <Check className="h-4 w-4" />
+                  {isSavingItems ? '저장 중...' : '저장'}
+                </Button>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardBody className="p-0">
+          {salaryItems.length === 0 ? (
+            <EmptyState
+              title="급여 항목이 없습니다"
+              description="급여 규칙 설정에서 항목을 추가하세요."
+            />
+          ) : (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">코드</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">금액</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">통상임금</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">비과세</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {salaryItems.map((item) => {
+                    const isFormula = item.paymentType === 'FORMULA';
+                    const isEditable = !isFormula && isEditingItems;
+                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+
+                    return (
+                      <tr key={item.id} className="hover:bg-indigo-50/30">
+                        <td className="px-4 py-3 text-gray-500">{item.code}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
+                        <td className="px-4 py-3">
+                          <Badge variant={item.type === 'DEDUCTION' ? 'error' : item.paymentType === 'FORMULA' ? 'gray' : 'info'}>
+                            {typeLabel}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {isEditable ? (
+                            <input
+                              type="number"
+                              className="w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              value={editAmounts[item.id] ?? ''}
+                              onChange={(e) => setEditAmounts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            />
+                          ) : isFormula ? (
+                            <span className="flex items-center justify-end gap-1 text-gray-400">
+                              <Lock className="h-3 w-3" />
+                              (자동)
+                            </span>
+                          ) : (
+                            formatKRW(Number(item.amount))
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {item.isOrdinaryWage ? <Badge variant="success">Y</Badge> : <span className="text-gray-400">-</span>}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {item.isTaxExempt ? <Badge variant="warning">Y</Badge> : <span className="text-gray-400">-</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {/* 합계 요약 바 */}
+              <div className="flex items-center justify-end gap-6 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                <span className="text-gray-600">
+                  총 지급 합계: <span className="font-semibold text-gray-900">{formatKRW(totalPay)}</span>
+                </span>
+                <span className="text-gray-600">
+                  총 공제 합계: <span className="font-semibold text-red-600">{formatKRW(totalDeduction)}</span>
+                </span>
+              </div>
+            </>
+          )}
+        </CardBody>
+      </Card>
     </div>
   );
 }

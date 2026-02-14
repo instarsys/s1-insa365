@@ -1,5 +1,5 @@
 export { useAuth } from './useAuth';
-export { useEmployees, useEmployee, useEmployeeMutations, useEmployeePii } from './useEmployees';
+export { useEmployees, useEmployee, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems } from './useEmployees';
 export { useDailyAttendance, useMonthlyAttendance, useOvertimeStatus, useAttendanceMutations, useCalendarAttendance, useAttendanceRecords } from './useAttendance';
 export type { AttendanceRecord, CalendarAttendanceItem } from './useAttendance';
 export { usePayrollSpreadsheet, usePayrollSummary, usePayrollHistory, usePayrollMutations, usePayrollLedger } from './usePayroll';

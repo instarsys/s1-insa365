@@ -19,6 +19,9 @@ export interface CreateEmployeeDto {
   address?: string;
   isHouseholder?: boolean;
   hireType?: string;
+  baseSalary?: number;
+  salaryType?: string;
+  hourlyRate?: number | null;
 }
 
 export interface UpdateEmployeeDto {
@@ -41,6 +44,8 @@ export interface UpdateEmployeeDto {
   address?: string | null;
   isHouseholder?: boolean;
   hireType?: string | null;
+  salaryType?: string;
+  hourlyRate?: number | null;
   profileImageUrl?: string | null;
 }
 
@@ -73,6 +78,8 @@ export interface EmployeeDto {
   employmentInsuranceMode: string;
   manualNationalPensionBase: number | null;
   manualHealthInsuranceBase: number | null;
+  salaryType: string;
+  hourlyRate: number | null;
   profileImageUrl: string | null;
   createdAt: string;
 }

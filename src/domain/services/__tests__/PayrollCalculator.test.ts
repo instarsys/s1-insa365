@@ -40,6 +40,7 @@ function makeInput(overrides: Partial<PayrollInput> = {}): PayrollInput {
       nationalPensionMode: 'AUTO',
       healthInsuranceMode: 'AUTO',
       employmentInsuranceMode: 'AUTO',
+      salaryType: 'MONTHLY',
     },
     salaryItems: [BASE_SALARY_ITEM],
     attendance: ZERO_ATTENDANCE,
@@ -168,6 +169,7 @@ describe('PayrollCalculator', () => {
           nationalPensionMode: 'AUTO',
           healthInsuranceMode: 'AUTO',
           employmentInsuranceMode: 'AUTO',
+          salaryType: 'MONTHLY',
         },
       });
       const result = PayrollCalculator.calculate(input);
@@ -190,6 +192,7 @@ describe('PayrollCalculator', () => {
           nationalPensionMode: 'NONE',
           healthInsuranceMode: 'NONE',
           employmentInsuranceMode: 'NONE',
+          salaryType: 'MONTHLY',
         },
       });
       const result = PayrollCalculator.calculate(input);
@@ -211,6 +214,7 @@ describe('PayrollCalculator', () => {
           healthInsuranceMode: 'AUTO',
           employmentInsuranceMode: 'AUTO',
           manualNationalPensionBase: 2_000_000,
+          salaryType: 'MONTHLY',
         },
       });
       const result = PayrollCalculator.calculate(input);
@@ -254,6 +258,57 @@ describe('PayrollCalculator', () => {
       // But insurance minimums still apply, so deductions > 0, net < 0
       expect(result.totalDeduction).toBeGreaterThan(0);
       expect(result.netPay).toBe(result.totalPay - result.totalDeduction);
+    });
+  });
+
+  describe('hourly employee integration', () => {
+    it('should calculate full pipeline for hourly employee', () => {
+      const attendance: AttendanceSummary = {
+        regularMinutes: 9600, // 160h
+        overtimeMinutes: 300,  // 5h
+        nightMinutes: 0,
+        nightOvertimeMinutes: 0,
+        holidayMinutes: 0,
+        holidayOvertimeMinutes: 0,
+        holidayNightMinutes: 0,
+        holidayNightOvertimeMinutes: 0,
+      };
+
+      const input = makeInput({
+        employee: {
+          id: 'emp-hourly',
+          name: '시급직원',
+          dependents: 1,
+          joinDate: new Date(2025, 2, 1),
+          nationalPensionMode: 'AUTO',
+          healthInsuranceMode: 'AUTO',
+          employmentInsuranceMode: 'AUTO',
+          salaryType: 'HOURLY',
+          hourlyRate: 11_000,
+        },
+        salaryItems: [MEALS_ITEM], // No BASE item, just meals (tax-exempt)
+        attendance,
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // Phase 1: Ordinary wage = hourlyRate directly
+      expect(result.ordinaryWageHourly).toBe(11_000);
+      expect(result.ordinaryWageMonthly).toBe(11_000 * 209); // 2,299,000
+
+      // Phase 2: basePay = 11000 × 9600/60 = 1,760,000
+      expect(result.basePay).toBe(Math.floor(11_000 * 9600 / 60));
+      // Overtime: 11000 × 1.5 × 300/60 = 82,500
+      const expectedOT = Math.floor(11_000 * 1.5 * 300 / 60);
+      expect(result.overtimePay).toBe(expectedOT);
+      // totalPay = basePay + meals(200K) + overtime
+      expect(result.totalPay).toBe(result.basePay + 200_000 + expectedOT);
+
+      // Phase 3: Meals is non-taxable
+      expect(result.totalNonTaxable).toBe(200_000);
+
+      // Phase 5: Net pay
+      expect(result.netPay).toBe(result.totalPay - result.totalDeduction);
+      expect(result.status).toBe('DRAFT');
     });
   });
 

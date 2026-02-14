@@ -173,6 +173,36 @@ describe('OrdinaryWageCalculator', () => {
     });
   });
 
+  describe('hourly salary type', () => {
+    it('should use hourlyRate directly as ordinaryHourlyWage', () => {
+      const items: SalaryItemProps[] = [makeItem()]; // items are ignored for HOURLY
+      const result = OrdinaryWageCalculator.calculate(items, 209, 'HOURLY', 11_000);
+
+      expect(result.hourlyOrdinaryWage).toBe(11_000);
+      expect(result.monthlyOrdinaryWage).toBe(Math.floor(11_000 * 209)); // 2,299,000
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0].code).toBe('HOURLY');
+      expect(result.items[0].name).toBe('시급');
+    });
+
+    it('should calculate monthly from hourlyRate × monthlyWorkHours', () => {
+      const result = OrdinaryWageCalculator.calculate([], 209, 'HOURLY', 10_320);
+
+      // 10320 * 209 = 2,156,880
+      expect(result.monthlyOrdinaryWage).toBe(2_156_880);
+      expect(result.hourlyOrdinaryWage).toBe(10_320);
+    });
+
+    it('should fall back to MONTHLY logic if hourlyRate is undefined', () => {
+      const items: SalaryItemProps[] = [makeItem({ amount: 2_090_000 })];
+      const result = OrdinaryWageCalculator.calculate(items, 209, 'HOURLY', undefined);
+
+      // Falls back to item-based calculation
+      expect(result.monthlyOrdinaryWage).toBe(2_090_000);
+      expect(result.hourlyOrdinaryWage).toBe(10_000);
+    });
+  });
+
   describe('item details in result', () => {
     it('should include correct item details with monthly amounts', () => {
       const items: SalaryItemProps[] = [

@@ -34,7 +34,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(createEmployeeSchema, body);
     if (!validation.success) return validation.response;
-    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType } = validation.data;
+    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate } = validation.data;
 
     const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
 
@@ -68,6 +68,8 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       address: address ?? null,
       isHouseholder: isHouseholder ?? false,
       hireType: hireType ?? null,
+      salaryType: salaryType ?? 'MONTHLY',
+      hourlyRate: hourlyRate ?? null,
     });
     const user = {
       id: created.id,
@@ -92,7 +94,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           type: rule.type,
           paymentType: rule.paymentType,
           paymentCycle: rule.paymentCycle,
-          amount: rule.defaultAmount ?? 0,
+          amount: (rule.code === 'A01' && baseSalary) ? baseSalary : (rule.defaultAmount ?? 0),
           isOrdinaryWage: rule.isOrdinaryWage,
           isTaxExempt: rule.isTaxExempt,
           taxExemptCode: rule.taxExemptCode,

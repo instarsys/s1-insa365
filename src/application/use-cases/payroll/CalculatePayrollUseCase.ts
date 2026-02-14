@@ -156,6 +156,8 @@ export class CalculatePayrollUseCase {
             employmentInsuranceMode: emp.employmentInsuranceMode as 'AUTO' | 'MANUAL' | 'NONE',
             manualNationalPensionBase: emp.manualNationalPensionBase ? Number(emp.manualNationalPensionBase) : undefined,
             manualHealthInsuranceBase: emp.manualHealthInsuranceBase ? Number(emp.manualHealthInsuranceBase) : undefined,
+            salaryType: (emp.salaryType as 'MONTHLY' | 'HOURLY') ?? 'MONTHLY',
+            hourlyRate: emp.hourlyRate ? Number(emp.hourlyRate) : undefined,
           },
           salaryItems: salaryItemProps,
           attendance,

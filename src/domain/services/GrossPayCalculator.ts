@@ -37,21 +37,32 @@ export class GrossPayCalculator {
    * @param attendance Monthly attendance summary
    * @param ordinaryHourlyWage Hourly ordinary wage (from Phase 1)
    * @param prorationRatio Proration ratio (1.0 = full month)
+   * @param salaryType MONTHLY or HOURLY (default MONTHLY)
+   * @param hourlyRate Hourly rate for HOURLY employees
    */
   static calculate(
     salaryItemProps: SalaryItemProps[],
     attendance: AttendanceSummary,
     ordinaryHourlyWage: number,
     prorationRatio: number,
+    salaryType: 'MONTHLY' | 'HOURLY' = 'MONTHLY',
+    hourlyRate?: number,
   ): GrossPayResult {
     const items = salaryItemProps.map((p) => new SalaryItem(p));
 
-    // 1. Base salary: sum of BASE type items, prorated
-    const basePay = Math.floor(
-      items
-        .filter((item) => item.isBase())
-        .reduce((sum, item) => sum + item.amount, 0) * prorationRatio,
-    );
+    // 1. Base salary
+    let basePay: number;
+    if (salaryType === 'HOURLY' && hourlyRate !== undefined) {
+      // 시급제: hourlyRate × regularMinutes / 60
+      basePay = Math.floor(hourlyRate * attendance.regularMinutes / 60);
+    } else {
+      // 월급제: sum of BASE type items, prorated
+      basePay = Math.floor(
+        items
+          .filter((item) => item.isBase())
+          .reduce((sum, item) => sum + item.amount, 0) * prorationRatio,
+      );
+    }
 
     // 2. Fixed allowances: ALLOWANCE + FIXED type, prorated
     const fixedAllowances = Math.floor(
