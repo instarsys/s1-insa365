@@ -3,7 +3,10 @@ import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, notFoundResponse, noContentResponse } from '@/presentation/api/helpers';
+import { successResponse, notFoundResponse, noContentResponse, errorResponse } from '@/presentation/api/helpers';
+import { FormulaEngine } from '@/domain/services/FormulaEngine';
+import { isLegacyAllowanceKeyword } from '@/domain/services/GrossPayCalculator';
+import { isLegacyDeductionKeyword } from '@/domain/services/DeductionCalculator';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -13,6 +16,24 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 
   const existing = await getContainer().salaryRuleRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('급여 항목');
+
+  if (existing.isSystemManaged) {
+    return errorResponse('법정 공제 규칙은 시스템에서 관리하므로 수정할 수 없습니다.', 403);
+  }
+
+  // FORMULA 타입 수식 검증
+  if (body.formula !== undefined && body.formula) {
+    const paymentType = body.paymentType ?? existing.paymentType;
+    if (paymentType === 'FORMULA') {
+      const isLegacy = isLegacyAllowanceKeyword(body.formula) || isLegacyDeductionKeyword(body.formula);
+      if (!isLegacy) {
+        const validation = FormulaEngine.validate(body.formula);
+        if (!validation.valid) {
+          return errorResponse(`수식 오류: ${validation.error}`, 400);
+        }
+      }
+    }
+  }
 
   const updated = await getContainer().salaryRuleRepo.update(auth.companyId, id, {
     ...(body.name && { name: body.name }),
@@ -46,6 +67,10 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   const existing = await getContainer().salaryRuleRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('급여 항목');
+
+  if (existing.isSystemManaged) {
+    return errorResponse('법정 공제 규칙은 삭제할 수 없습니다.', 403);
+  }
 
   await getContainer().salaryRuleRepo.softDelete(auth.companyId, id);
 

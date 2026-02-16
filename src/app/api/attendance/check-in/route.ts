@@ -3,6 +3,7 @@ import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { checkInSchema } from '@/presentation/api/schemas';
+import { isWorkDay, timeStringToDate } from '@/domain/services/AttendanceClassifier';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
@@ -14,7 +15,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { attendanceRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, auth.userId, today);
 
@@ -24,11 +25,37 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     const now = new Date();
 
+    // WorkPolicy 조회: 직원 배정 → 회사 기본
+    const user = await employeeRepo.findById(auth.companyId, auth.userId);
+    let workPolicy = user?.workPolicyId
+      ? await workPolicyRepo.findById(auth.companyId, user.workPolicyId)
+      : null;
+    if (!workPolicy) {
+      workPolicy = await workPolicyRepo.findDefault(auth.companyId);
+    }
+
+    // 지각 판정
+    let status: 'ON_TIME' | 'LATE' = 'ON_TIME';
+    if (workPolicy) {
+      const company = await companyRepo.findById(auth.companyId);
+      const lateGrace = company?.lateGraceMinutes ?? 0;
+      const policyStart = timeStringToDate(today, workPolicy.startTime);
+      const lateThreshold = new Date(policyStart.getTime() + lateGrace * 60000);
+      if (now > lateThreshold) {
+        status = 'LATE';
+      }
+    }
+
+    // 자동 휴일 판정
+    const isHoliday = workPolicy ? !isWorkDay(today, workPolicy.workDays) : false;
+
     const attendance = existing
       ? await attendanceRepo.update(auth.companyId, existing.id, {
             checkInTime: now,
             checkInLatitude: latitude ?? null,
             checkInLongitude: longitude ?? null,
+            status,
+            isHoliday,
           })
       : await attendanceRepo.create(auth.companyId, {
             companyId: auth.companyId,
@@ -37,7 +64,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
             checkInTime: now,
             checkInLatitude: latitude ?? null,
             checkInLongitude: longitude ?? null,
-            status: 'ON_TIME',
+            status,
+            isHoliday,
           });
 
     return createdResponse(attendance);

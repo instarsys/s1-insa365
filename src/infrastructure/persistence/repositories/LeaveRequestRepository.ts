@@ -213,6 +213,33 @@ export class LeaveRequestRepository {
     });
   }
 
+  /** 기간별 승인된 휴가 조회 (결근 자동 생성 시 휴가 제외용) */
+  async findApprovedByPeriod(
+    companyId: string,
+    userId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return prisma.leaveRequest.findMany({
+      where: {
+        companyId,
+        userId,
+        status: 'APPROVED',
+        deletedAt: null,
+        OR: [
+          { startDate: { gte: startDate, lte: endDate } },
+          { endDate: { gte: startDate, lte: endDate } },
+          { startDate: { lte: startDate }, endDate: { gte: endDate } },
+        ],
+      },
+      select: {
+        startDate: true,
+        endDate: true,
+        type: true,
+      },
+    });
+  }
+
   /** requests 페이지: leaveGroup 포함 조회 + 페이지네이션 + 유형 필터 */
   async findAllWithGroupAndPagination(
     companyId: string,

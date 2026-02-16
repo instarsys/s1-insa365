@@ -407,6 +407,7 @@ model SalaryRule {
   isTaxExempt   Boolean       @default(false) @map("is_tax_exempt")
   taxExemptCode String?       @map("tax_exempt_code")
   isActive      Boolean       @default(true) @map("is_active")
+  isSystemManaged Boolean     @default(false) @map("is_system_managed")
   sortOrder     Int           @default(0) @map("sort_order")
   formula       String?
   description   String?

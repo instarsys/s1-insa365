@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Lock } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Table } from '@/components/ui/Table';
@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { FormulaEditor } from '@/components/formula/FormulaEditor';
+import { FormulaDisplay } from '@/components/formula/FormulaDisplay';
 import { formatKRW } from '@/lib/utils';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 
@@ -30,6 +32,7 @@ interface SalaryRule {
   taxExemptCode?: string;
   formula?: string;
   sortOrder: number;
+  isSystemManaged?: boolean;
 }
 
 const PAYMENT_TYPE_OPTIONS = [
@@ -157,7 +160,21 @@ export default function SalaryRulesPage() {
   }
 
   const columns = [
-    { key: 'code', label: '코드' },
+    {
+      key: 'code',
+      label: '코드',
+      render: (row: RuleRow) => (
+        <div className="flex items-center gap-1.5">
+          <span>{row.code as string}</span>
+          {Boolean(row.isSystemManaged) && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500">
+              <Lock className="h-2.5 w-2.5" />
+              법정
+            </span>
+          )}
+        </div>
+      ),
+    },
     { key: 'name', label: '항목명' },
     {
       key: 'paymentType',
@@ -167,6 +184,15 @@ export default function SalaryRulesPage() {
           {row.paymentType === 'FORMULA' ? '산식' : '정액'}
         </Badge>
       ),
+    },
+    {
+      key: 'formula',
+      label: '산식',
+      render: (row: RuleRow) => {
+        const formula = row.formula as string | undefined;
+        if (!formula) return <span className="text-xs text-gray-300">-</span>;
+        return <FormulaDisplay formula={formula} />;
+      },
     },
     {
       key: 'defaultAmount',
@@ -191,22 +217,32 @@ export default function SalaryRulesPage() {
     {
       key: 'actions',
       label: '',
-      render: (row: RuleRow) => (
-        <div className="flex gap-1">
-          <button
-            onClick={() => openEdit(row as unknown as SalaryRule)}
-            className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={() => handleDelete(row.id as string)}
-            className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      ),
+      render: (row: RuleRow) => {
+        const locked = row.isSystemManaged as boolean;
+        if (locked) {
+          return (
+            <span className="text-xs text-gray-300" title="시스템 관리 항목">
+              <Lock className="h-3.5 w-3.5" />
+            </span>
+          );
+        }
+        return (
+          <div className="flex gap-1">
+            <button
+              onClick={() => openEdit(row as unknown as SalaryRule)}
+              className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => handleDelete(row.id as string)}
+              className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        );
+      },
     },
   ];
 
@@ -243,19 +279,35 @@ export default function SalaryRulesPage() {
               }
             />
           ) : (
-            <Table columns={columns} data={filteredRules as unknown as RuleRow[]} />
+            <Table
+              columns={columns}
+              data={filteredRules as unknown as RuleRow[]}
+              onRowClick={(row) => openEdit(row as unknown as SalaryRule)}
+            />
           )}
         </CardBody>
       </Card>
 
-      {/* SlidePanel for Add/Edit */}
+      {/* SlidePanel for Add/Edit/View */}
       <SlidePanel
         open={showPanel}
         onClose={() => setShowPanel(false)}
-        title={editing ? '급여 규칙 수정' : '급여 규칙 추가'}
+        title={
+          editing?.isSystemManaged
+            ? '급여 규칙 상세'
+            : editing
+              ? '급여 규칙 수정'
+              : '급여 규칙 추가'
+        }
         size="lg"
       >
         <div className="space-y-4">
+          {editing?.isSystemManaged && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <Lock className="h-4 w-4 shrink-0" />
+              법정 공제 항목은 자동으로 계산되며 직접 수정할 수 없습니다.
+            </div>
+          )}
           <Input
             label="코드"
             value={formCode}
@@ -268,42 +320,58 @@ export default function SalaryRulesPage() {
             value={formName}
             onChange={(e) => setFormName(e.target.value)}
             placeholder="예: 직책수당"
+            disabled={!!editing?.isSystemManaged}
           />
           <Select
             label="구분"
             options={PAYMENT_TYPE_OPTIONS}
             value={formPaymentType}
             onChange={setFormPaymentType}
+            disabled={!!editing?.isSystemManaged}
           />
           <Select
             label="지급 주기"
             options={PAYMENT_CYCLE_OPTIONS}
             value={formPaymentCycle}
             onChange={setFormPaymentCycle}
+            disabled={!!editing?.isSystemManaged}
           />
           <Input
             label="기본 금액"
             type="number"
             value={String(formDefaultAmount)}
             onChange={(e) => setFormDefaultAmount(Number(e.target.value))}
+            disabled={!!editing?.isSystemManaged}
           />
           {formPaymentType === 'FORMULA' && (
-            <Input
-              label="계산식"
-              value={formFormula}
-              onChange={(e) => setFormFormula(e.target.value)}
-              placeholder="예: ordinaryHourly * 1.5 * overtimeMin / 60"
-            />
+            <div>
+              <label className="mb-1.5 block text-sm font-medium text-gray-700">
+                계산식
+              </label>
+              {editing?.isSystemManaged ? (
+                <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                  <FormulaDisplay formula={formFormula} />
+                </div>
+              ) : (
+                <FormulaEditor
+                  value={formFormula}
+                  onChange={setFormFormula}
+                  type={activeTab as 'ALLOWANCE' | 'DEDUCTION'}
+                />
+              )}
+            </div>
           )}
           <Checkbox
             label="통상임금 포함"
             checked={formOrdinaryWage}
             onChange={setFormOrdinaryWage}
+            disabled={!!editing?.isSystemManaged}
           />
           <Checkbox
             label="비과세 여부"
             checked={formTaxExempt}
             onChange={setFormTaxExempt}
+            disabled={!!editing?.isSystemManaged}
           />
           {formTaxExempt && (
             <Select
@@ -311,6 +379,7 @@ export default function SalaryRulesPage() {
               options={TAX_EXEMPT_OPTIONS}
               value={formTaxExemptCode}
               onChange={setFormTaxExemptCode}
+              disabled={!!editing?.isSystemManaged}
             />
           )}
           <Input
@@ -318,15 +387,18 @@ export default function SalaryRulesPage() {
             type="number"
             value={String(formSortOrder)}
             onChange={(e) => setFormSortOrder(Number(e.target.value))}
+            disabled={!!editing?.isSystemManaged}
           />
 
           <div className="flex justify-end gap-3 border-t border-gray-200 pt-4">
             <Button variant="ghost" onClick={() => setShowPanel(false)}>
-              취소
+              {editing?.isSystemManaged ? '닫기' : '취소'}
             </Button>
-            <Button onClick={handleSave} disabled={saving || !formCode || !formName}>
-              {saving ? <Spinner size="sm" /> : '저장'}
-            </Button>
+            {!editing?.isSystemManaged && (
+              <Button onClick={handleSave} disabled={saving || !formCode || !formName}>
+                {saving ? <Spinner size="sm" /> : '저장'}
+              </Button>
+            )}
           </div>
         </div>
       </SlidePanel>

@@ -537,6 +537,32 @@ export class AttendanceRepository {
     });
   }
 
+  /** Segment 교체: 기존 segments 삭제 후 일괄 생성 */
+  async replaceSegments(
+    companyId: string,
+    attendanceId: string,
+    segments: Array<{ startTime: Date; endTime: Date; type: string; minutes: number }>,
+  ) {
+    // Delete existing segments
+    await prisma.attendanceSegment.deleteMany({
+      where: { attendanceId, companyId },
+    });
+
+    // Create new segments
+    if (segments.length > 0) {
+      await prisma.attendanceSegment.createMany({
+        data: segments.map((s) => ({
+          companyId,
+          attendanceId,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          type: s.type,
+          minutes: s.minutes,
+        })),
+      });
+    }
+  }
+
   /** 출퇴근 누락 조회: checkIn 있지만 checkOut 없는 기록 */
   async findMissingCheckouts(companyId: string, startDate: Date, endDate: Date) {
     return prisma.attendance.findMany({

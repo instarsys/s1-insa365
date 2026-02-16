@@ -4,6 +4,7 @@ import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { AttendanceClassifier, isWorkDay } from '@/domain/services/AttendanceClassifier';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
@@ -16,24 +17,89 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const dateObj = new Date(date);
     dateObj.setHours(0, 0, 0, 0);
 
-    const { attendanceRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
-    let totalMinutes = 0;
+    // checkIn+checkOut 둘 다 있으면 AttendanceClassifier로 자동 계산
+    let minutesData: Record<string, unknown> = {};
+    let autoStatus: string | null = null;
+    let autoIsHoliday = isHoliday ?? false;
+    let classifySegments: Array<{ startTime: Date; endTime: Date; type: string; minutes: number }> = [];
+
     if (checkInTime && checkOutTime) {
-      totalMinutes = Math.floor(
-        (new Date(checkOutTime).getTime() - new Date(checkInTime).getTime()) / 60000,
-      );
+      const checkIn = new Date(checkInTime);
+      const checkOut = new Date(checkOutTime);
+
+      // WorkPolicy + Company 조회
+      const user = await employeeRepo.findById(auth.companyId, userId);
+      let workPolicy = user?.workPolicyId
+        ? await workPolicyRepo.findById(auth.companyId, user.workPolicyId)
+        : null;
+      if (!workPolicy) {
+        workPolicy = await workPolicyRepo.findDefault(auth.companyId);
+      }
+      const company = await companyRepo.findById(auth.companyId);
+
+      if (workPolicy && company) {
+        // isHoliday: 명시적으로 전달된 값 우선, 없으면 workDays 기반 자동 판정
+        if (isHoliday === undefined || isHoliday === null) {
+          autoIsHoliday = !isWorkDay(dateObj, workPolicy.workDays);
+        }
+
+        const result = AttendanceClassifier.classify({
+          checkInTime: checkIn,
+          checkOutTime: checkOut,
+          workPolicy: {
+            startTime: workPolicy.startTime,
+            endTime: workPolicy.endTime,
+            breakMinutes: workPolicy.breakMinutes,
+            workDays: workPolicy.workDays,
+          },
+          company: {
+            lateGraceMinutes: company.lateGraceMinutes,
+            earlyLeaveGraceMinutes: company.earlyLeaveGraceMinutes,
+            nightWorkStartTime: company.nightWorkStartTime,
+            nightWorkEndTime: company.nightWorkEndTime,
+            overtimeThresholdMinutes: company.overtimeThresholdMinutes,
+          },
+          isHoliday: autoIsHoliday,
+          date: dateObj,
+        });
+
+        minutesData = {
+          regularMinutes: result.regularMinutes,
+          overtimeMinutes: result.overtimeMinutes,
+          nightMinutes: result.nightMinutes,
+          nightOvertimeMinutes: result.nightOvertimeMinutes,
+          holidayMinutes: result.holidayMinutes,
+          holidayOvertimeMinutes: result.holidayOvertimeMinutes,
+          holidayNightMinutes: result.holidayNightMinutes,
+          holidayNightOvertimeMinutes: result.holidayNightOvertimeMinutes,
+          totalMinutes: result.totalMinutes,
+        };
+
+        autoStatus = result.status;
+        classifySegments = result.segments;
+      } else {
+        // Fallback: 단순 시간차
+        const totalMinutes = Math.floor(
+          (checkOut.getTime() - checkIn.getTime()) / 60000,
+        );
+        minutesData = { totalMinutes };
+      }
     }
+
+    // 관리자가 명시적으로 status를 지정하면 그 값 우선 사용
+    const finalStatus = status ?? autoStatus ?? 'ON_TIME';
 
     const data = {
       checkInTime: checkInTime ? new Date(checkInTime) : null,
       checkOutTime: checkOutTime ? new Date(checkOutTime) : null,
-      status: status ?? 'ON_TIME',
+      status: finalStatus,
       note: note ?? null,
-      isHoliday: isHoliday ?? false,
-      totalMinutes,
+      isHoliday: autoIsHoliday,
+      ...minutesData,
       ...(isConfirmed !== undefined && { isConfirmed }),
     };
 
@@ -45,6 +111,15 @@ async function handler(request: NextRequest, auth: AuthContext) {
           date: dateObj,
           ...data,
         });
+
+    // Segment 생성 (update 시에도)
+    if (attendance && classifySegments.length > 0) {
+      await attendanceRepo.replaceSegments(
+        auth.companyId,
+        attendance.id,
+        classifySegments,
+      );
+    }
 
     await auditLogService.log({
       userId: auth.userId,

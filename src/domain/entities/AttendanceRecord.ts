@@ -35,6 +35,10 @@ export interface AttendanceSummary {
   holidayNightMinutes: number;
   /** Holiday + night + overtime over 8h (휴일+야간 >8h) */
   holidayNightOvertimeMinutes: number;
+  /** Absent days in the month (결근 일수) — optional for backwards compat */
+  absentDays?: number;
+  /** Scheduled work days in the month (소정근로일수) — optional for backwards compat */
+  workDays?: number;
 }
 
 export class AttendanceRecord {

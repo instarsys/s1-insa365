@@ -25,6 +25,11 @@ interface Employee {
   isHouseholder: boolean;
   hireType?: string;
   profileImageUrl?: string;
+  nationalPensionMode?: string;
+  healthInsuranceMode?: string;
+  employmentInsuranceMode?: string;
+  manualNationalPensionBase?: number | null;
+  manualHealthInsuranceBase?: number | null;
 }
 
 interface EmployeeListResponse {

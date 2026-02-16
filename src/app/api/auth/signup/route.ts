@@ -138,6 +138,7 @@ export async function POST(request: NextRequest) {
         { code: 'D12', name: '기타공제2' },
       ];
 
+      const SYSTEM_MANAGED_CODES = ['D01', 'D02', 'D03', 'D04', 'D05', 'D06'];
       for (let i = 0; i < deductionRules.length; i++) {
         await tx.salaryRule.create({
           data: {
@@ -146,6 +147,7 @@ export async function POST(request: NextRequest) {
             name: deductionRules[i].name,
             type: 'DEDUCTION',
             sortOrder: i + 1,
+            isSystemManaged: SYSTEM_MANAGED_CODES.includes(deductionRules[i].code),
           },
         });
       }

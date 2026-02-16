@@ -3,6 +3,9 @@ import { getContainer } from '@/infrastructure/di/container';
 import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
+import { FormulaEngine } from '@/domain/services/FormulaEngine';
+import { isLegacyAllowanceKeyword } from '@/domain/services/GrossPayCalculator';
+import { isLegacyDeductionKeyword } from '@/domain/services/DeductionCalculator';
 
 async function handleGet(_request: NextRequest, auth: AuthContext) {
   const rules = await getContainer().salaryRuleRepo.findAllOrdered(auth.companyId);
@@ -22,6 +25,17 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     return errorResponse('코드, 이름, 유형은 필수입니다.', 400);
   }
 
+  // FORMULA 타입 수식 검증
+  if (paymentType === 'FORMULA' && formula) {
+    const isLegacy = isLegacyAllowanceKeyword(formula) || isLegacyDeductionKeyword(formula);
+    if (!isLegacy) {
+      const validation = FormulaEngine.validate(formula);
+      if (!validation.valid) {
+        return errorResponse(`수식 오류: ${validation.error}`, 400);
+      }
+    }
+  }
+
   const existing = await getContainer().salaryRuleRepo.findByCode(auth.companyId, code);
   if (existing) return errorResponse('이미 존재하는 코드입니다.', 409);
 
@@ -38,6 +52,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     taxExemptCode: taxExemptCode ?? null,
     formula: formula ?? null,
     description: description ?? null,
+    isSystemManaged: false,
   });
 
   await auditLogService.log({

@@ -49,6 +49,11 @@ export const updateEmployeeSchema = z.object({
   profileImageUrl: z.string().max(500).optional().nullable(),
   salaryType: z.enum(SALARY_TYPES).optional(),
   hourlyRate: z.number().min(0).optional().nullable(),
+  nationalPensionMode: z.enum(['AUTO', 'MANUAL', 'NONE']).optional(),
+  healthInsuranceMode: z.enum(['AUTO', 'MANUAL', 'NONE']).optional(),
+  employmentInsuranceMode: z.enum(['AUTO', 'NONE']).optional(),
+  manualNationalPensionBase: z.number().min(0).nullable().optional(),
+  manualHealthInsuranceBase: z.number().min(0).nullable().optional(),
 }).strict();
 
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;

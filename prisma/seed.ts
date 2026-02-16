@@ -89,9 +89,9 @@ async function main() {
     { code: 'A05', name: '식대', type: 'ALLOWANCE' as const, isTaxExempt: true, taxExemptCode: 'MEALS', defaultAmount: 200000, sortOrder: 5 },
     { code: 'A06', name: '차량유지비', type: 'ALLOWANCE' as const, isTaxExempt: true, taxExemptCode: 'VEHICLE', defaultAmount: 200000, sortOrder: 6 },
     { code: 'A07', name: '보육수당', type: 'ALLOWANCE' as const, isTaxExempt: true, taxExemptCode: 'CHILDCARE', sortOrder: 7 },
-    { code: 'A08', name: '연장근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'OVERTIME', sortOrder: 8 },
-    { code: 'A09', name: '야간근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'NIGHT', sortOrder: 9 },
-    { code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'HOLIDAY', sortOrder: 10 },
+    { code: 'A08', name: '연장근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', sortOrder: 8 },
+    { code: 'A09', name: '야간근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', sortOrder: 9 },
+    { code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', sortOrder: 10 },
     { code: 'A11', name: '상여금', type: 'ALLOWANCE' as const, paymentType: 'VARIABLE' as const, paymentCycle: 'QUARTERLY' as const, sortOrder: 11 },
   ];
 
@@ -117,12 +117,12 @@ async function main() {
 
   // 12 Deduction Rules (D01-D12)
   const deductionRules = [
-    { code: 'D01', name: '국민연금', formula: 'NATIONAL_PENSION', sortOrder: 1 },
-    { code: 'D02', name: '건강보험', formula: 'HEALTH_INSURANCE', sortOrder: 2 },
-    { code: 'D03', name: '장기요양보험', formula: 'LONG_TERM_CARE', sortOrder: 3 },
-    { code: 'D04', name: '고용보험', formula: 'EMPLOYMENT_INSURANCE', sortOrder: 4 },
-    { code: 'D05', name: '소득세', formula: 'INCOME_TAX', sortOrder: 5 },
-    { code: 'D06', name: '지방소득세', formula: 'LOCAL_INCOME_TAX', sortOrder: 6 },
+    { code: 'D01', name: '국민연금', formula: 'truncate10(clamp(연금기준소득, 연금하한, 연금상한) * 국민연금요율 / 100)', sortOrder: 1 },
+    { code: 'D02', name: '건강보험', formula: 'truncate1(건강보험기준소득 * 건강보험요율 / 100)', sortOrder: 2 },
+    { code: 'D03', name: '장기요양보험', formula: 'truncate1(건강보험 * 장기요양요율 / 100)', sortOrder: 3 },
+    { code: 'D04', name: '고용보험', formula: 'truncate1(과세소득 * 고용보험요율 / 100)', sortOrder: 4 },
+    { code: 'D05', name: '소득세', formula: 'taxLookup(과세소득, 부양가족수)', sortOrder: 5 },
+    { code: 'D06', name: '지방소득세', formula: 'floor(소득세 * 10 / 100)', sortOrder: 6 },
     { code: 'D07', name: '노조비', sortOrder: 7 },
     { code: 'D08', name: '사원 대출금', sortOrder: 8 },
     { code: 'D09', name: '기숙사비', sortOrder: 9 },
@@ -131,6 +131,7 @@ async function main() {
     { code: 'D12', name: '기타 공제2', sortOrder: 12 },
   ];
 
+  const SYSTEM_MANAGED_CODES = ['D01', 'D02', 'D03', 'D04', 'D05', 'D06'];
   for (const rule of deductionRules) {
     await prisma.salaryRule.create({
       data: {
@@ -141,6 +142,7 @@ async function main() {
         paymentType: rule.formula ? 'FORMULA' : 'FIXED',
         formula: rule.formula,
         sortOrder: rule.sortOrder,
+        isSystemManaged: SYSTEM_MANAGED_CODES.includes(rule.code),
       },
     });
   }
@@ -357,9 +359,9 @@ async function main() {
         data: [
           { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: 0, isOrdinaryWage: true, sortOrder: 1 },
           { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
-          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'OVERTIME', amount: 0, sortOrder: 8 },
-          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'NIGHT', amount: 0, sortOrder: 9 },
-          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'HOLIDAY', amount: 0, sortOrder: 10 },
+          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', amount: 0, sortOrder: 8 },
+          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', amount: 0, sortOrder: 9 },
+          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', amount: 0, sortOrder: 10 },
         ],
       });
     } else {
@@ -373,9 +375,9 @@ async function main() {
           { companyId: company.id, userId: emp.id, code: 'A02', name: '직책수당', type: 'ALLOWANCE', paymentType: 'FIXED', amount: positionAllowance, isOrdinaryWage: true, sortOrder: 2 },
           { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
           { companyId: company.id, userId: emp.id, code: 'A06', name: '차량유지비', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'VEHICLE', sortOrder: 6 },
-          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'OVERTIME', amount: 0, sortOrder: 8 },
-          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'NIGHT', amount: 0, sortOrder: 9 },
-          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'HOLIDAY', amount: 0, sortOrder: 10 },
+          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', amount: 0, sortOrder: 8 },
+          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', amount: 0, sortOrder: 9 },
+          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', amount: 0, sortOrder: 10 },
         ],
       });
     }

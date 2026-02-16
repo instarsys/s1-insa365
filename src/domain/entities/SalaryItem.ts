@@ -28,6 +28,8 @@ export interface SalaryItemProps {
   isOrdinaryWage: boolean;
   isTaxExempt: boolean;
   taxExemptCode?: string;
+  /** 산식 문자열 (FORMULA 타입인 경우). 레거시 키워드 또는 실제 수식 */
+  formula?: string;
 }
 
 export class SalaryItem {
@@ -41,6 +43,7 @@ export class SalaryItem {
   readonly isOrdinaryWage: boolean;
   readonly isTaxExempt: boolean;
   readonly taxExemptCode?: string;
+  readonly formula?: string;
 
   constructor(props: SalaryItemProps) {
     this.id = props.id;
@@ -53,6 +56,7 @@ export class SalaryItem {
     this.isOrdinaryWage = props.isOrdinaryWage;
     this.isTaxExempt = props.isTaxExempt;
     this.taxExemptCode = props.taxExemptCode;
+    this.formula = props.formula;
   }
 
   /**

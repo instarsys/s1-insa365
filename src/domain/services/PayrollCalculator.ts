@@ -79,6 +79,8 @@ export class PayrollCalculator {
         input.insuranceRates,
         input.taxBrackets,
         input.salaryItems,
+        grossPay.totalPay,
+        taxExempt.totalNonTaxable,
       );
 
       // Phase 5: Net Pay

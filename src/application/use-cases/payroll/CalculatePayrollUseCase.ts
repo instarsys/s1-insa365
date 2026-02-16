@@ -118,6 +118,7 @@ export class CalculatePayrollUseCase {
           isOrdinaryWage: si.isOrdinaryWage,
           isTaxExempt: si.isTaxExempt,
           taxExemptCode: si.taxExemptCode ?? undefined,
+          formula: si.formula ?? undefined,
         }));
 
         // Get attendance snapshot
@@ -132,6 +133,8 @@ export class CalculatePayrollUseCase {
               holidayOvertimeMinutes: attData.totalHolidayOvertimeMinutes,
               holidayNightMinutes: attData.totalHolidayNightMinutes,
               holidayNightOvertimeMinutes: attData.totalHolidayNightOvertimeMinutes,
+              absentDays: attData.absentDays,
+              workDays: attData.workDays,
             }
           : {
               regularMinutes: 0,
@@ -142,6 +145,8 @@ export class CalculatePayrollUseCase {
               holidayOvertimeMinutes: 0,
               holidayNightMinutes: 0,
               holidayNightOvertimeMinutes: 0,
+              absentDays: 0,
+              workDays: 0,
             };
 
         const input: PayrollInput = {

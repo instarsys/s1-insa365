@@ -13,11 +13,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher, apiPost, apiPut } from '@/lib/api';
-import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
+import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
-  Home, Users, Landmark, Camera, Eye, EyeOff, Lock,
+  Home, Users, Landmark, Camera, Eye, EyeOff, Lock, Shield,
 } from 'lucide-react';
 
 function getStatusBadge(status: string) {
@@ -721,6 +721,15 @@ function SalaryTab({
   const [editAmounts, setEditAmounts] = useState<Record<string, string>>({});
   const [isSavingItems, setIsSavingItems] = useState(false);
 
+  // 4대보험 설정 상태
+  const [isEditingInsurance, setIsEditingInsurance] = useState(false);
+  const [isSavingInsurance, setIsSavingInsurance] = useState(false);
+  const [editNPMode, setEditNPMode] = useState('AUTO');
+  const [editHIMode, setEditHIMode] = useState('AUTO');
+  const [editEIMode, setEditEIMode] = useState('AUTO');
+  const [editManualNPBase, setEditManualNPBase] = useState('');
+  const [editManualHIBase, setEditManualHIBase] = useState('');
+
   const salaryTypeLabel = SALARY_TYPE_OPTIONS.find((o) => o.value === (employee.salaryType as string))?.label ?? '월급제';
 
   // 통상시급 계산 (월급제: ordinaryWage items / 209, 시급제: hourlyRate)
@@ -758,6 +767,52 @@ function SalaryTab({
       toast.error('저장에 실패했습니다.');
     } finally {
       setIsSavingBasic(false);
+    }
+  };
+
+  const insuranceModeOptions = useMemo(() => [
+    { value: 'AUTO', label: '자동 계산' },
+    { value: 'MANUAL', label: '수동 입력' },
+    { value: 'NONE', label: '미가입' },
+  ], []);
+
+  const insuranceModeNoManualOptions = useMemo(() => [
+    { value: 'AUTO', label: '자동 계산' },
+    { value: 'NONE', label: '미가입' },
+  ], []);
+
+  const insuranceModeLabel = (mode: string) => {
+    if (mode === 'MANUAL') return '수동 입력';
+    if (mode === 'NONE') return '미가입';
+    return '자동 계산';
+  };
+
+  const startEditInsurance = () => {
+    setEditNPMode((employee.nationalPensionMode as string) || 'AUTO');
+    setEditHIMode((employee.healthInsuranceMode as string) || 'AUTO');
+    setEditEIMode((employee.employmentInsuranceMode as string) || 'AUTO');
+    setEditManualNPBase(employee.manualNationalPensionBase ? String(Number(employee.manualNationalPensionBase)) : '');
+    setEditManualHIBase(employee.manualHealthInsuranceBase ? String(Number(employee.manualHealthInsuranceBase)) : '');
+    setIsEditingInsurance(true);
+  };
+
+  const saveInsurance = async () => {
+    setIsSavingInsurance(true);
+    try {
+      await updateEmployee(employeeId, {
+        nationalPensionMode: editNPMode,
+        healthInsuranceMode: editHIMode,
+        employmentInsuranceMode: editEIMode,
+        manualNationalPensionBase: editNPMode === 'MANUAL' && editManualNPBase ? Number(editManualNPBase) : null,
+        manualHealthInsuranceBase: editHIMode === 'MANUAL' && editManualHIBase ? Number(editManualHIBase) : null,
+      });
+      toast.success('4대보험 설정이 저장되었습니다.');
+      setIsEditingInsurance(false);
+      onEmployeeUpdate();
+    } catch {
+      toast.error('저장에 실패했습니다.');
+    } finally {
+      setIsSavingInsurance(false);
     }
   };
 
@@ -847,6 +902,162 @@ function SalaryTab({
               <InfoItem label="시급" value={formatKRW(Number(employee.hourlyRate ?? 0))} />
             ) : null}
             <InfoItem label="통상시급 (자동)" value={formatKRW(ordinaryHourly)} />
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* 4대보험 설정 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-gray-400" />
+            4대보험 설정
+          </CardTitle>
+          {!isEditingInsurance ? (
+            <Button variant="ghost" size="sm" onClick={startEditInsurance}>
+              <Pencil className="h-4 w-4" />
+              편집
+            </Button>
+          ) : (
+            <div className="flex gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setIsEditingInsurance(false)} disabled={isSavingInsurance}>
+                <X className="h-4 w-4" />
+                취소
+              </Button>
+              <Button size="sm" onClick={saveInsurance} disabled={isSavingInsurance}>
+                <Check className="h-4 w-4" />
+                {isSavingInsurance ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          )}
+        </CardHeader>
+        <CardBody className="p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">보험</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">모드</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">수동 기준액</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {/* 국민연금 */}
+              <tr className="hover:bg-indigo-50/30">
+                <td className="px-4 py-3 font-medium text-gray-800">국민연금</td>
+                <td className="px-4 py-3">
+                  {isEditingInsurance ? (
+                    <Select
+                      options={insuranceModeOptions}
+                      value={editNPMode}
+                      onChange={(v) => setEditNPMode(v)}
+                    />
+                  ) : (
+                    <Badge variant={
+                      (employee.nationalPensionMode as string) === 'NONE' ? 'gray' :
+                      (employee.nationalPensionMode as string) === 'MANUAL' ? 'warning' : 'success'
+                    }>
+                      {insuranceModeLabel((employee.nationalPensionMode as string) || 'AUTO')}
+                    </Badge>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {isEditingInsurance ? (
+                    editNPMode === 'MANUAL' ? (
+                      <input
+                        type="number"
+                        className="w-40 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        value={editManualNPBase}
+                        onChange={(e) => setEditManualNPBase(e.target.value)}
+                        placeholder="기준액 입력"
+                      />
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )
+                  ) : (
+                    (employee.nationalPensionMode as string) === 'MANUAL' && employee.manualNationalPensionBase
+                      ? formatKRW(Number(employee.manualNationalPensionBase))
+                      : <span className="text-gray-400">-</span>
+                  )}
+                </td>
+              </tr>
+              {/* 건강보험 */}
+              <tr className="hover:bg-indigo-50/30">
+                <td className="px-4 py-3 font-medium text-gray-800">건강보험</td>
+                <td className="px-4 py-3">
+                  {isEditingInsurance ? (
+                    <Select
+                      options={insuranceModeOptions}
+                      value={editHIMode}
+                      onChange={(v) => setEditHIMode(v)}
+                    />
+                  ) : (
+                    <Badge variant={
+                      (employee.healthInsuranceMode as string) === 'NONE' ? 'gray' :
+                      (employee.healthInsuranceMode as string) === 'MANUAL' ? 'warning' : 'success'
+                    }>
+                      {insuranceModeLabel((employee.healthInsuranceMode as string) || 'AUTO')}
+                    </Badge>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right tabular-nums">
+                  {isEditingInsurance ? (
+                    editHIMode === 'MANUAL' ? (
+                      <input
+                        type="number"
+                        className="w-40 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                        value={editManualHIBase}
+                        onChange={(e) => setEditManualHIBase(e.target.value)}
+                        placeholder="기준액 입력"
+                      />
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )
+                  ) : (
+                    (employee.healthInsuranceMode as string) === 'MANUAL' && employee.manualHealthInsuranceBase
+                      ? formatKRW(Number(employee.manualHealthInsuranceBase))
+                      : <span className="text-gray-400">-</span>
+                  )}
+                </td>
+              </tr>
+              {/* 고용보험 */}
+              <tr className="hover:bg-indigo-50/30">
+                <td className="px-4 py-3 font-medium text-gray-800">고용보험</td>
+                <td className="px-4 py-3">
+                  {isEditingInsurance ? (
+                    <Select
+                      options={insuranceModeNoManualOptions}
+                      value={editEIMode}
+                      onChange={(v) => setEditEIMode(v)}
+                    />
+                  ) : (
+                    <Badge variant={
+                      (employee.employmentInsuranceMode as string) === 'NONE' ? 'gray' : 'success'
+                    }>
+                      {insuranceModeLabel((employee.employmentInsuranceMode as string) || 'AUTO')}
+                    </Badge>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <span className="text-gray-400">-</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          {/* 안내 텍스트 */}
+          <div className="border-t border-gray-100 px-4 py-3">
+            <p className="text-xs text-gray-500">
+              · 장기요양보험은 건강보험 모드를 자동으로 따릅니다.
+            </p>
+            {((isEditingInsurance && (editNPMode === 'NONE' || editHIMode === 'NONE' || editEIMode === 'NONE')) ||
+              (!isEditingInsurance && (
+                (employee.nationalPensionMode as string) === 'NONE' ||
+                (employee.healthInsuranceMode as string) === 'NONE' ||
+                (employee.employmentInsuranceMode as string) === 'NONE'
+              ))) && (
+              <p className="mt-1 text-xs text-amber-600">
+                · &quot;미가입&quot; 설정된 보험은 급여 계산 시 해당 보험료가 0원으로 처리됩니다.
+              </p>
+            )}
           </div>
         </CardBody>
       </Card>
