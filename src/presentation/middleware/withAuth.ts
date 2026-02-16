@@ -30,6 +30,12 @@ export function withAuth(
     if (!auth) {
       return NextResponse.json({ message: '인증이 필요합니다.' }, { status: 401 });
     }
-    return handler(request, auth);
+    try {
+      return await handler(request, auth);
+    } catch (error) {
+      console.error(`[API Error] ${request.method} ${request.nextUrl.pathname}:`, error);
+      const message = error instanceof Error ? error.message : 'Internal Server Error';
+      return NextResponse.json({ message }, { status: 500 });
+    }
   };
 }

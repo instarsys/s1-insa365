@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
     const validation = validateBody(joinSchema, body);
     if (!validation.success) return validation.response;
 
-    const { invitationRepo, userRepo, employeeRepo } = getContainer();
+    const { invitationRepo, userRepo, employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
     const { inviteCode, password, email } = validation.data;
 
     // 코드 검증
@@ -46,6 +46,30 @@ export async function POST(request: NextRequest) {
       departmentId: invitation.departmentId,
       positionId: invitation.positionId,
     });
+
+    // 급여 규칙 복사
+    const salaryRules = await salaryRuleRepo.findAll(invitation.companyId);
+    const activeRules = salaryRules.filter((rule) => rule.isActive);
+
+    if (activeRules.length > 0) {
+      await employeeSalaryItemRepo.createMany(
+        activeRules.map((rule) => ({
+          companyId: invitation.companyId,
+          userId: user.id,
+          code: rule.code,
+          name: rule.name,
+          type: rule.type,
+          paymentType: rule.paymentType,
+          paymentCycle: rule.paymentCycle,
+          amount: rule.defaultAmount ?? 0,
+          isOrdinaryWage: rule.isOrdinaryWage,
+          isTaxExempt: rule.isTaxExempt,
+          taxExemptCode: rule.taxExemptCode,
+          sortOrder: rule.sortOrder,
+          formula: rule.formula,
+        })),
+      );
+    }
 
     // 초대 상태 업데이트
     await invitationRepo.update(invitation.id, {

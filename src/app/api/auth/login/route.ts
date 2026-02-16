@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         role: user.role,
         employeeNumber: user.employeeNumber,
         canViewSensitive: user.canViewSensitive,
+        mustChangePassword: user.mustChangePassword ?? false,
         companyName: user.company.name,
       },
     });

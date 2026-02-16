@@ -218,6 +218,7 @@ export class UserRepository {
         employeeNumber: true,
         employeeStatus: true,
         canViewSensitive: true,
+        mustChangePassword: true,
         departmentId: true,
         positionId: true,
         profileImageUrl: true,

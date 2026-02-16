@@ -277,6 +277,7 @@ model User {
   manualHealthInsuranceBase  Decimal?    @map("manual_health_insurance_base") @db.Decimal(15, 0)
   salaryType              SalaryType     @default(MONTHLY) @map("salary_type")
   hourlyRate              Decimal?       @map("hourly_rate") @db.Decimal(15, 0)
+  mustChangePassword      Boolean        @default(false) @map("must_change_password")
   profileImageUrl         String?        @map("profile_image_url")
   refreshToken            String?        @map("refresh_token")
   createdAt               DateTime       @default(now()) @map("created_at")

@@ -25,8 +25,12 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     try {
-      await login({ email, password });
-      router.push('/dashboard');
+      const result = await login({ email, password });
+      if (result.user?.mustChangePassword) {
+        router.push('/change-password');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err) {
       setError(
         err instanceof Error

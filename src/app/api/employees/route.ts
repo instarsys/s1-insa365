@@ -34,7 +34,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(createEmployeeSchema, body);
     if (!validation.success) return validation.response;
-    const { name, email, password, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate } = validation.data;
+    const { name, email, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate } = validation.data;
 
     const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
 
@@ -46,7 +46,13 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     // Generate employee number
     const employeeNumber = await employeeRepo.getNextEmployeeNumber(auth.companyId, 'A');
 
-    const hashedPassword = await passwordService.hash(password);
+    // 임시비밀번호 생성: 입사일(YYYYMMDD) + 핸드폰 뒤 4자리
+    const dateStr = joinDate
+      ? joinDate.replace(/-/g, '')
+      : new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const phoneLast4 = phone ? phone.slice(-4) : '0000';
+    const tempPassword = dateStr + phoneLast4;
+    const hashedPassword = await passwordService.hash(tempPassword);
 
     const created = await employeeRepo.createUnchecked(auth.companyId, {
       companyId: auth.companyId,
@@ -70,6 +76,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       hireType: hireType ?? null,
       salaryType: salaryType ?? 'MONTHLY',
       hourlyRate: hourlyRate ?? null,
+      mustChangePassword: true,
     });
     const user = {
       id: created.id,
@@ -78,6 +85,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       email: created.email,
       role: created.role,
       employeeStatus: created.employeeStatus,
+      temporaryPassword: tempPassword,
     };
 
     // Copy salary rules to employee salary items

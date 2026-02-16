@@ -40,7 +40,7 @@ export default function EmployeeMyPage() {
     }
     setChangingPassword(true);
     try {
-      await apiPut('/api/auth/password', { currentPassword, newPassword });
+      await apiPut('/api/auth/change-password', { currentPassword, newPassword });
       setShowPasswordModal(false);
       setCurrentPassword('');
       setNewPassword('');

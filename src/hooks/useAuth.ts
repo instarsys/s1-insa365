@@ -4,7 +4,7 @@ import useSWR from 'swr';
 import { useCallback, useMemo } from 'react';
 import { apiPost, fetcher } from '@/lib/api';
 
-const AUTH_PAGES = ['/login', '/signup', '/join', '/super-admin/login'];
+const AUTH_PAGES = ['/login', '/signup', '/join', '/super-admin/login', '/change-password'];
 
 interface User {
   id: string;
@@ -15,6 +15,7 @@ interface User {
   role: 'SYSTEM_ADMIN' | 'COMPANY_ADMIN' | 'MANAGER' | 'EMPLOYEE';
   employeeNumber?: string;
   canViewSensitive: boolean;
+  mustChangePassword?: boolean;
   companyName?: string;
   departmentName?: string | null;
   positionName?: string | null;

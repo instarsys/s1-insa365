@@ -21,6 +21,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     employeeNumber: user.employeeNumber,
     employeeStatus: user.employeeStatus,
     canViewSensitive: user.canViewSensitive,
+    mustChangePassword: user.mustChangePassword ?? false,
     companyName: user.company.name,
     departmentName: user.department?.name ?? null,
     positionName: user.position?.name ?? null,
