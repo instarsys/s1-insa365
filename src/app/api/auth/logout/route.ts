@@ -9,16 +9,21 @@ export async function POST(request: NextRequest) {
     const auth = getAuthContext(request);
 
     if (auth) {
-      const { userRepo } = getContainer();
-      await userRepo.updateRefreshToken(auth.companyId, auth.userId, null);
+      try {
+        const { userRepo } = getContainer();
+        await userRepo.updateRefreshToken(auth.companyId, auth.userId, null);
 
-      await auditLogService.log({
-        userId: auth.userId,
-        companyId: auth.companyId,
-        action: 'LOGOUT',
-        entityType: 'User',
-        entityId: auth.userId,
-      });
+        await auditLogService.log({
+          userId: auth.userId,
+          companyId: auth.companyId,
+          action: 'LOGOUT',
+          entityType: 'User',
+          entityId: auth.userId,
+        });
+      } catch (e) {
+        console.error('Logout cleanup failed:', e);
+        // DB 작업 실패해도 쿠키 삭제는 계속 진행
+      }
     }
 
     const response = successResponse({ message: '로그아웃되었습니다.' });

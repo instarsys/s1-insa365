@@ -1,8 +1,10 @@
 'use client';
 
 import useSWR from 'swr';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { apiPost, fetcher } from '@/lib/api';
+
+const AUTH_PAGES = ['/login', '/signup', '/join', '/super-admin/login'];
 
 interface User {
   id: string;
@@ -38,7 +40,12 @@ interface SignupInput {
 }
 
 export function useAuth() {
-  const { data: user, error, mutate, isLoading } = useSWR<User>('/api/auth/me', fetcher, {
+  const swrKey = useMemo(() => {
+    if (typeof window === 'undefined') return '/api/auth/me';
+    return AUTH_PAGES.includes(window.location.pathname) ? null : '/api/auth/me';
+  }, []);
+
+  const { data: user, error, mutate, isLoading } = useSWR<User>(swrKey, fetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
     errorRetryCount: 0,
@@ -57,7 +64,11 @@ export function useAuth() {
   }, [mutate]);
 
   const logout = useCallback(async () => {
-    await apiPost('/api/auth/logout');
+    try {
+      await apiPost('/api/auth/logout');
+    } catch {
+      // 로그아웃 API 실패해도 리다이렉트 진행
+    }
     await mutate(undefined, false);
     window.location.href = '/login';
   }, [mutate]);
