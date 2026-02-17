@@ -175,7 +175,7 @@ export function AdminSidebar() {
     }
   }
 
-  if (isLoading) {
+  if (isLoading || !user) {
     return (
       <aside className="fixed left-0 top-14 bottom-0 z-40 w-60 overflow-y-auto border-r border-gray-200 bg-white">
         <nav className="flex flex-col gap-1 py-4 px-3">

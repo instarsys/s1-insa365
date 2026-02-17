@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardBody, Input, Button } from '@/components/ui';
 import { apiPost, fetcher } from '@/lib/api';
+import { mutate as globalMutate } from 'swr';
 import Link from 'next/link';
 
 export default function JoinPage() {
@@ -52,6 +53,7 @@ export default function JoinPage() {
     setIsSubmitting(true);
     try {
       await apiPost('/api/auth/join', { inviteCode, email, password });
+      await globalMutate('/api/auth/me');
       router.push('/employee/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : '합류에 실패했습니다.');

@@ -4,6 +4,7 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardBody, Input, Button } from '@/components/ui';
 import { apiPut } from '@/lib/api';
+import { mutate as globalMutate } from 'swr';
 
 export default function ChangePasswordPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function ChangePasswordPage() {
     setIsSubmitting(true);
     try {
       await apiPut('/api/auth/change-password', { newPassword });
+      await globalMutate('/api/auth/me');
       router.push('/dashboard');
     } catch {
       setError('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
