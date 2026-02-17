@@ -76,6 +76,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
           holidayOvertimeMinutes: result.holidayOvertimeMinutes,
           holidayNightMinutes: result.holidayNightMinutes,
           holidayNightOvertimeMinutes: result.holidayNightOvertimeMinutes,
+          lateMinutes: result.lateMinutes,
+          earlyLeaveMinutes: result.earlyLeaveMinutes,
           totalMinutes: result.totalMinutes,
         };
 

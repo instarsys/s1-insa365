@@ -187,6 +187,16 @@ export class GrossPayCalculator {
       attendanceDeductions += absentDeduction;
     }
 
+    // 5-2. 월급제 지각/조퇴 공제: ordinaryHourlyWage × (totalLateMinutes + totalEarlyLeaveMinutes) / 60
+    if (
+      salaryType === 'MONTHLY' &&
+      ((attendance.totalLateMinutes ?? 0) > 0 || (attendance.totalEarlyLeaveMinutes ?? 0) > 0)
+    ) {
+      const lateEarlyMinutes = (attendance.totalLateMinutes ?? 0) + (attendance.totalEarlyLeaveMinutes ?? 0);
+      const lateEarlyDeduction = Math.floor(ordinaryHourlyWage * lateEarlyMinutes / 60);
+      attendanceDeductions += lateEarlyDeduction;
+    }
+
     // Total pay = all income - attendance deductions
     const totalPay =
       basePay +

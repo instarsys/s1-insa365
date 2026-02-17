@@ -135,6 +135,8 @@ export class CalculatePayrollUseCase {
               holidayNightOvertimeMinutes: attData.totalHolidayNightOvertimeMinutes,
               absentDays: attData.absentDays,
               workDays: attData.workDays,
+              totalLateMinutes: attData.totalLateMinutes,
+              totalEarlyLeaveMinutes: attData.totalEarlyLeaveMinutes,
             }
           : {
               regularMinutes: 0,

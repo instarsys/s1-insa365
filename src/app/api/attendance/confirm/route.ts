@@ -122,6 +122,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
           totalHolidayOvertimeMinutes: allAttendances.reduce((s, a) => s + a.holidayOvertimeMinutes, 0),
           totalHolidayNightMinutes: allAttendances.reduce((s, a) => s + a.holidayNightMinutes, 0),
           totalHolidayNightOvertimeMinutes: allAttendances.reduce((s, a) => s + a.holidayNightOvertimeMinutes, 0),
+          totalLateMinutes: allAttendances.reduce((s, a) => s + (a.lateMinutes ?? 0), 0),
+          totalEarlyLeaveMinutes: allAttendances.reduce((s, a) => s + (a.earlyLeaveMinutes ?? 0), 0),
           confirmedAt: now,
           confirmedBy: auth.userId,
           version: (existing?.version ?? 0) + 1,

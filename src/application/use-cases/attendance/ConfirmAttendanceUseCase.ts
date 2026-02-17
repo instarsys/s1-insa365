@@ -42,6 +42,8 @@ export class ConfirmAttendanceUseCase {
       totalHolidayOvertimeMinutes: 0,
       totalHolidayNightMinutes: 0,
       totalHolidayNightOvertimeMinutes: 0,
+      totalLateMinutes: 0,
+      totalEarlyLeaveMinutes: 0,
       confirmedAt: new Date(),
       confirmedBy,
     }));

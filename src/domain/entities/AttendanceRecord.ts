@@ -39,6 +39,10 @@ export interface AttendanceSummary {
   absentDays?: number;
   /** Scheduled work days in the month (소정근로일수) — optional for backwards compat */
   workDays?: number;
+  /** Total late minutes in the month (월간 지각 분) */
+  totalLateMinutes?: number;
+  /** Total early leave minutes in the month (월간 조퇴 분) */
+  totalEarlyLeaveMinutes?: number;
 }
 
 export class AttendanceRecord {

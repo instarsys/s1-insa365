@@ -177,6 +177,113 @@ describe('GrossPayCalculator', () => {
     });
   });
 
+  describe('absent deduction (월급제 결근 공제)', () => {
+    it('should deduct basePay/workDays × absentDays for monthly salary', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9600, // 160h worked
+        absentDays: 2,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      // dailyPay = floor(3,000,000 / 22) = 136,363
+      // absentDeduction = 136,363 × 2 = 272,726
+      const dailyPay = Math.floor(3_000_000 / 22);
+      expect(result.attendanceDeductions).toBe(dailyPay * 2);
+      expect(result.totalPay).toBe(3_000_000 - dailyPay * 2);
+    });
+
+    it('should not deduct when absentDays is 0', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 10560, // 176h
+        absentDays: 0,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      expect(result.attendanceDeductions).toBe(0);
+    });
+
+    it('should not deduct absent days for HOURLY salary type', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9600,
+        absentDays: 2,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate([], attendance, 11_000, 1.0, 'HOURLY', 11_000);
+
+      // HOURLY: 결근 공제 미적용 (시급제는 일한 시간만 지급)
+      expect(result.attendanceDeductions).toBe(0);
+    });
+  });
+
+  describe('late/early leave deduction (지각/조퇴 공제)', () => {
+    it('should deduct ordinaryHourlyWage × lateMinutes / 60 for late', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 10560,
+        totalLateMinutes: 30,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      // deduction = floor(15,311 × 30 / 60) = floor(7,655.5) = 7,655
+      const expected = Math.floor(15_311 * 30 / 60);
+      expect(result.attendanceDeductions).toBe(expected);
+    });
+
+    it('should deduct ordinaryHourlyWage × earlyLeaveMinutes / 60 for early leave', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 10560,
+        totalEarlyLeaveMinutes: 120,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      // deduction = floor(15,311 × 120 / 60) = floor(30,622) = 30,622
+      const expected = Math.floor(15_311 * 120 / 60);
+      expect(result.attendanceDeductions).toBe(expected);
+    });
+
+    it('should combine late + early leave minutes for deduction', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 10560,
+        totalLateMinutes: 30,
+        totalEarlyLeaveMinutes: 60,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      // deduction = floor(15,311 × 90 / 60) = floor(22,966.5) = 22,966
+      const expected = Math.floor(15_311 * 90 / 60);
+      expect(result.attendanceDeductions).toBe(expected);
+    });
+
+    it('should not deduct late/early leave for HOURLY salary type', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9600,
+        totalLateMinutes: 30,
+        totalEarlyLeaveMinutes: 60,
+        workDays: 22,
+      };
+      const result = GrossPayCalculator.calculate([], attendance, 11_000, 1.0, 'HOURLY', 11_000);
+
+      // HOURLY: 지각/조퇴 공제 미적용
+      expect(result.attendanceDeductions).toBe(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty salary items', () => {
       const result = GrossPayCalculator.calculate([], ZERO_ATTENDANCE, 14_354, 1.0);
