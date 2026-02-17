@@ -6,6 +6,9 @@ import { successResponse, errorResponse, notFoundResponse } from '@/presentation
 
 type RouteContext = { params: Promise<{ id: string }> };
 
+// 법정 공제 코드 (비활성화 불가)
+const SYSTEM_MANAGED_CODES = new Set(['D01', 'D02', 'D03', 'D04', 'D05', 'D06']);
+
 async function handleGet(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
@@ -60,10 +63,55 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   return successResponse({ items: updated });
 }
 
-function createHandler(method: 'GET' | 'PUT') {
+async function handlePatch(request: NextRequest, auth: AuthContext) {
+  const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
+  const body = await request.json();
+  const { itemId, isActive } = body as { itemId: string; isActive: boolean };
+
+  if (!itemId || typeof isActive !== 'boolean') {
+    return errorResponse('itemId와 isActive가 필요합니다.', 400);
+  }
+
+  const { employeeRepo } = getContainer();
+  const user = await employeeRepo.findById(auth.companyId, id);
+  if (!user) return notFoundResponse('직원');
+
+  // 대상 항목 조회
+  const { employeeSalaryItemRepo } = getContainer();
+  const allItems = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);
+  const targetItem = allItems.find((i) => i.id === itemId);
+  if (!targetItem) return notFoundResponse('급여 항목');
+
+  // 기본급(BASE) 비활성화 방지
+  if (targetItem.type === 'BASE' && !isActive) {
+    return errorResponse('기본급 항목은 비활성화할 수 없습니다.', 403);
+  }
+
+  // 법정 공제(D01-D06) 비활성화 방지
+  if (SYSTEM_MANAGED_CODES.has(targetItem.code) && !isActive) {
+    return errorResponse('법정 공제 항목은 비활성화할 수 없습니다.', 403);
+  }
+
+  const result = await employeeSalaryItemRepo.toggleActive(auth.companyId, itemId, isActive);
+  if (!result) return notFoundResponse('급여 항목');
+
+  await auditLogService.log({
+    userId: auth.userId,
+    companyId: auth.companyId,
+    action: 'UPDATE',
+    entityType: 'EmployeeSalaryItem',
+    entityId: itemId,
+    before: { isActive: !isActive },
+    after: { isActive },
+  });
+
+  return successResponse({ item: result });
+}
+
+function createHandler(method: 'GET' | 'PUT' | 'PATCH') {
   return async (request: NextRequest, routeContext: RouteContext) => {
     (request as unknown as { routeContext: RouteContext }).routeContext = routeContext;
-    const methods = { GET: handleGet, PUT: handlePut };
+    const methods = { GET: handleGet, PUT: handlePut, PATCH: handlePatch };
     const wrapped = withAuth(methods[method]);
     return wrapped(request, routeContext);
   };
@@ -71,3 +119,4 @@ function createHandler(method: 'GET' | 'PUT') {
 
 export const GET = createHandler('GET') as (request: NextRequest, routeContext: RouteContext) => Promise<NextResponse>;
 export const PUT = createHandler('PUT') as (request: NextRequest, routeContext: RouteContext) => Promise<NextResponse>;
+export const PATCH = createHandler('PATCH') as (request: NextRequest, routeContext: RouteContext) => Promise<NextResponse>;

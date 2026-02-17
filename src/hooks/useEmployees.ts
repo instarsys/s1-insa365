@@ -1,7 +1,7 @@
 'use client';
 
 import useSWR from 'swr';
-import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { fetcher, apiPost, apiPut, apiPatch, apiDelete } from '@/lib/api';
 
 interface Employee {
   id: string;
@@ -122,6 +122,14 @@ export async function updateSalaryItems(
   items: Array<{ id: string; amount?: number }>,
 ) {
   return apiPut(`/api/employees/${employeeId}/salary-items`, { items });
+}
+
+export async function toggleSalaryItemActive(
+  employeeId: string,
+  itemId: string,
+  isActive: boolean,
+) {
+  return apiPatch(`/api/employees/${employeeId}/salary-items`, { itemId, isActive });
 }
 
 interface PiiResponse {

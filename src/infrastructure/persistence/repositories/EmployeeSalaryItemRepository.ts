@@ -76,6 +76,17 @@ export class EmployeeSalaryItemRepository {
     });
   }
 
+  async toggleActive(companyId: string, id: string, isActive: boolean) {
+    const existing = await prisma.employeeSalaryItem.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return null;
+    return prisma.employeeSalaryItem.update({
+      where: { id },
+      data: { isActive },
+    });
+  }
+
   async updateManyInTransaction(companyId: string, updates: Array<{ id: string; data: Prisma.EmployeeSalaryItemUpdateInput }>) {
     const ops = updates.map((u) =>
       prisma.employeeSalaryItem.update({ where: { id: u.id }, data: u.data }),

@@ -8,7 +8,7 @@ import {
   Avatar, Badge, Button, Card, CardHeader, CardTitle, CardBody,
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, useToast,
 } from '@/components/ui';
-import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems } from '@/hooks';
+import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
 import { formatDate, formatKRW } from '@/lib/utils';
@@ -699,6 +699,34 @@ export default function EmployeeDetailPage() {
   );
 }
 
+// 법정 공제 코드 (비활성화 불가)
+const SYSTEM_MANAGED_CODES = new Set(['D01', 'D02', 'D03', 'D04', 'D05', 'D06']);
+
+function ToggleSwitch({ checked, onChange, disabled, title }: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+  title?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => !disabled && onChange(!checked)}
+      disabled={disabled}
+      title={title}
+      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+        disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
+      } ${checked ? 'bg-indigo-600' : 'bg-gray-300'}`}
+    >
+      <span
+        className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+          checked ? 'translate-x-[18px]' : 'translate-x-[3px]'
+        }`}
+      />
+    </button>
+  );
+}
+
 function SalaryTab({
   employeeId,
   employee,
@@ -720,6 +748,7 @@ function SalaryTab({
   const [isEditingItems, setIsEditingItems] = useState(false);
   const [editAmounts, setEditAmounts] = useState<Record<string, string>>({});
   const [isSavingItems, setIsSavingItems] = useState(false);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
 
   // 4대보험 설정 상태
   const [isEditingInsurance, setIsEditingInsurance] = useState(false);
@@ -738,7 +767,7 @@ function SalaryTab({
       return Number(employee.hourlyRate);
     }
     const ordinaryTotal = salaryItems
-      .filter((i) => i.isOrdinaryWage && i.type !== 'DEDUCTION')
+      .filter((i) => i.isOrdinaryWage && i.isActive && i.type !== 'DEDUCTION')
       .reduce((sum, i) => sum + Number(i.amount), 0);
     return ordinaryTotal > 0 ? Math.floor(ordinaryTotal / 209) : 0;
   }, [employee, salaryItems]);
@@ -819,7 +848,7 @@ function SalaryTab({
   const startEditItems = () => {
     const amounts: Record<string, string> = {};
     for (const item of salaryItems) {
-      if (item.paymentType === 'FIXED' || item.paymentType === 'VARIABLE') {
+      if ((item.paymentType === 'FIXED' || item.paymentType === 'VARIABLE') && item.isActive) {
         amounts[item.id] = String(Number(item.amount));
       }
     }
@@ -845,11 +874,27 @@ function SalaryTab({
     }
   };
 
-  // 합계 계산
+  const handleToggleActive = async (itemId: string, isActive: boolean) => {
+    setTogglingId(itemId);
+    try {
+      await toggleSalaryItemActive(employeeId, itemId, isActive);
+      await mutateSalaryItems();
+    } catch (err: unknown) {
+      const errObj = err as unknown as Record<string, unknown>;
+      const msg = errObj?.data ? (errObj.data as { message?: string })?.message : undefined;
+      toast.error(msg || '토글에 실패했습니다.');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  // 지급/공제 분리 + 활성 항목만 합계
   const payItems = salaryItems.filter((i) => i.type !== 'DEDUCTION');
   const deductionItems = salaryItems.filter((i) => i.type === 'DEDUCTION');
-  const totalPay = payItems.reduce((sum, i) => sum + Number(i.amount), 0);
-  const totalDeduction = deductionItems.reduce((sum, i) => sum + Number(i.amount), 0);
+  const activePayItems = payItems.filter((i) => i.isActive);
+  const activeDeductionItems = deductionItems.filter((i) => i.isActive);
+  const totalPay = activePayItems.reduce((sum, i) => sum + Number(i.amount), 0);
+  const totalDeduction = activeDeductionItems.reduce((sum, i) => sum + Number(i.amount), 0);
 
   return (
     <div className="space-y-6">
@@ -1062,12 +1107,16 @@ function SalaryTab({
         </CardBody>
       </Card>
 
-      {/* 급여 항목 테이블 */}
+      {/* 지급 항목 */}
       <Card>
         <CardHeader>
-          <CardTitle>급여 항목</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            지급 항목
+            <Badge variant="info">
+              활성 {activePayItems.length} / 전체 {payItems.length}
+            </Badge>
+          </CardTitle>
           <div className="flex items-center gap-2">
-            <Badge variant="info">{salaryItems.length}건</Badge>
             {!isEditingItems ? (
               <Button variant="ghost" size="sm" onClick={startEditItems}>
                 <Pencil className="h-4 w-4" />
@@ -1088,9 +1137,9 @@ function SalaryTab({
           </div>
         </CardHeader>
         <CardBody className="p-0">
-          {salaryItems.length === 0 ? (
+          {payItems.length === 0 ? (
             <EmptyState
-              title="급여 항목이 없습니다"
+              title="지급 항목이 없습니다"
               description="급여 규칙 설정에서 항목을 추가하세요."
             />
           ) : (
@@ -1098,6 +1147,7 @@ function SalaryTab({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
+                    {isEditingItems && <th className="w-16 px-4 py-3 text-center text-xs font-medium text-gray-500">활성</th>}
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">코드</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
@@ -1107,22 +1157,42 @@ function SalaryTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {salaryItems.map((item) => {
+                  {payItems.map((item) => {
                     const isFormula = item.paymentType === 'FORMULA';
-                    const isEditable = !isFormula && isEditingItems;
+                    const isEditable = !isFormula && isEditingItems && item.isActive;
                     const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    const isBase = item.type === 'BASE';
+                    const canToggle = !isBase;
+                    const inactive = !item.isActive;
 
                     return (
-                      <tr key={item.id} className="hover:bg-indigo-50/30">
+                      <tr key={item.id} className={`${inactive ? 'bg-gray-50 opacity-50' : 'hover:bg-indigo-50/30'}`}>
+                        {isEditingItems && (
+                          <td className="px-4 py-3 text-center">
+                            {canToggle ? (
+                              <ToggleSwitch
+                                checked={item.isActive}
+                                onChange={(v) => handleToggleActive(item.id, v)}
+                                disabled={togglingId === item.id}
+                              />
+                            ) : (
+                              <span title="기본급은 비활성화할 수 없습니다">
+                                <Lock className="mx-auto h-4 w-4 text-gray-400" />
+                              </span>
+                            )}
+                          </td>
+                        )}
                         <td className="px-4 py-3 text-gray-500">{item.code}</td>
                         <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
                         <td className="px-4 py-3">
-                          <Badge variant={item.type === 'DEDUCTION' ? 'error' : item.paymentType === 'FORMULA' ? 'gray' : 'info'}>
+                          <Badge variant={item.paymentType === 'FORMULA' ? 'gray' : 'info'}>
                             {typeLabel}
                           </Badge>
                         </td>
                         <td className="px-4 py-3 text-right tabular-nums">
-                          {isEditable ? (
+                          {inactive ? (
+                            <span className="text-gray-400">-</span>
+                          ) : isEditable ? (
                             <input
                               type="number"
                               className="w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -1149,19 +1219,135 @@ function SalaryTab({
                   })}
                 </tbody>
               </table>
-              {/* 합계 요약 바 */}
-              <div className="flex items-center justify-end gap-6 border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+              <div className="flex items-center justify-end border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
                 <span className="text-gray-600">
-                  총 지급 합계: <span className="font-semibold text-gray-900">{formatKRW(totalPay)}</span>
-                </span>
-                <span className="text-gray-600">
-                  총 공제 합계: <span className="font-semibold text-red-600">{formatKRW(totalDeduction)}</span>
+                  지급 합계: <span className="font-semibold text-gray-900">{formatKRW(totalPay)}</span>
                 </span>
               </div>
             </>
           )}
         </CardBody>
       </Card>
+
+      {/* 공제 항목 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            공제 항목
+            <Badge variant="error">
+              활성 {activeDeductionItems.length} / 전체 {deductionItems.length}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardBody className="p-0">
+          {deductionItems.length === 0 ? (
+            <EmptyState
+              title="공제 항목이 없습니다"
+              description="급여 규칙 설정에서 공제 항목을 추가하세요."
+            />
+          ) : (
+            <>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100 bg-gray-50">
+                    {isEditingItems && <th className="w-16 px-4 py-3 text-center text-xs font-medium text-gray-500">활성</th>}
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">코드</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">금액</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {deductionItems.map((item) => {
+                    const isFormula = item.paymentType === 'FORMULA';
+                    const isEditable = !isFormula && isEditingItems && item.isActive;
+                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    const isSystem = SYSTEM_MANAGED_CODES.has(item.code);
+                    const canToggle = !isSystem;
+                    const inactive = !item.isActive;
+
+                    return (
+                      <tr key={item.id} className={`${inactive ? 'bg-gray-50 opacity-50' : 'hover:bg-indigo-50/30'}`}>
+                        {isEditingItems && (
+                          <td className="px-4 py-3 text-center">
+                            {canToggle ? (
+                              <ToggleSwitch
+                                checked={item.isActive}
+                                onChange={(v) => handleToggleActive(item.id, v)}
+                                disabled={togglingId === item.id}
+                              />
+                            ) : (
+                              <span title="법정 공제 항목은 비활성화할 수 없습니다">
+                                <Lock className="mx-auto h-4 w-4 text-gray-400" />
+                              </span>
+                            )}
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-gray-500">{item.code}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {item.name}
+                          {isSystem && (
+                            <span className="ml-1.5 text-xs text-gray-400">(법정)</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant={isFormula ? 'gray' : 'error'}>
+                            {typeLabel}
+                          </Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          {inactive ? (
+                            <span className="text-gray-400">-</span>
+                          ) : isEditable ? (
+                            <input
+                              type="number"
+                              className="w-32 rounded border border-gray-300 px-2 py-1 text-right text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                              value={editAmounts[item.id] ?? ''}
+                              onChange={(e) => setEditAmounts((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                            />
+                          ) : isFormula ? (
+                            <span className="flex items-center justify-end gap-1 text-gray-400">
+                              <Lock className="h-3 w-3" />
+                              (자동)
+                            </span>
+                          ) : (
+                            formatKRW(Number(item.amount))
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <div className="flex items-center justify-end border-t border-gray-200 bg-gray-50 px-4 py-3 text-sm">
+                <span className="text-gray-600">
+                  공제 합계: <span className="font-semibold text-red-600">{formatKRW(totalDeduction)}</span>
+                </span>
+              </div>
+            </>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* 합계 요약 바 */}
+      <div className="rounded-lg border border-gray-200 bg-white p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="text-center">
+            <p className="text-xs text-gray-500">총 지급</p>
+            <p className="text-lg font-bold text-gray-900">{formatKRW(totalPay)}</p>
+          </div>
+          <span className="text-xl text-gray-400">-</span>
+          <div className="text-center">
+            <p className="text-xs text-gray-500">총 공제</p>
+            <p className="text-lg font-bold text-red-600">{formatKRW(totalDeduction)}</p>
+          </div>
+          <span className="text-xl text-gray-400">=</span>
+          <div className="text-center">
+            <p className="text-xs text-gray-500">예상 실수령</p>
+            <p className="text-lg font-bold text-indigo-600">{formatKRW(totalPay - totalDeduction)}</p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

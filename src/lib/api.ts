@@ -96,6 +96,15 @@ export async function apiPut<T>(url: string, body?: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
+export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
+  const response = await fetchWithAuth(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return handleResponse<T>(response);
+}
+
 export async function apiDelete<T>(url: string): Promise<T> {
   const response = await fetchWithAuth(url, {
     method: 'DELETE',
