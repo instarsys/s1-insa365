@@ -6,6 +6,8 @@ import { SuperAdminTopBar } from '@/components/layout/SuperAdminTopBar';
 import { SuperAdminSidebar } from '@/components/layout/SuperAdminSidebar';
 import { Providers } from '@/components/layout/Providers';
 import { useAuth } from '@/hooks/useAuth';
+import { SidebarProvider } from '@/contexts/SidebarContext';
+import { SuperAdminContent } from '@/components/layout/SuperAdminContent';
 
 export default function SuperAdminLayout({
   children,
@@ -53,13 +55,13 @@ export default function SuperAdminLayout({
 
   return (
     <Providers>
-      <div className="min-h-screen bg-gray-50">
-        <SuperAdminTopBar />
-        <SuperAdminSidebar />
-        <main className="pl-60 pt-14">
-          <div className="mx-auto max-w-[1280px] p-8">{children}</div>
-        </main>
-      </div>
+      <SidebarProvider>
+        <div className="min-h-screen bg-gray-50">
+          <SuperAdminTopBar />
+          <SuperAdminSidebar />
+          <SuperAdminContent>{children}</SuperAdminContent>
+        </div>
+      </SidebarProvider>
     </Providers>
   );
 }
