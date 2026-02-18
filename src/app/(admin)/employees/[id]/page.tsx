@@ -15,7 +15,7 @@ import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher, apiPost, apiPut } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
 import {
-  ChevronLeft, ChevronRight, Pencil, X, Check,
+  ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
   Home, Users, Landmark, Camera, Eye, EyeOff, Lock, Shield,
 } from 'lucide-react';
@@ -181,8 +181,9 @@ export default function EmployeeDetailPage() {
       toast.success('직원 정보가 수정되었습니다.');
       setIsEditing(false);
       await mutate();
-    } catch {
-      toast.error('수정에 실패했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `수정에 실패했습니다: ${msg}` : '수정에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -202,8 +203,9 @@ export default function EmployeeDetailPage() {
       await updateEmployee(id, { profileImageUrl: imageUrl });
       toast.success('프로필 사진이 업로드되었습니다.');
       await mutate();
-    } catch {
-      toast.error('프로필 사진 업로드에 실패했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `프로필 사진 업로드에 실패했습니다: ${msg}` : '프로필 사진 업로드에 실패했습니다.');
     }
   };
 
@@ -749,6 +751,7 @@ function SalaryTab({
   const [editAmounts, setEditAmounts] = useState<Record<string, string>>({});
   const [isSavingItems, setIsSavingItems] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [showSystemDeductions, setShowSystemDeductions] = useState(false);
 
   // 4대보험 설정 상태
   const [isEditingInsurance, setIsEditingInsurance] = useState(false);
@@ -792,8 +795,9 @@ function SalaryTab({
       toast.success('급여 기본 정보가 저장되었습니다.');
       setIsEditingBasic(false);
       onEmployeeUpdate();
-    } catch {
-      toast.error('저장에 실패했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `저장에 실패했습니다: ${msg}` : '저장에 실패했습니다.');
     } finally {
       setIsSavingBasic(false);
     }
@@ -838,8 +842,9 @@ function SalaryTab({
       toast.success('4대보험 설정이 저장되었습니다.');
       setIsEditingInsurance(false);
       onEmployeeUpdate();
-    } catch {
-      toast.error('저장에 실패했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `저장에 실패했습니다: ${msg}` : '저장에 실패했습니다.');
     } finally {
       setIsSavingInsurance(false);
     }
@@ -867,8 +872,9 @@ function SalaryTab({
       toast.success('급여 항목이 저장되었습니다.');
       setIsEditingItems(false);
       await mutateSalaryItems();
-    } catch {
-      toast.error('저장에 실패했습니다.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `저장에 실패했습니다: ${msg}` : '저장에 실패했습니다.');
     } finally {
       setIsSavingItems(false);
     }
@@ -891,6 +897,8 @@ function SalaryTab({
   // 지급/공제 분리 + 활성 항목만 합계
   const payItems = salaryItems.filter((i) => i.type !== 'DEDUCTION');
   const deductionItems = salaryItems.filter((i) => i.type === 'DEDUCTION');
+  const systemDeductionItems = deductionItems.filter((i) => SYSTEM_MANAGED_CODES.has(i.code));
+  const customDeductionItems = deductionItems.filter((i) => !SYSTEM_MANAGED_CODES.has(i.code));
   const activePayItems = payItems.filter((i) => i.isActive);
   const activeDeductionItems = deductionItems.filter((i) => i.isActive);
   const totalPay = activePayItems.reduce((sum, i) => sum + Number(i.amount), 0);
@@ -1258,38 +1266,87 @@ function SalaryTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {deductionItems.map((item) => {
+                  {/* 법정 공제 요약행 — 클릭 시 접기/펼치기 */}
+                  {systemDeductionItems.length > 0 && (
+                    <tr
+                      onClick={() => setShowSystemDeductions((v) => !v)}
+                      className="cursor-pointer select-none hover:bg-gray-50"
+                    >
+                      {isEditingItems && <td className="px-4 py-3" />}
+                      <td className="px-4 py-3" colSpan={isEditingItems ? undefined : 1}>
+                        <ChevronDown
+                          className={`inline h-4 w-4 text-gray-400 transition-transform ${showSystemDeductions ? '' : '-rotate-90'}`}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-medium text-gray-800">법정 공제</span>
+                        <span className="ml-1.5 text-xs text-gray-400">({systemDeductionItems.length}개)</span>
+                        <span className="ml-2 hidden text-xs text-gray-400 sm:inline">
+                          {systemDeductionItems.map((i) => i.name).join(', ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <Badge variant="gray">산식</Badge>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-400">
+                        <span className="flex items-center justify-end gap-1">
+                          <Lock className="h-3 w-3" />
+                          (자동)
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* 펼치면 D01~D06 상세행 표시 */}
+                  {showSystemDeductions && systemDeductionItems.map((item) => {
+                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    return (
+                      <tr key={item.id} className="bg-gray-50/50 hover:bg-indigo-50/30">
+                        {isEditingItems && (
+                          <td className="px-4 py-3 text-center">
+                            <span title="법정 공제 항목은 비활성화할 수 없습니다">
+                              <Lock className="mx-auto h-4 w-4 text-gray-400" />
+                            </span>
+                          </td>
+                        )}
+                        <td className="px-4 py-3 text-gray-500">{item.code}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {item.name}
+                          <span className="ml-1.5 text-xs text-gray-400">(법정)</span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <Badge variant="gray">{typeLabel}</Badge>
+                        </td>
+                        <td className="px-4 py-3 text-right tabular-nums">
+                          <span className="flex items-center justify-end gap-1 text-gray-400">
+                            <Lock className="h-3 w-3" />
+                            (자동)
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+
+                  {/* 임의 공제 D07~D12 — 항상 표시 */}
+                  {customDeductionItems.map((item) => {
                     const isFormula = item.paymentType === 'FORMULA';
                     const isEditable = !isFormula && isEditingItems && item.isActive;
                     const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
-                    const isSystem = SYSTEM_MANAGED_CODES.has(item.code);
-                    const canToggle = !isSystem;
                     const inactive = !item.isActive;
 
                     return (
                       <tr key={item.id} className={`${inactive ? 'bg-gray-50 opacity-50' : 'hover:bg-indigo-50/30'}`}>
                         {isEditingItems && (
                           <td className="px-4 py-3 text-center">
-                            {canToggle ? (
-                              <ToggleSwitch
-                                checked={item.isActive}
-                                onChange={(v) => handleToggleActive(item.id, v)}
-                                disabled={togglingId === item.id}
-                              />
-                            ) : (
-                              <span title="법정 공제 항목은 비활성화할 수 없습니다">
-                                <Lock className="mx-auto h-4 w-4 text-gray-400" />
-                              </span>
-                            )}
+                            <ToggleSwitch
+                              checked={item.isActive}
+                              onChange={(v) => handleToggleActive(item.id, v)}
+                              disabled={togglingId === item.id}
+                            />
                           </td>
                         )}
                         <td className="px-4 py-3 text-gray-500">{item.code}</td>
-                        <td className="px-4 py-3 font-medium text-gray-800">
-                          {item.name}
-                          {isSystem && (
-                            <span className="ml-1.5 text-xs text-gray-400">(법정)</span>
-                          )}
-                        </td>
+                        <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
                         <td className="px-4 py-3">
                           <Badge variant={isFormula ? 'gray' : 'error'}>
                             {typeLabel}

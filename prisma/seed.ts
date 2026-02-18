@@ -350,82 +350,55 @@ async function main() {
   // ──────────────────────────────────────────────
   // Employee Salary Items (per-employee)
   // ──────────────────────────────────────────────
-  // Each employee gets: allowances (A01-A10) + deductions (D01-D12)
-  // D01-D06: 법정 공제 (FORMULA, isActive: true)
-  // D07-D12: 임의 공제 (FIXED, isActive: false — 필요 시 활성화)
-  const SEED_DEDUCTION_ITEMS = [
-    { code: 'D01', name: '국민연금', paymentType: 'FORMULA' as const, formula: 'truncate10(clamp(연금기준소득, 연금하한, 연금상한) * 국민연금요율 / 100)', sortOrder: 101, isActive: true },
-    { code: 'D02', name: '건강보험', paymentType: 'FORMULA' as const, formula: 'truncate1(건강보험기준소득 * 건강보험요율 / 100)', sortOrder: 102, isActive: true },
-    { code: 'D03', name: '장기요양보험', paymentType: 'FORMULA' as const, formula: 'truncate1(건강보험 * 장기요양요율 / 100)', sortOrder: 103, isActive: true },
-    { code: 'D04', name: '고용보험', paymentType: 'FORMULA' as const, formula: 'truncate1(과세소득 * 고용보험요율 / 100)', sortOrder: 104, isActive: true },
-    { code: 'D05', name: '소득세', paymentType: 'FORMULA' as const, formula: 'taxLookup(과세소득, 부양가족수)', sortOrder: 105, isActive: true },
-    { code: 'D06', name: '지방소득세', paymentType: 'FORMULA' as const, formula: 'floor(소득세 * 10 / 100)', sortOrder: 106, isActive: true },
-    { code: 'D07', name: '노조비', paymentType: 'FIXED' as const, sortOrder: 107, isActive: false },
-    { code: 'D08', name: '사원 대출금', paymentType: 'FIXED' as const, sortOrder: 108, isActive: false },
-    { code: 'D09', name: '기숙사비', paymentType: 'FIXED' as const, sortOrder: 109, isActive: false },
-    { code: 'D10', name: '가불금', paymentType: 'FIXED' as const, sortOrder: 110, isActive: false },
-    { code: 'D11', name: '기타 공제1', paymentType: 'FIXED' as const, sortOrder: 111, isActive: false },
-    { code: 'D12', name: '기타 공제2', paymentType: 'FIXED' as const, sortOrder: 112, isActive: false },
+  // SalaryRule 기반 동적 복사 (CreateEmployeeUseCase와 동일 패턴)
+  const salaryRules = await prisma.salaryRule.findMany({
+    where: { companyId: company.id, deletedAt: null },
+    orderBy: { sortOrder: 'asc' },
+  });
+
+  const getAmountForEmployee = (
+    emp: { baseSalary: number; salaryType: string },
+    rule: { code: string },
+  ): number => {
+    const isHourly = emp.salaryType === 'HOURLY';
+    switch (rule.code) {
+      case 'A01': return isHourly ? 0 : emp.baseSalary; // 기본급
+      case 'A02': { // 직책수당 — 월급제만 연봉 기반 차등
+        if (isHourly) return 0;
+        return emp.baseSalary >= 4500000 ? 500000
+          : emp.baseSalary >= 3500000 ? 300000
+          : 150000;
+      }
+      case 'A05': return 200000; // 식대 (시급제/월급제 공통)
+      case 'A06': return isHourly ? 0 : 200000; // 차량유지비 — 월급제만
+      default: return 0; // A03, A04, A07, A08~A11, D01~D12
+    }
+  };
+
+  const allSeedUsers = [
+    { id: adminUser.id, baseSalary: 6000000, salaryType: 'MONTHLY' },
+    ...employees,
   ];
 
-  const makeDeductionItems = (cId: string, uId: string) =>
-    SEED_DEDUCTION_ITEMS.map((d) => ({
-      companyId: cId,
-      userId: uId,
-      code: d.code,
-      name: d.name,
-      type: 'DEDUCTION' as const,
-      paymentType: d.paymentType,
-      amount: 0,
-      sortOrder: d.sortOrder,
-      isActive: d.isActive,
-      ...(d.formula ? { formula: d.formula } : {}),
+  for (const emp of allSeedUsers) {
+    const items = salaryRules.map((rule) => ({
+      companyId: company.id,
+      userId: emp.id,
+      code: rule.code,
+      name: rule.name,
+      type: rule.type,
+      paymentType: rule.paymentType,
+      formula: rule.formula,
+      sortOrder: rule.sortOrder,
+      isOrdinaryWage: rule.isOrdinaryWage,
+      isTaxExempt: rule.isTaxExempt,
+      taxExemptCode: rule.taxExemptCode,
+      isActive: rule.isSystemManaged ? true : (rule.isActive ?? false),
+      amount: getAmountForEmployee(emp, rule),
     }));
-
-  for (const emp of employees) {
-    if (emp.salaryType === 'HOURLY') {
-      // 시급제: 기본급 0, 식대만, 수당 FORMULA + 공제 D01-D12
-      await prisma.employeeSalaryItem.createMany({
-        data: [
-          { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: 0, isOrdinaryWage: true, sortOrder: 1 },
-          { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
-          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', amount: 0, sortOrder: 8 },
-          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', amount: 0, sortOrder: 9 },
-          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', amount: 0, sortOrder: 10 },
-          ...makeDeductionItems(company.id, emp.id),
-        ],
-      });
-    } else {
-      const positionAllowance = emp.baseSalary >= 4500000 ? 500000
-        : emp.baseSalary >= 3500000 ? 300000
-        : 150000;
-
-      await prisma.employeeSalaryItem.createMany({
-        data: [
-          { companyId: company.id, userId: emp.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: emp.baseSalary, isOrdinaryWage: true, sortOrder: 1 },
-          { companyId: company.id, userId: emp.id, code: 'A02', name: '직책수당', type: 'ALLOWANCE', paymentType: 'FIXED', amount: positionAllowance, isOrdinaryWage: true, sortOrder: 2 },
-          { companyId: company.id, userId: emp.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
-          { companyId: company.id, userId: emp.id, code: 'A06', name: '차량유지비', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'VEHICLE', sortOrder: 6 },
-          { companyId: company.id, userId: emp.id, code: 'A08', name: '연장근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', amount: 0, sortOrder: 8 },
-          { companyId: company.id, userId: emp.id, code: 'A09', name: '야간근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', amount: 0, sortOrder: 9 },
-          { companyId: company.id, userId: emp.id, code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE', paymentType: 'FORMULA', formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', amount: 0, sortOrder: 10 },
-          ...makeDeductionItems(company.id, emp.id),
-        ],
-      });
-    }
+    await prisma.employeeSalaryItem.createMany({ data: items });
   }
-  console.log('Employee salary items created (with D01-D12 deductions)');
-
-  // Also create salary items for the admin user
-  await prisma.employeeSalaryItem.createMany({
-    data: [
-      { companyId: company.id, userId: adminUser.id, code: 'A01', name: '기본급', type: 'BASE', paymentType: 'FIXED', amount: 6000000, isOrdinaryWage: true, sortOrder: 1 },
-      { companyId: company.id, userId: adminUser.id, code: 'A02', name: '직책수당', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 800000, isOrdinaryWage: true, sortOrder: 2 },
-      { companyId: company.id, userId: adminUser.id, code: 'A05', name: '식대', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'MEALS', sortOrder: 5 },
-      { companyId: company.id, userId: adminUser.id, code: 'A06', name: '차량유지비', type: 'ALLOWANCE', paymentType: 'FIXED', amount: 200000, isTaxExempt: true, taxExemptCode: 'VEHICLE', sortOrder: 6 },
-      ...makeDeductionItems(company.id, adminUser.id),
-    ],
-  });
+  console.log('Employee salary items created from SalaryRules (A01-A11 + D01-D12)');
 
   // ──────────────────────────────────────────────
   // Past 2 months attendance data
