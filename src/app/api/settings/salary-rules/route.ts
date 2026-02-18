@@ -75,7 +75,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           type,
           paymentType: paymentType ?? 'FIXED',
           paymentCycle: paymentCycle ?? 'MONTHLY',
-          amount: defaultAmount ?? 0,
+          amount: Number(defaultAmount ?? 0),
           isOrdinaryWage: isOrdinaryWage ?? false,
           isTaxExempt: isTaxExempt ?? false,
           taxExemptCode: taxExemptCode ?? null,

@@ -262,6 +262,9 @@ model User {
   joinDate                DateTime?      @map("join_date")
   resignDate              DateTime?      @map("resign_date")
   resignReason            String?        @map("resign_reason")
+  leaveStartDate          DateTime?      @map("leave_start_date")
+  leaveEndDate            DateTime?      @map("leave_end_date")
+  leaveReason             String?        @map("leave_reason")
   dependents              Int            @default(1)
   address                 String?
   isHouseholder           Boolean        @default(false) @map("is_householder")

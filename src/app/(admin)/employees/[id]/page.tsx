@@ -6,28 +6,21 @@ import useSWR from 'swr';
 import { Breadcrumb, PageHeader } from '@/components/layout';
 import {
   Avatar, Badge, Button, Card, CardHeader, CardTitle, CardBody,
-  Tabs, Spinner, EmptyState, Input, Select, DatePicker, useToast,
+  Tabs, Spinner, EmptyState, Input, Select, DatePicker, Modal, useToast,
+  StatusBadgeDropdown,
 } from '@/components/ui';
 import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
 import { formatDate, formatKRW } from '@/lib/utils';
-import { fetcher, apiPost, apiPut } from '@/lib/api';
+import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
 import {
   ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
   Home, Users, Landmark, Camera, Eye, EyeOff, Lock, Shield,
+  UserMinus, UserCheck, LogOut,
 } from 'lucide-react';
-
-function getStatusBadge(status: string) {
-  switch (status) {
-    case 'ACTIVE': return <Badge variant="success">재직</Badge>;
-    case 'ON_LEAVE': return <Badge variant="warning">휴직</Badge>;
-    case 'RESIGNED': return <Badge variant="gray">퇴직</Badge>;
-    default: return <Badge variant="gray">{status}</Badge>;
-  }
-}
 
 const DETAIL_TABS = [
   { key: 'basic', label: '기본정보' },
@@ -76,10 +69,25 @@ export default function EmployeeDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [showBankAccount, setShowBankAccount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showResignModal, setShowResignModal] = useState(false);
+  const [resignDate, setResignDate] = useState(new Date().toISOString().slice(0, 10));
+  const [resignReason, setResignReason] = useState('');
+  const [isResigning, setIsResigning] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leaveStartDate, setLeaveStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [leaveReason, setLeaveReason] = useState('');
+  const [isLeaving, setIsLeaving] = useState(false);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [returnDate, setReturnDate] = useState(new Date().toISOString().slice(0, 10));
+  const [isReturning, setIsReturning] = useState(false);
+  const [showRehireModal, setShowRehireModal] = useState(false);
+  const [rehireDate, setRehireDate] = useState(new Date().toISOString().slice(0, 10));
+  const [isRehiring, setIsRehiring] = useState(false);
+  const [isCancellingResign, setIsCancellingResign] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { employee, isLoading, mutate } = useEmployee(id);
-  const { updateEmployee } = useEmployeeMutations();
+  const { updateEmployee, deleteEmployee } = useEmployeeMutations();
 
   // Department & position lists for select dropdowns
   const { data: deptData } = useSWR<{ items: DepartmentItem[] }>('/api/departments', fetcher);
@@ -209,6 +217,100 @@ export default function EmployeeDetailPage() {
     }
   };
 
+  const handleResign = async () => {
+    if (!resignDate) {
+      toast.error('퇴사일을 입력해주세요.');
+      return;
+    }
+    setIsResigning(true);
+    try {
+      await deleteEmployee(id, { resignDate, resignReason: resignReason || undefined });
+      toast.success('퇴직 처리되었습니다.');
+      setShowResignModal(false);
+      router.push('/employees/list');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `퇴직 처리에 실패했습니다: ${msg}` : '퇴직 처리에 실패했습니다.');
+    } finally {
+      setIsResigning(false);
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!leaveStartDate) {
+      toast.error('휴직 시작일을 입력해주세요.');
+      return;
+    }
+    if (!leaveReason.trim()) {
+      toast.error('휴직 사유를 입력해주세요.');
+      return;
+    }
+    setIsLeaving(true);
+    try {
+      await apiPost(`/api/employees/${id}/leave`, { leaveStartDate, leaveReason });
+      toast.success('휴직 처리되었습니다.');
+      setShowLeaveModal(false);
+      await mutate();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `휴직 처리에 실패했습니다: ${msg}` : '휴직 처리에 실패했습니다.');
+    } finally {
+      setIsLeaving(false);
+    }
+  };
+
+  const handleReturn = async () => {
+    if (!returnDate) {
+      toast.error('복귀일을 입력해주세요.');
+      return;
+    }
+    setIsReturning(true);
+    try {
+      await apiDelete(`/api/employees/${id}/leave`, { returnDate });
+      toast.success('복귀 처리되었습니다.');
+      setShowReturnModal(false);
+      await mutate();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `복귀 처리에 실패했습니다: ${msg}` : '복귀 처리에 실패했습니다.');
+    } finally {
+      setIsReturning(false);
+    }
+  };
+
+  const handleRehire = async () => {
+    if (!rehireDate) {
+      toast.error('재입사일을 입력해주세요.');
+      return;
+    }
+    setIsRehiring(true);
+    try {
+      await apiPost(`/api/employees/${id}/rehire`, { rehireDate });
+      toast.success('재입사 처리되었습니다.');
+      setShowRehireModal(false);
+      await mutate();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `재입사 처리에 실패했습니다: ${msg}` : '재입사 처리에 실패했습니다.');
+    } finally {
+      setIsRehiring(false);
+    }
+  };
+
+  const handleCancelResign = async () => {
+    setIsCancellingResign(true);
+    try {
+      await apiPost(`/api/employees/${id}/rehire`, { cancel: true });
+      toast.success('퇴직이 취소되었습니다.');
+      await mutate();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `퇴직 취소에 실패했습니다: ${msg}` : '퇴직 취소에 실패했습니다.');
+    } finally {
+      setIsCancellingResign(false);
+    }
+  };
+
   if (isLoading) {
     return <Spinner text="직원 정보를 불러오는 중..." className="py-20" />;
   }
@@ -281,7 +383,28 @@ export default function EmployeeDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-gray-900">{emp.name as string}</h1>
-              {getStatusBadge(emp.employeeStatus as string)}
+              <StatusBadgeDropdown
+                status={emp.employeeStatus as string}
+                onLeave={() => {
+                  setLeaveStartDate(new Date().toISOString().slice(0, 10));
+                  setLeaveReason('');
+                  setShowLeaveModal(true);
+                }}
+                onReturn={() => {
+                  setReturnDate(new Date().toISOString().slice(0, 10));
+                  setShowReturnModal(true);
+                }}
+                onResign={() => {
+                  setResignDate(new Date().toISOString().slice(0, 10));
+                  setResignReason('');
+                  setShowResignModal(true);
+                }}
+                onRehire={() => {
+                  setRehireDate(new Date().toISOString().slice(0, 10));
+                  setShowRehireModal(true);
+                }}
+                onCancelResign={handleCancelResign}
+              />
             </div>
             <p className="mt-0.5 text-sm text-gray-500">
               {emp.employeeNumber as string}
@@ -401,25 +524,38 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
-                {isEditing ? (
-                  <DatePicker
-                    label="퇴사일"
-                    value={editForm.resignDate}
-                    onChange={(v) => setEditForm((f) => ({ ...f, resignDate: v }))}
-                  />
-                ) : (
-                  <InfoItem label="퇴사일" value={emp.resignDate ? formatDate(emp.resignDate as string) : '-'} />
+                {(emp.employeeStatus as string) === 'RESIGNED' && (
+                  <>
+                    {isEditing ? (
+                      <DatePicker
+                        label="퇴사일"
+                        value={editForm.resignDate}
+                        onChange={(v) => setEditForm((f) => ({ ...f, resignDate: v }))}
+                      />
+                    ) : (
+                      <InfoItem label="퇴사일" value={emp.resignDate ? formatDate(emp.resignDate as string) : '-'} />
+                    )}
+                    {isEditing ? (
+                      <Input
+                        label="퇴사사유"
+                        value={editForm.resignReason}
+                        onChange={(e) => setEditForm((f) => ({ ...f, resignReason: e.target.value }))}
+                        placeholder="사유 입력"
+                        maxLength={200}
+                      />
+                    ) : (
+                      <InfoItem label="퇴사사유" value={(emp.resignReason as string) || '-'} />
+                    )}
+                  </>
                 )}
-                {isEditing ? (
-                  <Input
-                    label="퇴사사유"
-                    value={editForm.resignReason}
-                    onChange={(e) => setEditForm((f) => ({ ...f, resignReason: e.target.value }))}
-                    placeholder="사유 입력"
-                    maxLength={200}
-                  />
-                ) : (
-                  <InfoItem label="퇴사사유" value={(emp.resignReason as string) || '-'} />
+                {(emp.employeeStatus as string) === 'ON_LEAVE' && (
+                  <>
+                    <InfoItem label="휴직시작일" value={emp.leaveStartDate ? formatDate(emp.leaveStartDate as string) : '-'} />
+                    <InfoItem label="휴직사유" value={(emp.leaveReason as string) || '-'} />
+                    {Boolean(emp.leaveEndDate) && (
+                      <InfoItem label="복귀일" value={formatDate(emp.leaveEndDate as string)} />
+                    )}
+                  </>
                 )}
               </div>
             </CardBody>
@@ -697,6 +833,174 @@ export default function EmployeeDetailPage() {
           </CardBody>
         </Card>
       )}
+
+      {/* 퇴직 처리 Modal */}
+      <Modal
+        open={showResignModal}
+        onClose={() => setShowResignModal(false)}
+        title="퇴직 처리"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowResignModal(false)} disabled={isResigning}>
+              취소
+            </Button>
+            <Button variant="danger" size="sm" onClick={handleResign} disabled={isResigning}>
+              {isResigning ? '처리 중...' : '퇴직 처리'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">{emp.name as string}</span>님을 퇴직 처리하시겠습니까?
+          </p>
+          <DatePicker
+            label="퇴사일"
+            value={resignDate}
+            onChange={(v) => setResignDate(v)}
+            required
+          />
+          <Input
+            label="퇴사사유"
+            value={resignReason}
+            onChange={(e) => setResignReason(e.target.value)}
+            placeholder="퇴사 사유를 입력하세요 (선택)"
+            maxLength={200}
+          />
+          <p className="text-xs text-gray-500">
+            퇴직 처리 시 해당 직원은 비활성화되며, 직원 목록에서 제외됩니다.
+          </p>
+        </div>
+      </Modal>
+
+      {/* 휴직 처리 Modal */}
+      <Modal
+        open={showLeaveModal}
+        onClose={() => setShowLeaveModal(false)}
+        title="휴직 처리"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowLeaveModal(false)} disabled={isLeaving}>
+              취소
+            </Button>
+            <Button size="sm" onClick={handleLeave} disabled={isLeaving}>
+              {isLeaving ? '처리 중...' : '휴직 처리'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">{emp.name as string}</span>님을 휴직 처리하시겠습니까?
+          </p>
+          <DatePicker
+            label="휴직 시작일"
+            value={leaveStartDate}
+            onChange={(v) => setLeaveStartDate(v)}
+            required
+          />
+          <Input
+            label="휴직 사유"
+            value={leaveReason}
+            onChange={(e) => setLeaveReason(e.target.value)}
+            placeholder="휴직 사유를 입력하세요"
+            maxLength={200}
+            required
+          />
+          <p className="text-xs text-gray-500">
+            휴직 중인 직원은 급여 계산 대상에 포함됩니다.
+          </p>
+        </div>
+      </Modal>
+
+      {/* 복귀 처리 Modal */}
+      <Modal
+        open={showReturnModal}
+        onClose={() => setShowReturnModal(false)}
+        title="복귀 처리"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowReturnModal(false)} disabled={isReturning}>
+              취소
+            </Button>
+            <Button size="sm" onClick={handleReturn} disabled={isReturning}>
+              {isReturning ? '처리 중...' : '복귀 처리'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">{emp.name as string}</span>님을 복귀 처리하시겠습니까?
+          </p>
+          {Boolean(emp.leaveStartDate) && (
+            <div className="rounded-lg bg-gray-50 p-3 text-sm">
+              <p className="text-gray-600">
+                <span className="font-medium text-gray-700">휴직 시작일:</span> {formatDate(emp.leaveStartDate as string)}
+              </p>
+              {Boolean(emp.leaveReason) && (
+                <p className="mt-1 text-gray-600">
+                  <span className="font-medium text-gray-700">휴직 사유:</span> {emp.leaveReason as string}
+                </p>
+              )}
+            </div>
+          )}
+          <DatePicker
+            label="복귀일"
+            value={returnDate}
+            onChange={(v) => setReturnDate(v)}
+            required
+          />
+        </div>
+      </Modal>
+
+      {/* 재입사 처리 Modal */}
+      <Modal
+        open={showRehireModal}
+        onClose={() => setShowRehireModal(false)}
+        title="재입사 처리"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowRehireModal(false)} disabled={isRehiring}>
+              취소
+            </Button>
+            <Button size="sm" onClick={handleRehire} disabled={isRehiring}>
+              {isRehiring ? '처리 중...' : '재입사 처리'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            <span className="font-semibold">{emp.name as string}</span>님을 재입사 처리하시겠습니까?
+          </p>
+          {Boolean(emp.resignDate) && (
+            <div className="rounded-lg bg-gray-50 p-3 text-sm">
+              <p className="text-gray-600">
+                <span className="font-medium text-gray-700">퇴사일:</span> {formatDate(emp.resignDate as string)}
+              </p>
+              {Boolean(emp.resignReason) && (
+                <p className="mt-1 text-gray-600">
+                  <span className="font-medium text-gray-700">퇴사사유:</span> {emp.resignReason as string}
+                </p>
+              )}
+            </div>
+          )}
+          <DatePicker
+            label="재입사일"
+            value={rehireDate}
+            onChange={(v) => setRehireDate(v)}
+            required
+          />
+          <p className="text-xs text-gray-500">
+            재입사 처리 시 입사일이 재입사일로 변경되고, 퇴사일/퇴사사유가 초기화됩니다.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

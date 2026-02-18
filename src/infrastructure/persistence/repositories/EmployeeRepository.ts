@@ -65,7 +65,7 @@ export class EmployeeRepository {
     });
   }
 
-  async softDelete(companyId: string, id: string, resignDate?: Date) {
+  async softDelete(companyId: string, id: string, resignDate?: Date, resignReason?: string) {
     const existing = await prisma.user.findFirst({
       where: { id, companyId, deletedAt: null },
     });
@@ -76,6 +76,38 @@ export class EmployeeRepository {
         deletedAt: new Date(),
         employeeStatus: 'RESIGNED',
         ...(resignDate && { resignDate }),
+        ...(resignReason && { resignReason }),
+      },
+    });
+  }
+
+  async terminate(companyId: string, id: string, resignDate: Date, resignReason?: string) {
+    const existing = await prisma.user.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return;
+    await prisma.user.update({
+      where: { id },
+      data: {
+        employeeStatus: 'RESIGNED',
+        resignDate,
+        ...(resignReason && { resignReason }),
+      },
+    });
+  }
+
+  async rehire(companyId: string, id: string, rehireDate?: Date) {
+    const existing = await prisma.user.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return;
+    await prisma.user.update({
+      where: { id },
+      data: {
+        employeeStatus: 'ACTIVE',
+        resignDate: null,
+        resignReason: null,
+        ...(rehireDate && { joinDate: rehireDate }),
       },
     });
   }
@@ -138,18 +170,6 @@ export class EmployeeRepository {
   async createUnchecked(companyId: string, data: Prisma.UserUncheckedCreateInput) {
     return prisma.user.create({
       data: { ...data, companyId },
-      include: { department: true, position: true },
-    });
-  }
-
-  async terminate(companyId: string, id: string) {
-    const existing = await prisma.user.findFirst({
-      where: { id, companyId, deletedAt: null },
-    });
-    if (!existing) return null;
-    return prisma.user.update({
-      where: { id },
-      data: { deletedAt: new Date(), employeeStatus: 'TERMINATED', resignDate: new Date() },
       include: { department: true, position: true },
     });
   }

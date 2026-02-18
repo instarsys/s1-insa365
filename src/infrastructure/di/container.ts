@@ -59,6 +59,9 @@ import { UpdateEmployeeUseCase } from '@/application/use-cases/employees/UpdateE
 import { ListEmployeesUseCase } from '@/application/use-cases/employees/ListEmployeesUseCase';
 import { GetEmployeeDetailUseCase } from '@/application/use-cases/employees/GetEmployeeDetailUseCase';
 import { TerminateEmployeeUseCase } from '@/application/use-cases/employees/TerminateEmployeeUseCase';
+import { StartLeaveUseCase } from '@/application/use-cases/employees/StartLeaveUseCase';
+import { ReturnFromLeaveUseCase } from '@/application/use-cases/employees/ReturnFromLeaveUseCase';
+import { RehireEmployeeUseCase } from '@/application/use-cases/employees/RehireEmployeeUseCase';
 
 // Attendance
 import { RecordAttendanceUseCase } from '@/application/use-cases/attendance/RecordAttendanceUseCase';
@@ -155,6 +158,9 @@ export interface Container {
   listEmployeesUseCase: ListEmployeesUseCase;
   getEmployeeDetailUseCase: GetEmployeeDetailUseCase;
   terminateEmployeeUseCase: TerminateEmployeeUseCase;
+  startLeaveUseCase: StartLeaveUseCase;
+  returnFromLeaveUseCase: ReturnFromLeaveUseCase;
+  rehireEmployeeUseCase: RehireEmployeeUseCase;
 
   // Attendance Use Cases
   recordAttendanceUseCase: RecordAttendanceUseCase;
@@ -310,6 +316,9 @@ function createContainer(): Container {
     employeeSalaryItemRepo as Any,
   );
   const terminateEmployeeUseCase = new TerminateEmployeeUseCase(employeeRepo as Any);
+  const startLeaveUseCase = new StartLeaveUseCase(employeeRepo as Any);
+  const returnFromLeaveUseCase = new ReturnFromLeaveUseCase(employeeRepo as Any);
+  const rehireEmployeeUseCase = new RehireEmployeeUseCase(employeeRepo as Any);
 
   // Attendance
   const recordAttendanceUseCase = new RecordAttendanceUseCase(attendanceRepo as Any);
@@ -438,6 +447,9 @@ function createContainer(): Container {
     listEmployeesUseCase,
     getEmployeeDetailUseCase,
     terminateEmployeeUseCase,
+    startLeaveUseCase,
+    returnFromLeaveUseCase,
+    rehireEmployeeUseCase,
     // Attendance
     recordAttendanceUseCase,
     getDailyAttendanceUseCase,

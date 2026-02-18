@@ -55,6 +55,8 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   }
   if (data.joinDate) data.joinDate = new Date(data.joinDate as string);
   if (data.resignDate) data.resignDate = new Date(data.resignDate as string);
+  if (data.leaveStartDate) data.leaveStartDate = new Date(data.leaveStartDate as string);
+  if (data.leaveEndDate) data.leaveEndDate = new Date(data.leaveEndDate as string);
 
   // Remove fields that shouldn't be directly updated
   delete data.id;
@@ -90,13 +92,17 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 
 async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
+  const body = await request.json().catch(() => ({}));
 
-  const { employeeRepo } = getContainer();
+  const { terminateEmployeeUseCase, employeeRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
 
-  await employeeRepo.terminate(auth.companyId, id);
+  await terminateEmployeeUseCase.execute(auth.companyId, id, {
+    resignDate: body.resignDate || new Date().toISOString(),
+    resignReason: body.resignReason,
+  });
 
   await auditLogService.log({
     userId: auth.userId,
@@ -105,7 +111,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
     entityType: 'User',
     entityId: id,
     before: { name: existing.name, employeeStatus: existing.employeeStatus } as Record<string, string>,
-    after: { employeeStatus: 'TERMINATED' },
+    after: { employeeStatus: 'RESIGNED' },
   });
 
   return noContentResponse();

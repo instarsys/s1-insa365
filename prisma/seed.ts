@@ -394,7 +394,7 @@ async function main() {
       isTaxExempt: rule.isTaxExempt,
       taxExemptCode: rule.taxExemptCode,
       isActive: rule.isSystemManaged ? true : (rule.isActive ?? false),
-      amount: getAmountForEmployee(emp, rule),
+      amount: Number(getAmountForEmployee(emp, rule)),
     }));
     await prisma.employeeSalaryItem.createMany({ data: items });
   }

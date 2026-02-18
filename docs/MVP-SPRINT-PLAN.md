@@ -14,6 +14,8 @@
 > v2.1 (2026-02-17): 로그인 직후 사이드바 미표시 버그 수정 (usePathname + globalMutate)
 > v2.2 (2026-02-17): 사이드바 접힘/펼침 + 호버 자동펼침 + CSS Grid 부드러운 애니메이션
 > v2.3 (2026-02-18): 직원별 공제 항목 D01-D12 시드 + 지급/공제 분리 UI + 활성화 토글
+> v2.4 (2026-02-18): 급여규칙↔직원 자동 동기화 + 공제 항목 법정/임의 분리 UI + 에러 토스트 개선
+> v2.5 (2026-02-19): 직원 상태 전이 (휴직/복귀/퇴직/퇴직취소/재입사) + Playwright MCP E2E 검증
 
 ## Context
 
@@ -23,10 +25,10 @@
 | 영역 | 상태 | 비고 |
 |------|------|------|
 | 도메인 서비스 (6단계 급여엔진) | ✅ 100% | 12개 서비스 + 313개 테스트 (AttendanceClassifier 38 + FormulaEngine 59 추가) |
-| 49개 Use Case + DI 컨테이너 | ✅ 완료 | 81/82 API Route가 getContainer() 경유 (auth/signup만 예외) |
+| 52개 Use Case + DI 컨테이너 | ✅ 완료 | 84/85 API Route가 getContainer() 경유 (auth/signup만 예외) |
 | 26개 Repository + RLS | ✅ 100% | 테넌트 격리 19개 테스트, 휴가 5개 + Attendance/LeaveRequest 메서드 추가 |
-| 82개 API Route (62+12+4+2+2) | ✅ 완료 | 실제 DB 연동, Zod 검증 10개, 휴가 설정 API 12개, auth 2개, salary-rules validate 1개, salary-items PATCH 추가 |
-| 43개 페이지 UI + 6 Super Admin | ✅ 완료 | SWR 훅 연결, Gusto 벤치마크, 휴가 관리 4페이지, 비밀번호 변경 1페이지, FormulaEditor 추가 |
+| 85개 API Route | ✅ 완료 | 실제 DB 연동, Zod 검증 10개, 직원 상태 전이 API 3개 신규 (leave, rehire) |
+| 43개 페이지 UI + 6 Super Admin | ✅ 완료 | SWR 훅 연결, Gusto 벤치마크, 직원 상태 전이 UI (StatusBadgeDropdown) |
 | JWT 인증 + PII 암호화 | ✅ 완료 | 임시비밀번호 강제변경 + PasswordChangeGuard 추가 |
 | 근태 판정 시스템 | ✅ 완료 | AttendanceClassifier: 지각/조퇴/결근 자동 판정 + 8가지 minutes 세분화 + 급여 공제 연동 |
 | DB Seed (53명+공제 D01-D12) | ✅ 완료 | 5개 부서 53명 (월급 50+시급 3) + 2개월 근태 + 1개월 급여 + 전 직원 D01-D12 공제 항목 |
@@ -623,3 +625,53 @@ amount: (rule.code === 'A01' && baseSalary) ? baseSalary : (rule.defaultAmount ?
 | D12 | 기타 공제2 | FIXED | ❌ | 임의 |
 
 커밋: `039fb72` (7 files, +324/-28)
+
+---
+
+## 직원 상태 전이 (휴직/복귀/퇴직/퇴직취소/재입사) (2026-02-19) ✅
+
+### 배경
+직원 목록에서 재직/휴직/퇴직 상태 필터는 있었으나, 상태를 변경하는 기능이 없었음. 퇴직 처리 후 재입사하는 케이스, 잘못된 퇴직 처리를 취소하는 케이스, 휴직/복귀 플로우가 필요했음.
+
+### 구현 내역
+
+| 항목 | 내용 | 핵심 파일 |
+|------|------|----------|
+| DB 스키마 | User에 leaveStartDate, leaveReason, resignDate, resignReason 컬럼 추가 | `prisma/schema.prisma`, migration `20260218133509` |
+| StartLeaveUseCase | ACTIVE → ON_LEAVE 전이 (휴직시작일+사유 저장) | `src/application/use-cases/employees/StartLeaveUseCase.ts` |
+| ReturnFromLeaveUseCase | ON_LEAVE → ACTIVE 전이 (휴직 정보 초기화) | `src/application/use-cases/employees/ReturnFromLeaveUseCase.ts` |
+| RehireEmployeeUseCase | RESIGNED → ACTIVE 전이 (입사일 재설정, 퇴직 정보 초기화) | `src/application/use-cases/employees/RehireEmployeeUseCase.ts` |
+| TerminateEmployeeUseCase 수정 | ACTIVE/ON_LEAVE → RESIGNED 전이 + 퇴직취소(RESIGNED → ACTIVE) 지원 | `src/application/use-cases/employees/TerminateEmployeeUseCase.ts` |
+| 휴직/복귀 API | POST /employees/[id]/leave, DELETE /employees/[id]/leave | `src/app/api/employees/[id]/leave/route.ts` |
+| 재입사 API | POST /employees/[id]/rehire | `src/app/api/employees/[id]/rehire/route.ts` |
+| 퇴직/퇴직취소 API | PATCH /employees/[id] (action: terminate/cancel-termination) | `src/app/api/employees/[id]/route.ts` |
+| StatusBadgeDropdown | 상태별 드롭다운 메뉴 + 모달(시작일/사유 입력) + 토스트 알림 | `src/components/ui/StatusBadgeDropdown.tsx` |
+| DropdownMenu | 재사용 가능한 드롭다운 메뉴 컴포넌트 | `src/components/ui/DropdownMenu.tsx` |
+| 직원 목록 | 상태 필터 탭 (재직/휴직/퇴직) + 상태별 카운트 + 상태 배지 색상 | `src/app/(admin)/employees/list/page.tsx` |
+| 직원 상세 | 인사 정보에 휴직시작일/사유, 퇴사일/사유 동적 표시 | `src/app/(admin)/employees/[id]/page.tsx` |
+| DI 컨테이너 | 3개 UseCase 등록 (StartLeave, ReturnFromLeave, Rehire) | `src/infrastructure/di/container.ts` |
+
+### 상태 전이 다이어그램
+```
+ACTIVE ──(휴직 처리)──→ ON_LEAVE ──(복귀 처리)──→ ACTIVE
+   │                        │
+   └──(퇴직 처리)──→ RESIGNED ──(퇴직 취소)──→ ACTIVE
+                        │
+                        └──(재입사 처리)──→ ACTIVE (입사일 변경)
+```
+
+### 퇴직 취소 vs 재입사
+| 기능 | 퇴직 취소 | 재입사 |
+|------|----------|--------|
+| 용도 | 잘못된 퇴직 처리 번복 | 퇴직 후 재고용 |
+| 입사일 | **유지** (원래 입사일) | **변경** (재입사일로 업데이트) |
+| 모달 | 없음 (즉시 처리) | 재입사일 입력 모달 |
+
+### Playwright MCP E2E 검증 (5개 시나리오)
+| # | 시나리오 | 상태 전이 | 결과 |
+|---|---------|----------|------|
+| 1 | 휴직 처리 | ACTIVE → ON_LEAVE | ✅ |
+| 2 | 복귀 처리 | ON_LEAVE → ACTIVE | ✅ |
+| 3 | 퇴직 처리 | ACTIVE → RESIGNED | ✅ |
+| 4 | 퇴직 취소 | RESIGNED → ACTIVE | ✅ |
+| 5 | 재입사 처리 | RESIGNED → ACTIVE (입사일 변경) | ✅ |

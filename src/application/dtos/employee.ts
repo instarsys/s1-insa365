@@ -41,6 +41,9 @@ export interface UpdateEmployeeDto {
   manualHealthInsuranceBase?: number | null;
   resignDate?: string | null;
   resignReason?: string | null;
+  leaveStartDate?: string | null;
+  leaveEndDate?: string | null;
+  leaveReason?: string | null;
   address?: string | null;
   isHouseholder?: boolean;
   hireType?: string | null;
@@ -67,6 +70,9 @@ export interface EmployeeDto {
   joinDate: string | null;
   resignDate: string | null;
   resignReason: string | null;
+  leaveStartDate: string | null;
+  leaveEndDate: string | null;
+  leaveReason: string | null;
   dependents: number;
   bankName: string | null;
   hasBankAccount: boolean;

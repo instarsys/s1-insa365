@@ -18,11 +18,15 @@ interface Employee {
   joinDate?: string;
   resignDate?: string;
   resignReason?: string;
+  leaveStartDate?: string;
+  leaveEndDate?: string;
+  leaveReason?: string;
   dependents: number;
   bankName?: string;
   hasBankAccount: boolean;
   address?: string;
   isHouseholder: boolean;
+  salaryType?: string;
   hireType?: string;
   profileImageUrl?: string;
   nationalPensionMode?: string;
@@ -87,7 +91,8 @@ export function useEmployeeMutations() {
   return {
     createEmployee: (data: Record<string, unknown>) => apiPost('/api/employees', data),
     updateEmployee: (id: string, data: Record<string, unknown>) => apiPut(`/api/employees/${id}`, data),
-    deleteEmployee: (id: string) => apiDelete(`/api/employees/${id}`),
+    deleteEmployee: (id: string, data?: { resignDate: string; resignReason?: string }) =>
+      apiDelete(`/api/employees/${id}`, data),
   };
 }
 

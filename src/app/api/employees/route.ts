@@ -102,7 +102,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           type: rule.type,
           paymentType: rule.paymentType,
           paymentCycle: rule.paymentCycle,
-          amount: (rule.code === 'A01' && baseSalary) ? baseSalary : (rule.defaultAmount ?? 0),
+          amount: Number((rule.code === 'A01' && baseSalary) ? baseSalary : (rule.defaultAmount ?? 0)),
           isOrdinaryWage: rule.isOrdinaryWage,
           isTaxExempt: rule.isTaxExempt,
           taxExemptCode: rule.taxExemptCode,

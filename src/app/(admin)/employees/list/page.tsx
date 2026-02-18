@@ -13,7 +13,7 @@ import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
-import { Plus, Users, Download, Upload } from 'lucide-react';
+import { Plus, Users, Download } from 'lucide-react';
 import { useEmployeeImport } from '@/hooks/useEmployeeImport';
 
 type PanelMode = 'create' | null;
@@ -210,6 +210,17 @@ export default function EmployeeListPage() {
       render: (row: Record<string, unknown>) => (row.positionName as string) || (row.position as Record<string, unknown>)?.name as string || '-',
     },
     {
+      key: 'salaryType',
+      label: '급여구분',
+      render: (row: Record<string, unknown>) => {
+        const type = row.salaryType as string;
+        if (type === 'HOURLY') {
+          return <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">시급제</span>;
+        }
+        return <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">월급제</span>;
+      },
+    },
+    {
       key: 'joinDate',
       label: '입사일',
       render: (row: Record<string, unknown>) =>
@@ -229,10 +240,6 @@ export default function EmployeeListPage() {
           <Button variant="secondary" onClick={downloadExport}>
             <Download className="h-4 w-4" />
             다운로드
-          </Button>
-          <Button variant="secondary" onClick={() => router.push('/employees/import')}>
-            <Upload className="h-4 w-4" />
-            업로드
           </Button>
           <Button onClick={openCreate}>
             <Plus className="h-4 w-4" />
@@ -272,13 +279,27 @@ export default function EmployeeListPage() {
       ) : employees.length === 0 ? (
         <EmptyState
           icon={<Users className="h-12 w-12" />}
-          title="등록된 직원이 없습니다"
-          description="직원 등록 버튼을 클릭하여 첫 직원을 등록하세요."
+          title={
+            statusTab === 'ON_LEAVE'
+              ? '휴직 중인 직원이 없습니다'
+              : statusTab === 'RESIGNED'
+                ? '퇴직한 직원이 없습니다'
+                : '등록된 직원이 없습니다'
+          }
+          description={
+            statusTab === 'ON_LEAVE'
+              ? '직원 상세에서 휴직 처리할 수 있습니다.'
+              : statusTab === 'RESIGNED'
+                ? '직원 상세에서 퇴직 처리할 수 있습니다.'
+                : '직원 등록 버튼을 클릭하여 첫 직원을 등록하세요.'
+          }
           action={
-            <Button onClick={openCreate} size="sm">
-              <Plus className="h-4 w-4" />
-              직원 등록
-            </Button>
+            !statusTab ? (
+              <Button onClick={openCreate} size="sm">
+                <Plus className="h-4 w-4" />
+                직원 등록
+              </Button>
+            ) : undefined
           }
         />
       ) : (

@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-02-18 (급여규칙 ↔ 직원 급여항목 자동 동기화)
+> 최종 업데이트: 2026-02-19 (직원 상태 전이: 휴직/복귀/퇴직/퇴직취소/재입사)
 
 ---
 
@@ -191,3 +191,19 @@
 | 2026-02-18 | ├ salary-rules PUT: formula 변경 시 updateFormulaByCode()로 전 직원 항목에 수식 일괄 전파 |
 | 2026-02-18 | ├ EmployeeSalaryItemRepository: findByCodes(), updateFormulaByCode() 메서드 추가 |
 | 2026-02-18 | └ Playwright 검증: A12 특별수당 생성→56명 전파 확인, 수식 변경→56명 일괄 반영, 콘솔 에러 0건 |
+| 2026-02-18 | 공제 항목 법정/임의 분리 UI + 에러 토스트 서버 메시지 표시 — 커밋 `bce9546` |
+| 2026-02-18 | ├ 공제 항목 테이블: 법정 공제(D01-D06)를 접기/펼치기 가능한 요약행으로 분리, ChevronDown 아이콘 토글 |
+| 2026-02-18 | ├ 임의 공제(D07-D12): 항상 표시, ToggleSwitch로 활성화/비활성화 가능 |
+| 2026-02-18 | ├ 에러 토스트 개선: 직원 상세 페이지 5개 catch 블록에서 서버 에러 메시지(err.message)를 토스트에 포함 |
+| 2026-02-18 | ├ seed.ts 리팩토링: 하드코딩 D01-D12 → SalaryRule 기반 동적 복사 (CreateEmployeeUseCase와 동일 패턴) |
+| 2026-02-18 | └ 4대보험 설정 저장 Playwright 검증: 미가입/수동입력/자동계산 3회 왕복 테스트 + 새로고침 후 값 유지 확인 |
+| 2026-02-19 | 직원 상태 전이 (휴직/복귀/퇴직/퇴직취소/재입사) — 전체 구현 + Playwright MCP E2E 검증 |
+| 2026-02-19 | ├ DB: User에 leaveStartDate, leaveReason, resignDate, resignReason 컬럼 추가 (마이그레이션 `20260218133509`) |
+| 2026-02-19 | ├ UseCase 3개 신규: StartLeaveUseCase, ReturnFromLeaveUseCase, RehireEmployeeUseCase |
+| 2026-02-19 | ├ UseCase 수정: TerminateEmployeeUseCase (퇴사일/사유 저장 + 퇴직취소 지원) |
+| 2026-02-19 | ├ API 3개 신규: POST/DELETE /employees/[id]/leave (휴직/복귀), POST /employees/[id]/rehire (재입사) |
+| 2026-02-19 | ├ API 수정: PATCH /employees/[id] (퇴직처리 + 퇴직취소) |
+| 2026-02-19 | ├ UI: StatusBadgeDropdown 컴포넌트 (상태별 드롭다운 + 모달) + DropdownMenu 컴포넌트 |
+| 2026-02-19 | ├ 직원 목록: 상태 필터 탭 (재직/휴직/퇴직) + 상태별 카운트 |
+| 2026-02-19 | ├ 직원 상세: 인사 정보에 휴직시작일/사유, 퇴사일/사유 동적 표시 |
+| 2026-02-19 | └ Playwright MCP E2E 5개 시나리오 전체 통과: ACTIVE↔ON_LEAVE, ACTIVE→RESIGNED, 퇴직취소, 재입사 |

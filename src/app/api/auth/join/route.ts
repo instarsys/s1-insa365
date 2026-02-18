@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
           type: rule.type,
           paymentType: rule.paymentType,
           paymentCycle: rule.paymentCycle,
-          amount: rule.defaultAmount ?? 0,
+          amount: Number(rule.defaultAmount ?? 0),
           isOrdinaryWage: rule.isOrdinaryWage,
           isTaxExempt: rule.isTaxExempt,
           taxExemptCode: rule.taxExemptCode,

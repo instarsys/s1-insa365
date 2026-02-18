@@ -105,10 +105,13 @@ export async function apiPatch<T>(url: string, body?: unknown): Promise<T> {
   return handleResponse<T>(response);
 }
 
-export async function apiDelete<T>(url: string): Promise<T> {
-  const response = await fetchWithAuth(url, {
-    method: 'DELETE',
-  });
+export async function apiDelete<T>(url: string, data?: unknown): Promise<T> {
+  const options: RequestInit = { method: 'DELETE' };
+  if (data) {
+    options.headers = { 'Content-Type': 'application/json' };
+    options.body = JSON.stringify(data);
+  }
+  const response = await fetchWithAuth(url, options);
   return handleResponse<T>(response);
 }
 

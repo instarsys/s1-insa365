@@ -37,3 +37,5 @@ export { Avatar } from './Avatar';
 export type { AvatarProps, AvatarSize } from './Avatar';
 export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
+export { DropdownMenu } from './DropdownMenu';
+export { StatusBadgeDropdown } from './StatusBadgeDropdown';
