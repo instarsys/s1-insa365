@@ -55,13 +55,45 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     isSystemManaged: false,
   });
 
+  // 기존 직원에게 자동 전파
+  const { employeeSalaryItemRepo, userRepo } = getContainer();
+  const activeUsers = await userRepo.findActiveUsers(auth.companyId);
+  let propagatedCount = 0;
+
+  if (activeUsers.length > 0) {
+    const existingItems = await employeeSalaryItemRepo.findByCodes(auth.companyId, [code]);
+    const usersWithCode = new Set(existingItems.map((i: { userId: string }) => i.userId));
+    const usersToCreate = activeUsers.filter((u: { id: string }) => !usersWithCode.has(u.id));
+
+    if (usersToCreate.length > 0) {
+      propagatedCount = await employeeSalaryItemRepo.createMany(
+        usersToCreate.map((u: { id: string }) => ({
+          companyId: auth.companyId,
+          userId: u.id,
+          code,
+          name,
+          type,
+          paymentType: paymentType ?? 'FIXED',
+          paymentCycle: paymentCycle ?? 'MONTHLY',
+          amount: defaultAmount ?? 0,
+          isOrdinaryWage: isOrdinaryWage ?? false,
+          isTaxExempt: isTaxExempt ?? false,
+          taxExemptCode: taxExemptCode ?? null,
+          sortOrder: rule.sortOrder,
+          formula: formula ?? null,
+          isActive: rule.isSystemManaged ? true : false,
+        })),
+      );
+    }
+  }
+
   await auditLogService.log({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'CREATE',
     entityType: 'SalaryRule',
     entityId: rule.id,
-    after: { code, name, type } as Record<string, string>,
+    after: { code, name, type, propagatedEmployees: propagatedCount } as Record<string, unknown>,
   });
 
   return createdResponse(rule);

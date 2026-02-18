@@ -93,4 +93,19 @@ export class EmployeeSalaryItemRepository {
     );
     return prisma.$transaction(ops);
   }
+
+  async findByCodes(companyId: string, codes: string[]) {
+    return prisma.employeeSalaryItem.findMany({
+      where: { companyId, code: { in: codes }, deletedAt: null },
+      select: { userId: true, code: true },
+    });
+  }
+
+  async updateFormulaByCode(companyId: string, code: string, formula: string | null) {
+    const result = await prisma.employeeSalaryItem.updateMany({
+      where: { companyId, code, deletedAt: null },
+      data: { formula },
+    });
+    return result.count;
+  }
 }

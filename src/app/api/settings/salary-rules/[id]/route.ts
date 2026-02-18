@@ -49,6 +49,15 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
   });
 
+  // 수식 변경 시 기존 직원 항목에도 전파
+  let formulaPropagatedCount = 0;
+  if (body.formula !== undefined && body.formula !== existing.formula) {
+    const { employeeSalaryItemRepo } = getContainer();
+    formulaPropagatedCount = await employeeSalaryItemRepo.updateFormulaByCode(
+      auth.companyId, existing.code, updated?.formula ?? null,
+    );
+  }
+
   await auditLogService.log({
     userId: auth.userId,
     companyId: auth.companyId,
@@ -56,7 +65,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     entityType: 'SalaryRule',
     entityId: id,
     before: existing as unknown as Record<string, unknown>,
-    after: body as Record<string, unknown>,
+    after: { ...body as Record<string, unknown>, formulaPropagatedEmployees: formulaPropagatedCount },
   });
 
   return successResponse(updated);
