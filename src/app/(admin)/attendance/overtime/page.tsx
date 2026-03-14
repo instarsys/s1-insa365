@@ -1,20 +1,34 @@
 'use client';
 
+import { useState } from 'react';
 import { PageHeader } from '@/components/layout';
 import {
   Table, Badge, Spinner, EmptyState,
 } from '@/components/ui';
 import { useOvertimeStatus } from '@/hooks';
-import { AlertTriangle, Clock } from 'lucide-react';
+import { AlertTriangle, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
 
-function getOvertimeBadge(weeklyHours: number, isWarning: boolean, isOverLimit: boolean) {
+function getOvertimeBadge(isWarning: boolean, isOverLimit: boolean) {
   if (isOverLimit) return <Badge variant="error">초과</Badge>;
   if (isWarning) return <Badge variant="warning">주의</Badge>;
   return <Badge variant="success">정상</Badge>;
 }
 
 export default function OvertimeMonitorPage() {
-  const { items, isLoading } = useOvertimeStatus();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState(now.getMonth() + 1);
+
+  const { items, violationCount, warningCount, isLoading } = useOvertimeStatus(year, month);
+
+  const handlePrevMonth = () => {
+    if (month === 1) { setYear(year - 1); setMonth(12); }
+    else setMonth(month - 1);
+  };
+  const handleNextMonth = () => {
+    if (month === 12) { setYear(year + 1); setMonth(1); }
+    else setMonth(month + 1);
+  };
 
   // Sort by weekly hours descending
   const sortedItems = [...items].sort((a, b) => b.weeklyHours - a.weeklyHours);
@@ -23,8 +37,8 @@ export default function OvertimeMonitorPage() {
   const top10 = sortedItems.slice(0, 10);
   const maxHours = Math.max(...top10.map((i) => i.weeklyHours), 52);
 
-  const overLimitCount = items.filter((i) => i.isOverLimit).length;
-  const warningCount = items.filter((i) => i.isWarning && !i.isOverLimit).length;
+  const overLimitCount = violationCount;
+  const normalWarningCount = warningCount - violationCount;
 
   const columns = [
     { key: 'userName', label: '이름', sortable: true },
@@ -32,6 +46,11 @@ export default function OvertimeMonitorPage() {
       key: 'departmentName',
       label: '부서',
       render: (row: Record<string, unknown>) => (row.departmentName as string) || '-',
+    },
+    {
+      key: 'week',
+      label: '기준 주차',
+      render: (row: Record<string, unknown>) => (row.week as string) || '-',
     },
     {
       key: 'weeklyHours',
@@ -55,7 +74,6 @@ export default function OvertimeMonitorPage() {
       label: '상태',
       render: (row: Record<string, unknown>) =>
         getOvertimeBadge(
-          row.weeklyHours as number,
           row.isWarning as boolean,
           row.isOverLimit as boolean,
         ),
@@ -66,6 +84,17 @@ export default function OvertimeMonitorPage() {
     <div>
       <PageHeader title="52시간 모니터링" subtitle="주 52시간 초과 위험 직원을 모니터링합니다." />
 
+      {/* Month selector */}
+      <div className="mb-6 flex items-center gap-3">
+        <button onClick={handlePrevMonth} className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50">
+          <ChevronLeft className="h-4 w-4 text-gray-600" />
+        </button>
+        <span className="text-sm font-semibold text-gray-800">{year}년 {month}월</span>
+        <button onClick={handleNextMonth} className="rounded-lg border border-gray-300 p-1.5 hover:bg-gray-50">
+          <ChevronRight className="h-4 w-4 text-gray-600" />
+        </button>
+      </div>
+
       {/* Summary badges */}
       {!isLoading && items.length > 0 && (
         <div className="mb-6 flex items-center gap-4">
@@ -75,10 +104,10 @@ export default function OvertimeMonitorPage() {
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-amber-50 px-4 py-2">
             <Clock className="h-4 w-4 text-amber-600" />
-            <span className="text-sm font-medium text-amber-700">주의 {warningCount}명</span>
+            <span className="text-sm font-medium text-amber-700">주의 {Math.max(normalWarningCount, 0)}명</span>
           </div>
           <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-2">
-            <span className="text-sm font-medium text-emerald-700">정상 {items.length - overLimitCount - warningCount}명</span>
+            <span className="text-sm font-medium text-emerald-700">정상 {items.length - overLimitCount - Math.max(normalWarningCount, 0)}명</span>
           </div>
         </div>
       )}
@@ -128,7 +157,7 @@ export default function OvertimeMonitorPage() {
       ) : sortedItems.length === 0 ? (
         <EmptyState
           icon={<Clock className="h-12 w-12" />}
-          title="금주 근무 기록이 없습니다"
+          title="해당 월의 근무 기록이 없습니다"
           description="직원들의 출퇴근 기록이 쌓이면 52시간 현황이 표시됩니다."
         />
       ) : (

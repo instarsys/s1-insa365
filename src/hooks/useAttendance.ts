@@ -41,15 +41,40 @@ interface MonthlyAttendanceResponse {
   month: number;
 }
 
+interface OvertimeWeek {
+  week: string;
+  totalMinutes: number;
+  totalHours: number;
+  isOverLimit: boolean;
+  isWarning: boolean;
+}
+
+interface OvertimeEmployeeRaw {
+  id: string;
+  name: string;
+  employeeNumber: string | null;
+  department: string | null;
+  weeks: OvertimeWeek[];
+  hasViolation: boolean;
+  hasWarning: boolean;
+}
+
 interface OvertimeStatusResponse {
-  items: {
-    userId: string;
-    userName: string;
-    departmentName?: string;
-    weeklyHours: number;
-    isWarning: boolean;
-    isOverLimit: boolean;
-  }[];
+  year: number;
+  month: number;
+  items: OvertimeEmployeeRaw[];
+  violationCount: number;
+  warningCount: number;
+}
+
+export interface OvertimeStatusItem {
+  userId: string;
+  userName: string;
+  departmentName?: string;
+  weeklyHours: number;
+  isWarning: boolean;
+  isOverLimit: boolean;
+  week: string;
 }
 
 interface CalendarAttendanceItem {
@@ -123,14 +148,46 @@ export function useMonthlyAttendance(year: number, month: number, departmentId?:
   return { data, isLoading, error, mutate };
 }
 
-export function useOvertimeStatus() {
+export function useOvertimeStatus(year?: number, month?: number, departmentId?: string) {
+  const now = new Date();
+  const y = year ?? now.getFullYear();
+  const m = month ?? (now.getMonth() + 1);
+  const params = new URLSearchParams({ year: String(y), month: String(m) });
+  if (departmentId) params.set('departmentId', departmentId);
+
   const { data, error, isLoading } = useSWR<OvertimeStatusResponse>(
-    '/api/attendance/52hour',
+    `/api/attendance/52hour?${params}`,
     fetcher,
     { revalidateOnFocus: true },
   );
 
-  return { items: data?.items ?? [], isLoading, error };
+  // Flatten: each employee's max weekly hours becomes one item
+  // If an employee has multiple weeks, take the one with the highest hours
+  const items: OvertimeStatusItem[] = (data?.items ?? []).map((emp) => {
+    const maxWeek = emp.weeks.reduce<OvertimeWeek | null>(
+      (best, w) => (!best || w.totalHours > best.totalHours ? w : best),
+      null,
+    );
+    return {
+      userId: emp.id,
+      userName: emp.name,
+      departmentName: emp.department ?? undefined,
+      weeklyHours: maxWeek?.totalHours ?? 0,
+      isWarning: emp.hasWarning,
+      isOverLimit: emp.hasViolation,
+      week: maxWeek?.week ?? '',
+    };
+  });
+
+  return {
+    items,
+    violationCount: data?.violationCount ?? 0,
+    warningCount: data?.warningCount ?? 0,
+    year: y,
+    month: m,
+    isLoading,
+    error,
+  };
 }
 
 /** 달력형 뷰용 */
