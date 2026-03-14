@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-02-19 (직원 상태 전이: 휴직/복귀/퇴직/퇴직취소/재입사)
+> 최종 업데이트: 2026-03-14 (일별 근태 보기 404 수정 + GlobalSearch dead link 정리)
 
 ---
 
@@ -207,3 +207,8 @@
 | 2026-02-19 | ├ 직원 목록: 상태 필터 탭 (재직/휴직/퇴직) + 상태별 카운트 |
 | 2026-02-19 | ├ 직원 상세: 인사 정보에 휴직시작일/사유, 퇴사일/사유 동적 표시 |
 | 2026-02-19 | └ Playwright MCP E2E 5개 시나리오 전체 통과: ACTIVE↔ON_LEAVE, ACTIVE→RESIGNED, 퇴직취소, 재입사 |
+| 2026-03-14 | 일별 근태 보기 404 수정 + GlobalSearch dead link 정리 |
+| 2026-03-14 | ├ 직원 상세 근태 탭: "일별 근태 보기" → "근태 기록 보기", `/attendance/daily` → `/attendance/records?search=직원이름` |
+| 2026-03-14 | ├ attendance/records: URL `?search=` 파라미터에서 검색 초기값 읽기 |
+| 2026-03-14 | ├ GlobalSearch: "일별 근태"→"근태 목록" (`/attendance/records`), "월별 현황"→"근태 달력" (`/attendance/calendar`) |
+| 2026-03-14 | └ 빈 디렉토리 `src/app/(admin)/attendance/daily/` 삭제 |

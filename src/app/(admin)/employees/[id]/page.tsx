@@ -723,15 +723,15 @@ export default function EmployeeDetailPage() {
           </CardHeader>
           <CardBody>
             <p className="text-sm text-gray-500">
-              근태 관리 &gt; 일별 근태에서 이 직원의 출근 기록을 확인하세요.
+              근태 관리 &gt; 목록형에서 이 직원의 출근 기록을 확인하세요.
             </p>
             <Button
               variant="secondary"
               size="sm"
               className="mt-3"
-              onClick={() => router.push('/attendance/daily')}
+              onClick={() => router.push(`/attendance/records?search=${encodeURIComponent(emp.name as string)}`)}
             >
-              일별 근태 보기
+              근태 기록 보기
             </Button>
           </CardBody>
         </Card>

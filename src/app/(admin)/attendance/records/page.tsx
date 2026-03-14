@@ -58,7 +58,7 @@ function AttendanceRecordsContent() {
   const [endDate, setEndDate] = useState(dateParam ?? defaultEnd);
   const [departmentId, setDepartmentId] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') ?? '');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [sortKey, setSortKey] = useState('date');
