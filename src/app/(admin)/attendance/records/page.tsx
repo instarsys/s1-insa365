@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { Suspense, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
@@ -40,6 +40,14 @@ function formatDate(dateStr: string): string {
 }
 
 export default function AttendanceRecordsPage() {
+  return (
+    <Suspense fallback={<Spinner text="근태 기록을 불러오는 중..." className="py-20" />}>
+      <AttendanceRecordsContent />
+    </Suspense>
+  );
+}
+
+function AttendanceRecordsContent() {
   const router = useRouter();
   const toast = useToast();
   const searchParams = useSearchParams();
