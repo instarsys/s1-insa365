@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
@@ -13,7 +13,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { year, month } = validation.data;
 
-    const { salaryCalcRepo, payrollMonthlyRepo, notificationRepo } = getContainer();
+    const { salaryCalcRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo } = getContainer();
 
     const drafts = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
     const draftItems = drafts.filter((d) => d.status === 'DRAFT');
@@ -55,7 +55,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       });
     }
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CONFIRM',

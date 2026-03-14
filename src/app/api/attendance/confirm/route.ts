@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
@@ -17,7 +16,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const { userRepo, attendanceRepo, salaryAttendanceRepo, employeeRepo, workPolicyRepo, leaveRequestRepo } = getContainer();
+    const { userRepo, attendanceRepo, salaryAttendanceRepo, employeeRepo, workPolicyRepo, leaveRequestRepo, auditLogRepo } = getContainer();
 
     const employees = await userRepo.findActiveUsers(auth.companyId, userIds);
     const empIds = employees.map((e) => e.id);
@@ -133,7 +132,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     // Mark attendances as confirmed
     await attendanceRepo.confirmByDateRange(auth.companyId, empIds, startDate, endDate);
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CONFIRM',

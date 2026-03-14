@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse, noContentResponse } from '@/presentation/api/helpers';
@@ -20,7 +19,8 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.description !== undefined && { description: body.description }),
   });
 
-  await auditLogService.log({
+  const { auditLogRepo } = getContainer();
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',
@@ -41,7 +41,8 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   await getContainer().minimumWageRepo.delete(id);
 
-  await auditLogService.log({
+  const { auditLogRepo } = getContainer();
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'DELETE',

@@ -88,10 +88,19 @@ export class EmployeeSalaryItemRepository {
   }
 
   async updateManyInTransaction(companyId: string, updates: Array<{ id: string; data: Prisma.EmployeeSalaryItemUpdateInput }>) {
-    const ops = updates.map((u) =>
-      prisma.employeeSalaryItem.update({ where: { id: u.id }, data: u.data }),
-    );
-    return prisma.$transaction(ops);
+    return prisma.$transaction(async (tx) => {
+      const results = [];
+      for (const u of updates) {
+        const existing = await tx.employeeSalaryItem.findFirst({
+          where: { id: u.id, companyId, deletedAt: null },
+        });
+        if (!existing) {
+          throw new Error(`급여 항목(${u.id})을 찾을 수 없거나 접근 권한이 없습니다.`);
+        }
+        results.push(await tx.employeeSalaryItem.update({ where: { id: u.id }, data: u.data }));
+      }
+      return results;
+    });
   }
 
   async findByCodes(companyId: string, codes: string[]) {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -29,11 +28,12 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     if (body[field] !== undefined) updateData[field] = body[field];
   }
 
-  const existing = await getContainer().companyRepo.findById(auth.companyId);
+  const { companyRepo, auditLogRepo } = getContainer();
+  const existing = await companyRepo.findById(auth.companyId);
 
-  const updated = await getContainer().companyRepo.update(auth.companyId, updateData);
+  const updated = await companyRepo.update(auth.companyId, updateData);
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',

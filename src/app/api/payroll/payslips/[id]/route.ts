@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -9,7 +9,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const { salaryCalcRepo, companyRepo } = getContainer();
+  const { salaryCalcRepo, companyRepo, auditLogRepo } = getContainer();
 
   const calc = await salaryCalcRepo.findByIdWithDetails(
     auth.companyId,
@@ -21,7 +21,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   const company = await companyRepo.findById(auth.companyId);
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'READ',

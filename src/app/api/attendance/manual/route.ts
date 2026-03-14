@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse } from '@/presentation/api/helpers';
@@ -17,7 +16,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const dateObj = new Date(date);
     dateObj.setHours(0, 0, 0, 0);
 
-    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo, auditLogRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
@@ -123,7 +122,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       );
     }
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: existing ? 'UPDATE' : 'CREATE',

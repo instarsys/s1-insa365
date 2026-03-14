@@ -28,6 +28,13 @@ export class AuditLogRepository {
     });
   }
 
+  async findByEntity(companyId: string, entityType: string, entityId: string) {
+    return prisma.auditLog.findMany({
+      where: { companyId, entityType, entityId },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async findAll(companyId: string, filters: {
     entityType?: string;
     action?: string;

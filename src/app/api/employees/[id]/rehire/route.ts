@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import {
   successResponse,
   errorResponse,
+  validateBody,
 } from '@/presentation/api/helpers';
+import { rehireSchema } from '@/presentation/api/schemas/employee';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -13,12 +14,11 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const { rehireDate, cancel } = body;
-  if (!cancel && !rehireDate) {
-    return errorResponse('재입사일은 필수입니다.');
-  }
+  const validation = validateBody(rehireSchema, body);
+  if (!validation.success) return validation.response;
+  const { rehireDate, cancel } = validation.data;
 
-  const { rehireEmployeeUseCase, employeeRepo } = getContainer();
+  const { rehireEmployeeUseCase, employeeRepo, auditLogRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) {
@@ -27,7 +27,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
 
   await rehireEmployeeUseCase.execute(auth.companyId, id, { rehireDate, cancel });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',

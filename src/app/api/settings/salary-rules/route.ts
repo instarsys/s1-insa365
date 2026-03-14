@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse } from '@/presentation/api/helpers';
 import { FormulaEngine } from '@/domain/services/FormulaEngine';
@@ -56,7 +55,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   });
 
   // 기존 직원에게 자동 전파
-  const { employeeSalaryItemRepo, userRepo } = getContainer();
+  const { employeeSalaryItemRepo, userRepo, auditLogRepo } = getContainer();
   const activeUsers = await userRepo.findActiveUsers(auth.companyId);
   let propagatedCount = 0;
 
@@ -87,7 +86,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     }
   }
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'CREATE',

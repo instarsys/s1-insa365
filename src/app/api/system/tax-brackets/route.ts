@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse, parseSearchParams } from '@/presentation/api/helpers';
@@ -25,7 +24,8 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
 
   const bracket = await getContainer().taxBracketRepo.create({ year, minIncome, maxIncome, dependents, taxAmount });
 
-  await auditLogService.log({
+  const { auditLogRepo } = getContainer();
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'CREATE',

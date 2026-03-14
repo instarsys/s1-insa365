@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
+import { successResponse, errorResponse, notFoundResponse, validateBody } from '@/presentation/api/helpers';
+import { updateSalaryItemsSchema } from '@/presentation/api/schemas/employee';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -25,37 +25,45 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
 async function handlePut(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
-  const { items } = body as { items: Array<{ id: string; amount?: number; isActive?: boolean; isOrdinaryWage?: boolean; isTaxExempt?: boolean }> };
+  const validation = validateBody(updateSalaryItemsSchema, body);
+  if (!validation.success) return validation.response;
+  const { items } = validation.data;
 
-  if (!items || !Array.isArray(items)) {
-    return errorResponse('급여 항목 데이터가 필요합니다.', 400);
-  }
-
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, auditLogRepo } = getContainer();
   const user = await employeeRepo.findById(auth.companyId, id);
   if (!user) return notFoundResponse('직원');
 
   const { employeeSalaryItemRepo } = getContainer();
-  await employeeSalaryItemRepo.updateManyInTransaction(
-    auth.companyId,
-    items.map((item) => ({
-      id: item.id,
-      data: {
-        ...(item.amount !== undefined && { amount: item.amount }),
-        ...(item.isActive !== undefined && { isActive: item.isActive }),
-        ...(item.isOrdinaryWage !== undefined && { isOrdinaryWage: item.isOrdinaryWage }),
-        ...(item.isTaxExempt !== undefined && { isTaxExempt: item.isTaxExempt }),
-      },
-    })),
-  );
+  const currentItems = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);
 
-  await auditLogService.log({
+  try {
+    await employeeSalaryItemRepo.updateManyInTransaction(
+      auth.companyId,
+      items.map((item) => ({
+        id: item.id,
+        data: {
+          ...(item.amount !== undefined && { amount: item.amount }),
+          ...(item.isActive !== undefined && { isActive: item.isActive }),
+          ...(item.isOrdinaryWage !== undefined && { isOrdinaryWage: item.isOrdinaryWage }),
+          ...(item.isTaxExempt !== undefined && { isTaxExempt: item.isTaxExempt }),
+        },
+      })),
+    );
+  } catch (err) {
+    return errorResponse(err instanceof Error ? err.message : '급여 항목 업데이트에 실패했습니다.', 400);
+  }
+
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',
     entityType: 'EmployeeSalaryItem',
     entityId: id,
-    after: { updatedItems: items.length },
+    before: { items: items.map(item => {
+      const cur = currentItems.find(c => c.id === item.id);
+      return cur ? { id: cur.id, amount: Number(cur.amount), isActive: cur.isActive } : null;
+    }).filter(Boolean) },
+    after: { items },
   });
 
   const updated = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);
@@ -72,7 +80,7 @@ async function handlePatch(request: NextRequest, auth: AuthContext) {
     return errorResponse('itemId와 isActive가 필요합니다.', 400);
   }
 
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, auditLogRepo } = getContainer();
   const user = await employeeRepo.findById(auth.companyId, id);
   if (!user) return notFoundResponse('직원');
 
@@ -95,7 +103,7 @@ async function handlePatch(request: NextRequest, auth: AuthContext) {
   const result = await employeeSalaryItemRepo.toggleActive(auth.companyId, itemId, isActive);
   if (!result) return notFoundResponse('급여 항목');
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',

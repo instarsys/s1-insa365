@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import {
   successResponse,
@@ -36,7 +35,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { name, email, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate } = validation.data;
 
-    const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
+    const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo, auditLogRepo } = getContainer();
 
     const existing = await employeeRepo.findByEmail(auth.companyId, email);
     if (existing) {
@@ -112,7 +111,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       );
     }
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CREATE',

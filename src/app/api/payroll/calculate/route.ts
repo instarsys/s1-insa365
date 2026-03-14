@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
@@ -13,10 +13,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { year, month } = validation.data;
 
-    const { calculatePayrollUseCase } = getContainer();
+    const { calculatePayrollUseCase, auditLogRepo } = getContainer();
     const results = await calculatePayrollUseCase.execute(auth.companyId, year, month);
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CREATE',

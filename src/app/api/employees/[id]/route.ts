@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import {
   successResponse,
@@ -36,7 +35,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const validation = validateBody(updateEmployeeSchema, body);
   if (!validation.success) return validation.response;
 
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, auditLogRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
@@ -77,7 +76,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 
   if (!updated) return notFoundResponse('직원');
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',
@@ -94,7 +93,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json().catch(() => ({}));
 
-  const { terminateEmployeeUseCase, employeeRepo } = getContainer();
+  const { terminateEmployeeUseCase, employeeRepo, auditLogRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
@@ -104,7 +103,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
     resignReason: body.resignReason,
   });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'DELETE',

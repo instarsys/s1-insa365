@@ -59,5 +59,29 @@ export const updateEmployeeSchema = z.object({
   manualHealthInsuranceBase: z.number().min(0).nullable().optional(),
 }).strict();
 
+export const startLeaveSchema = z.object({
+  leaveStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식은 YYYY-MM-DD입니다.'),
+  leaveReason: z.string().min(1, '휴직 사유를 입력해주세요.').max(200),
+});
+
+export const returnFromLeaveSchema = z.object({
+  returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식은 YYYY-MM-DD입니다.'),
+});
+
+export const rehireSchema = z.object({
+  rehireDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  cancel: z.boolean().optional(),
+}).refine((d) => d.cancel || d.rehireDate, { message: '재입사일 또는 취소 여부를 지정해주세요.' });
+
+export const updateSalaryItemsSchema = z.object({
+  items: z.array(z.object({
+    id: z.string().uuid(),
+    amount: z.number().min(0).optional(),
+    isActive: z.boolean().optional(),
+    isOrdinaryWage: z.boolean().optional(),
+    isTaxExempt: z.boolean().optional(),
+  })).min(1, '최소 1개 이상의 항목이 필요합니다.'),
+});
+
 export type CreateEmployeeInput = z.infer<typeof createEmployeeSchema>;
 export type UpdateEmployeeInput = z.infer<typeof updateEmployeeSchema>;

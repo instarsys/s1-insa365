@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, notFoundResponse, noContentResponse, errorResponse } from '@/presentation/api/helpers';
@@ -50,15 +49,15 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   });
 
   // 수식 변경 시 기존 직원 항목에도 전파
+  const { employeeSalaryItemRepo, auditLogRepo } = getContainer();
   let formulaPropagatedCount = 0;
   if (body.formula !== undefined && body.formula !== existing.formula) {
-    const { employeeSalaryItemRepo } = getContainer();
     formulaPropagatedCount = await employeeSalaryItemRepo.updateFormulaByCode(
       auth.companyId, existing.code, updated?.formula ?? null,
     );
   }
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',
@@ -81,9 +80,10 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
     return errorResponse('법정 공제 규칙은 삭제할 수 없습니다.', 403);
   }
 
+  const { auditLogRepo } = getContainer();
   await getContainer().salaryRuleRepo.softDelete(auth.companyId, id);
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'DELETE',

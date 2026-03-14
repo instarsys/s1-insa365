@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
 import { z } from 'zod';
@@ -21,7 +20,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     }
 
     const { currentPassword, newPassword } = result.data;
-    const { userRepo } = getContainer();
+    const { userRepo, auditLogRepo } = getContainer();
 
     const user = await userRepo.findById(auth.userId);
     if (!user) {
@@ -45,7 +44,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       mustChangePassword: false,
     });
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'UPDATE',

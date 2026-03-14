@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import {
   successResponse,
   errorResponse,
   noContentResponse,
+  validateBody,
 } from '@/presentation/api/helpers';
+import { startLeaveSchema, returnFromLeaveSchema } from '@/presentation/api/schemas/employee';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -14,12 +15,11 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
-  const { leaveStartDate, leaveReason } = body;
-  if (!leaveStartDate || !leaveReason) {
-    return errorResponse('휴직 시작일과 사유는 필수입니다.');
-  }
+  const validation = validateBody(startLeaveSchema, body);
+  if (!validation.success) return validation.response;
+  const { leaveStartDate, leaveReason } = validation.data;
 
-  const { startLeaveUseCase, employeeRepo } = getContainer();
+  const { startLeaveUseCase, employeeRepo, auditLogRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) {
@@ -28,7 +28,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
 
   await startLeaveUseCase.execute(auth.companyId, id, { leaveStartDate, leaveReason });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',
@@ -45,12 +45,11 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json().catch(() => ({}));
 
-  const { returnDate } = body;
-  if (!returnDate) {
-    return errorResponse('복귀일은 필수입니다.');
-  }
+  const validation = validateBody(returnFromLeaveSchema, body);
+  if (!validation.success) return validation.response;
+  const { returnDate } = validation.data;
 
-  const { returnFromLeaveUseCase, employeeRepo } = getContainer();
+  const { returnFromLeaveUseCase, employeeRepo, auditLogRepo } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) {
@@ -59,7 +58,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   await returnFromLeaveUseCase.execute(auth.companyId, id, { returnDate });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',

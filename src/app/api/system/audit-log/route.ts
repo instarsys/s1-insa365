@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+import { getContainer } from '@/infrastructure/di/container';
 import { type AuditAction } from '@/generated/prisma/client';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
@@ -14,12 +14,13 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const startDate = url.searchParams.get('startDate');
   const endDate = url.searchParams.get('endDate');
 
-  const { items, total } = await auditLogService.findByCompany(auth.companyId, {
+  const { auditLogRepo } = getContainer();
+  const { items, total } = await auditLogRepo.findAll(auth.companyId, {
     entityType,
     action: action ?? undefined,
     userId,
-    startDate: startDate ? new Date(startDate) : undefined,
-    endDate: endDate ? new Date(endDate) : undefined,
+    startDate: startDate ?? undefined,
+    endDate: endDate ?? undefined,
     page,
     limit,
   });

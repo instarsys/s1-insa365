@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -20,7 +19,7 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
     return errorResponse('민감정보 조회 권한이 없습니다.', 403);
   }
 
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, auditLogRepo } = getContainer();
   const employee = await employeeRepo.findById(auth.companyId, id);
   if (!employee) return notFoundResponse('직원');
 
@@ -32,7 +31,7 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
     decrypted = encryptionService.decrypt(encryptedValue);
   }
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'READ',

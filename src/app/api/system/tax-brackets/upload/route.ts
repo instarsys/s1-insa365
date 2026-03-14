@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
@@ -27,7 +26,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
       })),
     );
 
-    await auditLogService.log({
+    const { auditLogRepo } = getContainer();
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CREATE',

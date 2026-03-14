@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { jwtService } from '@/infrastructure/auth/JwtService';
 import { passwordService } from '@/infrastructure/auth/PasswordService';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { loginSchema } from '@/presentation/api/schemas';
 import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
@@ -17,7 +16,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { email, password } = validation.data;
 
-    const { userRepo } = getContainer();
+    const { userRepo, auditLogRepo } = getContainer();
 
     const user = await userRepo.findByEmail(email);
 
@@ -37,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     await userRepo.updateRefreshToken(user.companyId, user.id, refreshToken);
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: user.id,
       companyId: user.companyId,
       action: 'LOGIN',

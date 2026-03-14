@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
@@ -11,7 +11,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const { reason } = await request.json();
 
-  const { salaryCalcRepo } = getContainer();
+  const { salaryCalcRepo, auditLogRepo } = getContainer();
 
   // Verify ownership
   const calc = await salaryCalcRepo.findByIdWithDetails(auth.companyId, id);
@@ -24,7 +24,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     skipReason: reason ?? null,
   });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'UPDATE',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
+
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
@@ -11,7 +11,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
-    const { salaryCalcRepo } = getContainer();
+    const { salaryCalcRepo, auditLogRepo } = getContainer();
 
     const calculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
     const confirmed = calculations.filter((c) => c.status === 'CONFIRMED');
@@ -35,7 +35,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     // Revert CONFIRMED → DRAFT
     await salaryCalcRepo.revertConfirmedToDraft(auth.companyId, year, month);
 
-    await auditLogService.log({
+    await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
       action: 'CANCEL',

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { auditLogService } from '@/infrastructure/audit/AuditLogService';
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
@@ -12,7 +11,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   if (!id) return errorResponse('ID를 지정해주세요.', 400);
 
-  const { attendanceRepo } = getContainer();
+  const { attendanceRepo, auditLogRepo } = getContainer();
 
   // First we need the original record for audit logging
   const attendance = await attendanceRepo.findByIdAndCompany(auth.companyId, id);
@@ -21,7 +20,7 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   await attendanceRepo.update(auth.companyId, id, { deletedAt: new Date() });
 
-  await auditLogService.log({
+  await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
     action: 'DELETE',
