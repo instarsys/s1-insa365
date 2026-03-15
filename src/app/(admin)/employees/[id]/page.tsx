@@ -19,7 +19,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
   Home, Users, Landmark, Camera, Eye, EyeOff, Lock, Shield,
-  UserMinus, UserCheck, LogOut,
+  UserMinus, UserCheck, LogOut, Clock,
 } from 'lucide-react';
 
 const DETAIL_TABS = [
@@ -542,23 +542,6 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="입사일" value={emp.joinDate ? formatDate(emp.joinDate as string) : '-'} />
                 )}
-                <InfoItem
-                  label="근무지"
-                  value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
-                />
-                {isEditing ? (
-                  <Select
-                    label="근무정책"
-                    options={workPolicyOptions}
-                    value={editForm.workPolicyId}
-                    onChange={(v) => setEditForm((f) => ({ ...f, workPolicyId: v }))}
-                  />
-                ) : (
-                  <InfoItem
-                    label="근무정책"
-                    value={(emp.workPolicy as { name: string } | null)?.name ?? '기본 정책'}
-                  />
-                )}
                 {(emp.employeeStatus as string) === 'RESIGNED' && (
                   <>
                     {isEditing ? (
@@ -592,6 +575,37 @@ export default function EmployeeDetailPage() {
                     )}
                   </>
                 )}
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Section: 근무 설정 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-gray-400" />
+                근무 설정
+              </CardTitle>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                {isEditing ? (
+                  <Select
+                    label="근무정책"
+                    options={workPolicyOptions}
+                    value={editForm.workPolicyId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, workPolicyId: v }))}
+                  />
+                ) : (
+                  <InfoItem
+                    label="근무정책"
+                    value={(emp.workPolicy as { name: string } | null)?.name ?? '기본 정책'}
+                  />
+                )}
+                <InfoItem
+                  label="근무지"
+                  value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
+                />
               </div>
             </CardBody>
           </Card>
