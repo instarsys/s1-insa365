@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Table } from '@/components/ui/Table';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +14,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { useToast } from '@/components/ui/Toast';
 import { useLeaveGroups, useLeaveGroupMutations, type LeaveGroupItem } from '@/hooks';
 
-export default function LeaveGroupsPage() {
+export function LeaveGroupsTab() {
   const toast = useToast();
   const { groups, isLoading, mutate } = useLeaveGroups();
   const { create, update, remove } = useLeaveGroupMutations();
@@ -106,10 +105,10 @@ export default function LeaveGroupsPage() {
   ];
 
   return (
-    <div>
-      <PageHeader title="휴가 그룹" subtitle="휴가 유형을 분류하는 그룹을 관리합니다.">
+    <>
+      <div className="mb-4 flex items-center justify-end">
         <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" />그룹 추가</Button>
-      </PageHeader>
+      </div>
 
       <Card>
         <CardBody className="p-0">
@@ -140,6 +139,6 @@ export default function LeaveGroupsPage() {
           <Input label="메모" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="메모 (선택)" />
         </div>
       </Modal>
-    </div>
+    </>
   );
 }

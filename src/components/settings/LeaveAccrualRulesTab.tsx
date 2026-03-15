@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight } from 'lucide-react';
-import { PageHeader } from '@/components/layout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
@@ -27,7 +26,7 @@ const UNIT_OPTIONS = [
   { value: 'YEARLY', label: '연 기준 발생' },
 ];
 
-export default function LeaveAccrualRulesPage() {
+export function LeaveAccrualRulesTab() {
   const toast = useToast();
   const { rules, isLoading, mutate } = useLeaveAccrualRules();
   const { create, update, remove } = useLeaveAccrualRuleMutations();
@@ -127,10 +126,10 @@ export default function LeaveAccrualRulesPage() {
   }
 
   return (
-    <div>
-      <PageHeader title="발생 규칙" subtitle="연차 발생 규칙과 단계를 관리합니다.">
+    <>
+      <div className="mb-4 flex items-center justify-end">
         <Button onClick={openCreate} size="sm"><Plus className="h-4 w-4" />규칙 추가</Button>
-      </PageHeader>
+      </div>
 
       {isLoading ? (
         <Spinner text="로딩중..." className="py-12" />
@@ -220,6 +219,6 @@ export default function LeaveAccrualRulesPage() {
           <AccrualRuleTierEditor tiers={formTiers} onChange={setFormTiers} accrualUnit={formUnit} />
         </div>
       </Modal>
-    </div>
+    </>
   );
 }
