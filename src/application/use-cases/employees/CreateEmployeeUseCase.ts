@@ -1,7 +1,6 @@
 import type { IEmployeeRepository } from '../../ports/IEmployeeRepository';
 import type { IEmployeeSalaryItemRepository } from '../../ports/IEmployeeSalaryItemRepository';
 import type { ISalaryRuleRepository } from '../../ports/ISalaryRuleRepository';
-import type { ILeaveBalanceRepository } from '../../ports/ILeaveBalanceRepository';
 import type { CreateEmployeeDto, EmployeeDto } from '../../dtos/employee';
 import { ValidationError } from '@domain/errors';
 
@@ -10,7 +9,6 @@ export class CreateEmployeeUseCase {
     private employeeRepo: IEmployeeRepository,
     private salaryRuleRepo: ISalaryRuleRepository,
     private employeeSalaryItemRepo: IEmployeeSalaryItemRepository,
-    private leaveBalanceRepo: ILeaveBalanceRepository,
   ) {}
 
   async execute(companyId: string, dto: CreateEmployeeDto): Promise<EmployeeDto> {
@@ -51,16 +49,7 @@ export class CreateEmployeeUseCase {
       await this.employeeSalaryItemRepo.createMany(salaryItems);
     }
 
-    // Create leave balance for current year
-    const currentYear = new Date().getFullYear();
-    await this.leaveBalanceRepo.create({
-      companyId,
-      userId: employee.id,
-      year: currentYear,
-      totalDays: 15, // Default annual leave days
-      usedDays: 0,
-      remainingDays: 15,
-    });
+    // 연차는 GenerateEmployeeAccrualsUseCase가 규칙 기반으로 발생 (API Route에서 호출)
 
     return employee;
   }

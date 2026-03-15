@@ -10,6 +10,8 @@ import { useLeaveRequests, useLeaveBalances, useLeaveMutations, useLeaveHistory 
 import { LeaveHistoryTypeView } from '@/components/leave/LeaveHistoryTypeView';
 import { LeaveHistoryListView } from '@/components/leave/LeaveHistoryListView';
 import { LeaveHistoryMonthlyView } from '@/components/leave/LeaveHistoryMonthlyView';
+import { LeaveBalanceExpandableTable } from '@/components/leave/LeaveBalanceExpandableTable';
+import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
 import { formatDate } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
 import { CalendarDays, Check, X } from 'lucide-react';
@@ -42,6 +44,10 @@ export default function LeaveManagementPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [deptFilter, setDeptFilter] = useState('');
   const [historyYear, setHistoryYear] = useState(currentYear);
+  const [balanceYear, setBalanceYear] = useState(currentYear);
+  const [balanceDeptFilter, setBalanceDeptFilter] = useState('');
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [adjustTarget, setAdjustTarget] = useState<{ userId: string; userName: string } | null>(null);
 
   const statusFilter = activeTab === 'pending' ? 'PENDING' : undefined;
   const { requests, isLoading, mutate } = useLeaveRequests({
@@ -50,7 +56,7 @@ export default function LeaveManagementPage() {
     departmentId: deptFilter || undefined,
   });
   const { approve, reject } = useLeaveMutations();
-  const { balances: leaveBalancesList, isLoading: balancesLoading } = useLeaveBalances();
+  const { balances: leaveBalancesList, isLoading: balancesLoading, mutate: mutateBalances } = useLeaveBalances();
 
   // 3뷰 데이터
   const historyView = activeTab === 'byType' ? 'type' : activeTab === 'byList' ? 'list' : activeTab === 'byMonth' ? 'monthly' : null;
@@ -301,42 +307,54 @@ export default function LeaveManagementPage() {
 
       {/* 연차 관리 탭 */}
       {activeTab === 'balances' && (
-        balancesLoading ? (
-          <Spinner text="연차 정보를 불러오는 중..." className="py-20" />
-        ) : leaveBalancesList.length === 0 ? (
-          <EmptyState
-            icon={<CalendarDays className="h-12 w-12" />}
-            title="연차 잔여일수 데이터가 없습니다"
-            description="직원의 연차 정보가 등록되면 여기에 표시됩니다."
-          />
-        ) : (
-          <div className="rounded-lg border border-gray-200">
-            <Table
-              columns={[
-                { key: 'userName', label: '직원', sortable: true },
-                { key: 'departmentName', label: '부서', render: (row: Record<string, unknown>) => (row.departmentName as string) || '-' },
-                { key: 'totalDays', label: '총 휴가일수', render: (row: Record<string, unknown>) => `${row.totalDays}일` },
-                { key: 'usedDays', label: '사용일수', render: (row: Record<string, unknown>) => `${row.usedDays}일` },
-                {
-                  key: 'remainingDays',
-                  label: '잔여일수',
-                  sortable: true,
-                  render: (row: Record<string, unknown>) => {
-                    const remaining = row.remainingDays as number;
-                    return (
-                      <span className={remaining === 0 ? 'font-semibold text-red-600' : remaining <= 5 ? 'font-medium text-amber-600' : 'text-gray-700'}>
-                        {remaining}일
-                        {remaining === 0 && <span className="ml-1 text-[10px]">소진</span>}
-                        {remaining > 0 && remaining <= 5 && <span className="ml-1 text-[10px] text-amber-500">부족</span>}
-                      </span>
-                    );
-                  },
-                },
-              ]}
-              data={leaveBalancesList as unknown as Record<string, unknown>[]}
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Select
+              options={yearOptions}
+              value={String(balanceYear)}
+              onChange={(v) => setBalanceYear(Number(v))}
+              wrapperClassName="w-32"
+            />
+            <Select
+              options={departmentOptions}
+              value={balanceDeptFilter}
+              onChange={setBalanceDeptFilter}
+              wrapperClassName="w-40"
             />
           </div>
-        )
+          {balancesLoading ? (
+            <Spinner text="연차 정보를 불러오는 중..." className="py-20" />
+          ) : leaveBalancesList.length === 0 ? (
+            <EmptyState
+              icon={<CalendarDays className="h-12 w-12" />}
+              title="연차 잔여일수 데이터가 없습니다"
+              description="직원의 연차 정보가 등록되면 여기에 표시됩니다."
+            />
+          ) : (
+            <LeaveBalanceExpandableTable
+              balances={
+                balanceDeptFilter
+                  ? leaveBalancesList.filter((b) => b.departmentName === departmentOptions.find((d) => d.value === balanceDeptFilter)?.label)
+                  : leaveBalancesList
+              }
+              year={balanceYear}
+              onAdjust={(userId, userName) => {
+                setAdjustTarget({ userId, userName });
+                setAdjustModalOpen(true);
+              }}
+            />
+          )}
+          {adjustTarget && (
+            <LeaveAdjustmentModal
+              open={adjustModalOpen}
+              onClose={() => { setAdjustModalOpen(false); setAdjustTarget(null); }}
+              userId={adjustTarget.userId}
+              userName={adjustTarget.userName}
+              year={balanceYear}
+              onSuccess={() => { mutateBalances(); }}
+            />
+          )}
+        </>
       )}
 
       {/* Reject Modal */}

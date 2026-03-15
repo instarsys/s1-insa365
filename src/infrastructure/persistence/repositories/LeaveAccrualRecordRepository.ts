@@ -39,6 +39,18 @@ export class LeaveAccrualRecordRepository {
     });
   }
 
+  /** 특정 사용자+연도 발생 레코드 전체 조회 (원장용) */
+  async findByUserAndYear(companyId: string, userId: string, year: number) {
+    return prisma.leaveAccrualRecord.findMany({
+      where: { companyId, userId, year },
+      include: {
+        accrualRule: { select: { name: true } },
+        leaveTypeConfig: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
   /** 연차 발생 트랜잭션: 레코드 생성 + 잔여일수 upsert */
   async createWithBalanceUpdate(
     data: Prisma.LeaveAccrualRecordUncheckedCreateInput,

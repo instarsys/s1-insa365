@@ -75,6 +75,7 @@ import { CreateLeaveRequestUseCase } from '@/application/use-cases/leave/CreateL
 import { ApproveLeaveRequestUseCase } from '@/application/use-cases/leave/ApproveLeaveRequestUseCase';
 import { RejectLeaveRequestUseCase } from '@/application/use-cases/leave/RejectLeaveRequestUseCase';
 import { GetLeaveBalanceUseCase } from '@/application/use-cases/leave/GetLeaveBalanceUseCase';
+import { GenerateEmployeeAccrualsUseCase } from '@/application/use-cases/leave/GenerateEmployeeAccrualsUseCase';
 
 // Payroll
 import { CalculatePayrollUseCase } from '@/application/use-cases/payroll/CalculatePayrollUseCase';
@@ -174,6 +175,7 @@ export interface Container {
   approveLeaveRequestUseCase: ApproveLeaveRequestUseCase;
   rejectLeaveRequestUseCase: RejectLeaveRequestUseCase;
   getLeaveBalanceUseCase: GetLeaveBalanceUseCase;
+  generateEmployeeAccrualsUseCase: GenerateEmployeeAccrualsUseCase;
 
   // Payroll Use Cases
   calculatePayrollUseCase: CalculatePayrollUseCase;
@@ -307,7 +309,6 @@ function createContainer(): Container {
     employeeRepo as Any,
     salaryRuleRepo as Any,
     employeeSalaryItemRepo as Any,
-    leaveBalanceRepo as Any,
   );
   const updateEmployeeUseCase = new UpdateEmployeeUseCase(employeeRepo as Any);
   const listEmployeesUseCase = new ListEmployeesUseCase(employeeRepo as Any);
@@ -344,6 +345,10 @@ function createContainer(): Container {
   );
   const rejectLeaveRequestUseCase = new RejectLeaveRequestUseCase(leaveRequestRepo as Any);
   const getLeaveBalanceUseCase = new GetLeaveBalanceUseCase(leaveBalanceRepo as Any);
+  const generateEmployeeAccrualsUseCase = new GenerateEmployeeAccrualsUseCase(
+    leaveAccrualRuleRepo as Any,
+    leaveAccrualRecordRepo as Any,
+  );
 
   // Payroll
   const calculatePayrollUseCase = new CalculatePayrollUseCase(
@@ -462,6 +467,7 @@ function createContainer(): Container {
     approveLeaveRequestUseCase,
     rejectLeaveRequestUseCase,
     getLeaveBalanceUseCase,
+    generateEmployeeAccrualsUseCase,
     // Payroll
     calculatePayrollUseCase,
     getPayrollSpreadsheetUseCase,

@@ -11,7 +11,8 @@ import {
 } from '@/components/ui';
 import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
-import { useLeaveRequests, useLeaveBalance } from '@/hooks/useLeave';
+import { useLeaveRequests, useLeaveBalance, useLeaveLedger, type LedgerEntry } from '@/hooks/useLeave';
+import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
 import { formatDate, formatKRW } from '@/lib/utils';
 import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
@@ -89,6 +90,8 @@ export default function EmployeeDetailPage() {
   const [rehireDate, setRehireDate] = useState(new Date().toISOString().slice(0, 10));
   const [isRehiring, setIsRehiring] = useState(false);
   const [isCancellingResign, setIsCancellingResign] = useState(false);
+  const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [ledgerYear, setLedgerYear] = useState(new Date().getFullYear());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { employee, isLoading, mutate } = useEmployee(id);
@@ -138,8 +141,9 @@ export default function EmployeeDetailPage() {
   const nextId = currentIndex < allEmployees.length - 1 ? allEmployees[currentIndex + 1]?.id : null;
 
   // Leave data for leave tab
-  const { balance } = useLeaveBalance(id);
+  const { balance, mutate: mutateBalance } = useLeaveBalance(id);
   const { requests: leaveRequests } = useLeaveRequests({ userId: id });
+  const { entries: ledgerEntries, isLoading: ledgerLoading, mutate: mutateLedger } = useLeaveLedger(id, ledgerYear);
 
   // PII: bank account
   const { value: decryptedBankAccount, isLoading: piiLoading } = useEmployeePii(id, 'bankAccount', showBankAccount);
@@ -789,6 +793,7 @@ export default function EmployeeDetailPage() {
       {/* Tab Content: Leave */}
       {activeTab === 'leave' && (
         <div className="space-y-6">
+          {/* 잔여 휴가 카드 */}
           <Card>
             <CardHeader>
               <CardTitle>잔여 휴가</CardTitle>
@@ -815,6 +820,79 @@ export default function EmployeeDetailPage() {
             </CardBody>
           </Card>
 
+          {/* 연차 원장 */}
+          <Card>
+            <CardHeader>
+              <CardTitle>연차 원장</CardTitle>
+              <div className="flex items-center gap-2">
+                <select
+                  value={ledgerYear}
+                  onChange={(e) => setLedgerYear(Number(e.target.value))}
+                  className="rounded-md border border-gray-300 px-2 py-1 text-sm"
+                >
+                  {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map((y) => (
+                    <option key={y} value={y}>{y}년</option>
+                  ))}
+                </select>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowAdjustModal(true)}
+                >
+                  + 보정
+                </Button>
+              </div>
+            </CardHeader>
+            <CardBody className="p-0">
+              {ledgerLoading ? (
+                <div className="py-8"><Spinner text="원장을 불러오는 중..." /></div>
+              ) : ledgerEntries.length === 0 ? (
+                <EmptyState
+                  title="발생/사용 이력이 없습니다"
+                  description={`${ledgerYear}년도 연차 발생 또는 사용 이력이 없습니다.`}
+                />
+              ) : (
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50">
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">날짜</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">일수</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">잔여</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">비고</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {ledgerEntries.map((entry: LedgerEntry, idx: number) => (
+                      <tr key={idx}>
+                        <td className="px-4 py-3 text-gray-600">{entry.date}</td>
+                        <td className="px-4 py-3">
+                          <Badge
+                            variant={
+                              entry.type === 'ACCRUAL' ? 'success' :
+                              entry.type === 'USAGE' ? 'info' :
+                              entry.type === 'ADJUSTMENT' ? 'warning' : 'gray'
+                            }
+                          >
+                            {entry.type === 'ACCRUAL' ? '자동발생' :
+                             entry.type === 'USAGE' ? '사용' :
+                             entry.type === 'ADJUSTMENT' ? '보정' : '이월'}
+                          </Badge>
+                        </td>
+                        <td className={`px-4 py-3 text-right font-medium ${entry.days > 0 ? 'text-emerald-600' : 'text-blue-600'}`}>
+                          {entry.days > 0 ? `+${entry.days}` : entry.days}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700">{entry.runningBalance}</td>
+                        <td className="px-4 py-3 text-gray-500">{entry.description}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </CardBody>
+          </Card>
+
+          {/* 휴가 신청 이력 */}
           <Card>
             <CardHeader>
               <CardTitle>휴가 신청 이력</CardTitle>
@@ -864,6 +942,18 @@ export default function EmployeeDetailPage() {
               )}
             </CardBody>
           </Card>
+
+          {/* 보정 모달 */}
+          {emp && (
+            <LeaveAdjustmentModal
+              open={showAdjustModal}
+              onClose={() => setShowAdjustModal(false)}
+              userId={id}
+              userName={emp.name as string}
+              year={ledgerYear}
+              onSuccess={() => { mutateLedger(); mutateBalance(); }}
+            />
+          )}
         </div>
       )}
 

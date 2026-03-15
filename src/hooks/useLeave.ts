@@ -126,13 +126,13 @@ export function useLeaveRequests(filters?: { status?: string; userId?: string; t
 export function useLeaveBalance(userId?: string) {
   const url = userId ? `/api/leave/balance?userId=${userId}` : '/api/leave/balance';
 
-  const { data, error, isLoading } = useSWR<LeaveBalance>(
+  const { data, error, isLoading, mutate } = useSWR<LeaveBalance>(
     url,
     fetcher,
     { revalidateOnFocus: true },
   );
 
-  return { balance: data, isLoading, error };
+  return { balance: data, isLoading, error, mutate };
 }
 
 export interface LeaveBalanceSummary {
@@ -161,7 +161,30 @@ export function useLeaveMutations() {
     reject: (id: string, data: { reason: string }) => apiPut(`/api/leave/request/${id}/reject`, data),
     updateBalance: (userId: string, data: { year: number; totalDays: number }) =>
       apiPut(`/api/leave/balance/${userId}`, data),
+    adjustBalance: (data: { userId: string; year: number; days: number; reason: string; leaveTypeConfigId: string }) =>
+      apiPost('/api/leave/accrual-records/manual', data),
   };
+}
+
+// ──────────────────────────────────────────────
+// 연차 원장
+// ──────────────────────────────────────────────
+
+export interface LedgerEntry {
+  date: string;
+  type: 'ACCRUAL' | 'USAGE' | 'ADJUSTMENT' | 'CARRY_OVER';
+  days: number;
+  runningBalance: number;
+  description: string;
+  source: string;
+  referenceId?: string;
+}
+
+export function useLeaveLedger(userId?: string, year?: number) {
+  const resolvedYear = year ?? new Date().getFullYear();
+  const url = userId ? `/api/leave/ledger?userId=${userId}&year=${resolvedYear}` : null;
+  const { data, error, isLoading, mutate } = useSWR<{ items: LedgerEntry[] }>(url, fetcher);
+  return { entries: data?.items ?? [], isLoading, error, mutate };
 }
 
 // ──────────────────────────────────────────────

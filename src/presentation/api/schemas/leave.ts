@@ -60,3 +60,13 @@ export const generateAccrualsSchema = z.object({
 });
 
 export type GenerateAccrualsInput = z.infer<typeof generateAccrualsSchema>;
+
+export const manualAdjustmentSchema = z.object({
+  userId: z.string().uuid('유효한 사용자 ID가 필요합니다.'),
+  year: z.number().int().min(2020).max(2100),
+  days: z.number().refine((v) => v !== 0, '0일은 입력할 수 없습니다.'),
+  reason: z.string().min(1, '사유를 입력해주세요.').max(500),
+  leaveTypeConfigId: z.string().uuid('휴가 유형을 선택해주세요.'),
+});
+
+export type ManualAdjustmentInput = z.infer<typeof manualAdjustmentSchema>;

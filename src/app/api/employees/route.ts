@@ -111,6 +111,20 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       );
     }
 
+    // 입사일이 있으면 5년 연차 자동 발생
+    if (joinDate) {
+      const { generateEmployeeAccrualsUseCase } = getContainer();
+      try {
+        await generateEmployeeAccrualsUseCase.execute({
+          companyId: auth.companyId,
+          userId: created.id,
+          joinDate: new Date(joinDate),
+        });
+      } catch (e) {
+        console.error('[LeaveAccrual] 자동 발생 실패:', e);
+      }
+    }
+
     await auditLogRepo.create({
       userId: auth.userId,
       companyId: auth.companyId,
