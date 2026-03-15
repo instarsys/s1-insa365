@@ -265,70 +265,21 @@ async function main() {
   console.log('Admin user created');
 
   // ──────────────────────────────────────────────
-  // 15 Test Employees (spread across 5 departments)
+  // 5 Test Employees (다양한 상태 + 급여 유형)
   // ──────────────────────────────────────────────
   const employeePassword = await bcrypt.hash('test1234!', 10);
 
   const employeeData = [
-    // 경영지원팀 (10명)
-    { name: '김영수', email: 'kim.ys@test-company.com', num: 'EA0002', dept: 0, pos: 2, base: 4500000, joinDate: '2023-03-15', dependents: 3 },
-    { name: '박지민', email: 'park.jm@test-company.com', num: 'EA0003', dept: 0, pos: 3, base: 3800000, joinDate: '2023-06-01', dependents: 2 },
-    { name: '이서연', email: 'lee.sy@test-company.com', num: 'EA0004', dept: 0, pos: 4, base: 3000000, joinDate: '2024-02-01', dependents: 1 },
-    { name: '장민석', email: 'jang.ms@test-company.com', num: 'EA0018', dept: 0, pos: 4, base: 3100000, joinDate: '2024-05-01', dependents: 1 },
-    { name: '노현정', email: 'noh.hj@test-company.com', num: 'EA0019', dept: 0, pos: 4, base: 2900000, joinDate: '2024-08-01', dependents: 1 },
-    { name: '문경태', email: 'moon.kt@test-company.com', num: 'EA0020', dept: 0, pos: 3, base: 3700000, joinDate: '2023-09-01', dependents: 2 },
-    { name: '양수빈', email: 'yang.sb@test-company.com', num: 'EA0021', dept: 0, pos: 4, base: 3200000, joinDate: '2024-01-15', dependents: 1 },
-    { name: '권도윤', email: 'kwon.dy@test-company.com', num: 'EA0022', dept: 0, pos: 4, base: 2800000, joinDate: '2025-01-06', dependents: 1 },
-    { name: '유정아', email: 'yoo.ja@test-company.com', num: 'EA0023', dept: 0, pos: 3, base: 4000000, joinDate: '2022-11-01', dependents: 3 },
-    { name: '남기훈', email: 'nam.kh@test-company.com', num: 'EA0024', dept: 0, pos: 4, base: 3300000, joinDate: '2023-12-01', dependents: 1 },
-    // 개발팀 (12명)
-    { name: '정민호', email: 'jung.mh@test-company.com', num: 'EA0005', dept: 1, pos: 2, base: 5200000, joinDate: '2022-09-01', dependents: 2 },
-    { name: '최수현', email: 'choi.sh@test-company.com', num: 'EA0006', dept: 1, pos: 3, base: 4200000, joinDate: '2023-01-15', dependents: 1 },
-    { name: '한지우', email: 'han.jw@test-company.com', num: 'EA0007', dept: 1, pos: 4, base: 3500000, joinDate: '2024-01-02', dependents: 1 },
-    { name: '윤도현', email: 'yoon.dh@test-company.com', num: 'EA0008', dept: 1, pos: 4, base: 3200000, joinDate: '2024-06-01', dependents: 1 },
-    { name: '백승우', email: 'baek.sw@test-company.com', num: 'EA0025', dept: 1, pos: 3, base: 4400000, joinDate: '2022-12-01', dependents: 2 },
-    { name: '구하린', email: 'goo.hr@test-company.com', num: 'EA0026', dept: 1, pos: 4, base: 3600000, joinDate: '2023-07-01', dependents: 1 },
-    { name: '진성민', email: 'jin.sm@test-company.com', num: 'EA0027', dept: 1, pos: 4, base: 3400000, joinDate: '2024-03-01', dependents: 1 },
-    { name: '류지현', email: 'ryu.jh@test-company.com', num: 'EA0028', dept: 1, pos: 4, base: 3100000, joinDate: '2024-09-01', dependents: 1 },
-    { name: '송태양', email: 'song.ty@test-company.com', num: 'EA0029', dept: 1, pos: 3, base: 4100000, joinDate: '2023-04-15', dependents: 1 },
-    { name: '안예진', email: 'ahn.yj@test-company.com', num: 'EA0030', dept: 1, pos: 4, base: 3300000, joinDate: '2024-07-01', dependents: 1 },
-    { name: '하준서', email: 'ha.js@test-company.com', num: 'EA0031', dept: 1, pos: 4, base: 2900000, joinDate: '2025-01-02', dependents: 1 },
-    { name: '탁민재', email: 'tak.mj@test-company.com', num: 'EA0032', dept: 1, pos: 4, base: 3000000, joinDate: '2024-11-01', dependents: 1 },
-    // 영업팀 (10명)
-    { name: '강태우', email: 'kang.tw@test-company.com', num: 'EA0009', dept: 2, pos: 2, base: 4800000, joinDate: '2022-07-01', dependents: 4 },
-    { name: '오지수', email: 'oh.js@test-company.com', num: 'EA0010', dept: 2, pos: 3, base: 3600000, joinDate: '2023-11-01', dependents: 1 },
-    { name: '신하늘', email: 'shin.hn@test-company.com', num: 'EA0011', dept: 2, pos: 4, base: 2800000, joinDate: '2025-01-02', dependents: 1 },
-    { name: '전유진', email: 'jeon.yj@test-company.com', num: 'EA0033', dept: 2, pos: 3, base: 3900000, joinDate: '2023-05-01', dependents: 2 },
-    { name: '곽동현', email: 'kwak.dh@test-company.com', num: 'EA0034', dept: 2, pos: 4, base: 3200000, joinDate: '2024-02-15', dependents: 1 },
-    { name: '변서윤', email: 'byun.sy@test-company.com', num: 'EA0035', dept: 2, pos: 4, base: 3000000, joinDate: '2024-06-01', dependents: 1 },
-    { name: '추성호', email: 'choo.sh@test-company.com', num: 'EA0036', dept: 2, pos: 4, base: 3100000, joinDate: '2024-04-01', dependents: 1 },
-    { name: '허나영', email: 'heo.ny@test-company.com', num: 'EA0037', dept: 2, pos: 3, base: 3800000, joinDate: '2023-03-01', dependents: 2 },
-    { name: '윤성준', email: 'yoons.j@test-company.com', num: 'EA0038', dept: 2, pos: 4, base: 3400000, joinDate: '2023-10-01', dependents: 1 },
-    { name: '봉지훈', email: 'bong.jh@test-company.com', num: 'EA0039', dept: 2, pos: 4, base: 2900000, joinDate: '2024-10-01', dependents: 1 },
-    // 마케팅팀 (10명)
-    { name: '임수정', email: 'lim.sj@test-company.com', num: 'EA0012', dept: 3, pos: 2, base: 4300000, joinDate: '2023-04-01', dependents: 2 },
-    { name: '서준혁', email: 'seo.jh@test-company.com', num: 'EA0013', dept: 3, pos: 3, base: 3700000, joinDate: '2023-08-01', dependents: 1 },
-    { name: '황미영', email: 'hwang.my@test-company.com', num: 'EA0014', dept: 3, pos: 4, base: 3100000, joinDate: '2024-04-01', dependents: 1 },
-    { name: '차은별', email: 'cha.eb@test-company.com', num: 'EA0040', dept: 3, pos: 3, base: 3800000, joinDate: '2023-06-15', dependents: 2 },
-    { name: '피승환', email: 'pi.sh@test-company.com', num: 'EA0041', dept: 3, pos: 4, base: 3200000, joinDate: '2024-01-02', dependents: 1 },
-    { name: '도하은', email: 'do.he@test-company.com', num: 'EA0042', dept: 3, pos: 4, base: 2900000, joinDate: '2024-08-01', dependents: 1 },
-    { name: '고영택', email: 'go.yt@test-company.com', num: 'EA0043', dept: 3, pos: 4, base: 3300000, joinDate: '2023-11-01', dependents: 1 },
-    { name: '성다인', email: 'sung.di@test-company.com', num: 'EA0044', dept: 3, pos: 4, base: 3000000, joinDate: '2024-05-01', dependents: 1 },
-    { name: '우진호', email: 'woo.jh@test-company.com', num: 'EA0045', dept: 3, pos: 3, base: 4000000, joinDate: '2022-10-01', dependents: 3 },
-    { name: '소예림', email: 'so.yr@test-company.com', num: 'EA0046', dept: 3, pos: 4, base: 3100000, joinDate: '2024-07-01', dependents: 1 },
-    // 인사팀 (8명)
-    { name: '조현우', email: 'cho.hw@test-company.com', num: 'EA0015', dept: 4, pos: 3, base: 3900000, joinDate: '2023-02-01', dependents: 2 },
-    { name: '배소라', email: 'bae.sr@test-company.com', num: 'EA0016', dept: 4, pos: 4, base: 3000000, joinDate: '2024-03-01', dependents: 1 },
-    { name: '감민수', email: 'gam.ms@test-company.com', num: 'EA0047', dept: 4, pos: 2, base: 4600000, joinDate: '2022-05-01', dependents: 3 },
-    { name: '표지연', email: 'pyo.jy@test-company.com', num: 'EA0048', dept: 4, pos: 3, base: 3700000, joinDate: '2023-07-01', dependents: 1 },
-    { name: '태원석', email: 'tae.ws@test-company.com', num: 'EA0049', dept: 4, pos: 4, base: 3200000, joinDate: '2024-02-01', dependents: 1 },
-    { name: '방혜수', email: 'bang.hs@test-company.com', num: 'EA0050', dept: 4, pos: 4, base: 2800000, joinDate: '2024-09-01', dependents: 1 },
-    { name: '엄준기', email: 'eom.jg@test-company.com', num: 'EA0051', dept: 4, pos: 4, base: 3100000, joinDate: '2024-06-01', dependents: 1 },
-    { name: '빈나래', email: 'bin.nr@test-company.com', num: 'EA0052', dept: 4, pos: 4, base: 2900000, joinDate: '2025-01-06', dependents: 1 },
-    // 시급제 직원 3명 (파트타임)
-    { name: '홍파트', email: 'hong.pt@test-company.com', num: 'EA0053', dept: 0, pos: 4, base: 0, joinDate: '2025-03-01', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 11000 },
-    { name: '이알바', email: 'lee.ab@test-company.com', num: 'EA0054', dept: 1, pos: 4, base: 0, joinDate: '2025-06-01', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 12000 },
-    { name: '박시급', email: 'park.sg@test-company.com', num: 'EA0055', dept: 2, pos: 4, base: 0, joinDate: '2025-04-15', dependents: 1, salaryType: 'HOURLY' as const, hourlyRate: 10320 },
+    // ACTIVE 월급제 — 경영지원팀 부장, 고연봉, 장기 근속
+    { name: '김영수', email: 'kim.ys@test-company.com', num: 'EA0002', dept: 0, pos: 2, base: 4500000, joinDate: '2023-03-15', dependents: 3, status: 'ACTIVE' as const },
+    // ACTIVE 월급제 — 개발팀 과장, 중간 연봉
+    { name: '박지민', email: 'park.jm@test-company.com', num: 'EA0003', dept: 1, pos: 3, base: 3800000, joinDate: '2024-01-02', dependents: 2, status: 'ACTIVE' as const },
+    // ON_LEAVE 월급제 — 영업팀 사원, 휴직 중
+    { name: '이서연', email: 'lee.sy@test-company.com', num: 'EA0004', dept: 2, pos: 4, base: 3000000, joinDate: '2024-06-01', dependents: 1, status: 'ON_LEAVE' as const },
+    // ACTIVE 시급제 — 마케팅팀 사원, 파트타임
+    { name: '홍파트', email: 'hong.pt@test-company.com', num: 'EA0005', dept: 3, pos: 4, base: 0, joinDate: '2025-03-01', dependents: 1, status: 'ACTIVE' as const, salaryType: 'HOURLY' as const, hourlyRate: 11000 },
+    // RESIGNED 월급제 — 인사팀 과장, 퇴직
+    { name: '조현우', email: 'cho.hw@test-company.com', num: 'EA0006', dept: 4, pos: 3, base: 3900000, joinDate: '2022-05-01', dependents: 2, status: 'RESIGNED' as const, resignDate: '2025-12-31' },
   ];
 
   const employees = [];
@@ -341,7 +292,7 @@ async function main() {
         name: emp.name,
         role: 'EMPLOYEE',
         employeeNumber: emp.num,
-        employeeStatus: 'ACTIVE',
+        employeeStatus: emp.status,
         departmentId: departments[emp.dept].id,
         positionId: positions[emp.pos].id,
         joinDate: new Date(emp.joinDate),
@@ -350,6 +301,7 @@ async function main() {
         workLocationId: workLocation.id,
         ...('salaryType' in emp && emp.salaryType ? { salaryType: emp.salaryType } : {}),
         ...('hourlyRate' in emp && emp.hourlyRate ? { hourlyRate: emp.hourlyRate } : {}),
+        ...('resignDate' in emp && emp.resignDate ? { resignDate: new Date(emp.resignDate) } : {}),
       },
     });
     employees.push({ ...user, baseSalary: emp.base, salaryType: ('salaryType' in emp ? emp.salaryType : 'MONTHLY') as string, hourlyRate: ('hourlyRate' in emp ? emp.hourlyRate : undefined) as number | undefined });
@@ -755,7 +707,7 @@ async function main() {
         type: 'PAYROLL_CONFIRMED',
         priority: 'HIGH',
         title: `${lastM.year}년 ${lastM.month}월 급여가 확정되었습니다`,
-        message: '총 50명의 급여가 확정 처리되었습니다.',
+        message: '총 5명의 급여가 확정 처리되었습니다.',
         link: '/payroll/history',
       },
       {
@@ -773,7 +725,7 @@ async function main() {
         type: 'OVERTIME_WARNING',
         priority: 'HIGH',
         title: '52시간 초과 경고',
-        message: '정민호 사원의 주간 근로시간이 48시간을 초과했습니다.',
+        message: '김영수 사원의 주간 근로시간이 48시간을 초과했습니다.',
         link: '/attendance/overtime',
       },
     ],
@@ -914,7 +866,7 @@ async function main() {
   console.log('Admin login: admin@test-company.com / admin123! (COMPANY_ADMIN)');
   console.log('System Admin login: sysadmin@insa365.com / sysadmin123! (SYSTEM_ADMIN)');
   console.log('Manager login: manager@test-company.com / manager123!');
-  console.log('Employee login: kim.ys@test-company.com / test1234! (and 14 others)');
+  console.log('Employee login: kim.ys@test-company.com / test1234! (and 4 others)');
   const hourlyCount = employees.filter(e => e.salaryType === 'HOURLY').length;
   console.log('Total employees:', employees.length + 2, `(${employees.length} employees [${hourlyCount} hourly] + 1 admin + 1 manager)`);
 }
