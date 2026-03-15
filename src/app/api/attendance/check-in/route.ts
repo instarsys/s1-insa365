@@ -15,7 +15,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, auth.userId, today);
 
@@ -37,8 +37,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     // 지각 판정
     let status: 'ON_TIME' | 'LATE' = 'ON_TIME';
     if (workPolicy) {
-      const company = await companyRepo.findById(auth.companyId);
-      const lateGrace = company?.lateGraceMinutes ?? 0;
+      const lateGrace = workPolicy.lateGraceMinutes ?? 0;
       const policyStart = timeStringToDate(today, workPolicy.startTime);
       const lateThreshold = new Date(policyStart.getTime() + lateGrace * 60000);
       if (now > lateThreshold) {

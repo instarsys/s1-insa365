@@ -29,7 +29,6 @@ async function main() {
         phone: '',
         email: 'system@insa365.com',
         payDay: 25,
-        monthlyWorkHours: 209,
       },
     });
     console.log('System company created:', systemCompany.id);

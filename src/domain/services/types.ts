@@ -33,15 +33,15 @@ export interface TaxExemptLimitEntry {
   monthlyLimit: number;
 }
 
-/** Company-level payroll settings */
+/** Payroll settings — sourced from WorkPolicy (per-employee) + Company (proration) */
 export interface PayrollSettings {
-  /** Standard monthly work hours (default: 209) */
+  /** Standard monthly work hours (default: 209) — from WorkPolicy */
   monthlyWorkHours: number;
-  /** How to calculate proration for mid-month joins/leaves */
+  /** How to calculate proration for mid-month joins/leaves — from Company */
   prorationMethod: 'CALENDAR_DAY' | 'WORKING_DAY';
-  /** Night work start time, e.g., "22:00" */
+  /** Night work start time, e.g., "22:00" — from WorkPolicy */
   nightWorkStart: string;
-  /** Night work end time, e.g., "06:00" */
+  /** Night work end time, e.g., "06:00" — from WorkPolicy */
   nightWorkEnd: string;
 }
 

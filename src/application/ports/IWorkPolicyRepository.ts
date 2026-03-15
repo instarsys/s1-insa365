@@ -7,6 +7,18 @@ export interface WorkPolicyDto {
   breakMinutes: number;
   workDays: string;
   isDefault: boolean;
+  // Company에서 이동된 필드
+  lateGraceMinutes: number;
+  earlyLeaveGraceMinutes: number;
+  nightWorkStartTime: string;
+  nightWorkEndTime: string;
+  overtimeThresholdMinutes: number;
+  monthlyWorkHours: number;
+  // 신규 필드
+  weeklyHoliday: string;
+  weeklyWorkHours: number;
+  weeklyOvertimeLimit: number;
+  monthlyOvertimeLimit: number;
 }
 
 export interface CreateWorkPolicyData {
@@ -16,6 +28,16 @@ export interface CreateWorkPolicyData {
   breakMinutes?: number;
   workDays?: string;
   isDefault?: boolean;
+  lateGraceMinutes?: number;
+  earlyLeaveGraceMinutes?: number;
+  nightWorkStartTime?: string;
+  nightWorkEndTime?: string;
+  overtimeThresholdMinutes?: number;
+  monthlyWorkHours?: number;
+  weeklyHoliday?: string;
+  weeklyWorkHours?: number;
+  weeklyOvertimeLimit?: number;
+  monthlyOvertimeLimit?: number;
 }
 
 export interface IWorkPolicyRepository {

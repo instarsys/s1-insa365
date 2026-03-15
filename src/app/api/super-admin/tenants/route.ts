@@ -50,8 +50,6 @@ async function postHandler(request: NextRequest, auth: AuthContext) {
       representativeName: representativeName ?? '',
       email: email ?? '',
       phone: phone ?? '',
-      payDay: 25,
-      monthlyWorkHours: 209,
     });
 
     return createdResponse({ id: company.id, name: company.name });

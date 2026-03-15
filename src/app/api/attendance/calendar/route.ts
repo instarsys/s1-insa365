@@ -15,10 +15,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
   if (month < 1 || month > 12) return errorResponse('올바른 월을 지정해주세요.', 400);
 
   const daysInMonth = new Date(year, month, 0).getDate();
-  const startDate = new Date(year, month - 1, 1);
-  startDate.setHours(0, 0, 0, 0);
-  const endDate = new Date(year, month - 1, daysInMonth);
-  endDate.setHours(23, 59, 59, 999);
+  const startDate = new Date(Date.UTC(year, month - 1, 1));
+  const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
 
   const { userRepo, attendanceRepo } = getContainer();
 
@@ -47,11 +45,13 @@ async function handler(request: NextRequest, auth: AuthContext) {
       isConfirmed: boolean;
       totalMinutes: number;
       note: string | null;
+      lateMinutes: number;
+      earlyLeaveMinutes: number;
     } | null> = {};
 
     let workDays = 0;
     for (const att of userAttendances) {
-      const day = new Date(att.date).getDate();
+      const day = new Date(att.date).getUTCDate();
       attendancesByDay[day] = {
         id: att.id,
         checkInTime: att.checkInTime?.toISOString() ?? null,
@@ -60,6 +60,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
         isConfirmed: att.isConfirmed,
         totalMinutes: att.totalMinutes,
         note: att.note,
+        lateMinutes: att.lateMinutes ?? 0,
+        earlyLeaveMinutes: att.earlyLeaveMinutes ?? 0,
       };
       if (att.checkInTime) workDays++;
     }
@@ -78,7 +80,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const dailySummary: Record<number, number> = {};
   for (let d = 1; d <= daysInMonth; d++) {
     dailySummary[d] = attendances.filter((a) => {
-      const day = new Date(a.date).getDate();
+      const day = new Date(a.date).getUTCDate();
       return day === d && a.checkInTime;
     }).length;
   }

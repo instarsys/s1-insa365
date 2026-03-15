@@ -13,10 +13,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
       return errorResponse('직원과 날짜를 지정해주세요.', 400);
     }
 
-    const dateObj = new Date(date);
-    dateObj.setHours(0, 0, 0, 0);
+    const [y, m, d] = date.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d));
 
-    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo, auditLogRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo, auditLogRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
@@ -30,7 +30,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       const checkIn = new Date(checkInTime);
       const checkOut = new Date(checkOutTime);
 
-      // WorkPolicy + Company 조회
+      // WorkPolicy 조회
       const user = await employeeRepo.findById(auth.companyId, userId);
       let workPolicy = user?.workPolicyId
         ? await workPolicyRepo.findById(auth.companyId, user.workPolicyId)
@@ -38,9 +38,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
       if (!workPolicy) {
         workPolicy = await workPolicyRepo.findDefault(auth.companyId);
       }
-      const company = await companyRepo.findById(auth.companyId);
 
-      if (workPolicy && company) {
+      if (workPolicy) {
         // isHoliday: 명시적으로 전달된 값 우선, 없으면 workDays 기반 자동 판정
         if (isHoliday === undefined || isHoliday === null) {
           autoIsHoliday = !isWorkDay(dateObj, workPolicy.workDays);
@@ -54,13 +53,11 @@ async function handler(request: NextRequest, auth: AuthContext) {
             endTime: workPolicy.endTime,
             breakMinutes: workPolicy.breakMinutes,
             workDays: workPolicy.workDays,
-          },
-          company: {
-            lateGraceMinutes: company.lateGraceMinutes,
-            earlyLeaveGraceMinutes: company.earlyLeaveGraceMinutes,
-            nightWorkStartTime: company.nightWorkStartTime,
-            nightWorkEndTime: company.nightWorkEndTime,
-            overtimeThresholdMinutes: company.overtimeThresholdMinutes,
+            lateGraceMinutes: workPolicy.lateGraceMinutes,
+            earlyLeaveGraceMinutes: workPolicy.earlyLeaveGraceMinutes,
+            nightWorkStartTime: workPolicy.nightWorkStartTime,
+            nightWorkEndTime: workPolicy.nightWorkEndTime,
+            overtimeThresholdMinutes: workPolicy.overtimeThresholdMinutes,
           },
           isHoliday: autoIsHoliday,
           date: dateObj,

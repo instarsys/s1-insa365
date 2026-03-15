@@ -24,6 +24,16 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.breakMinutes !== undefined && { breakMinutes: body.breakMinutes }),
     ...(body.workDays && { workDays: body.workDays }),
     ...(body.isDefault !== undefined && { isDefault: body.isDefault }),
+    ...(body.lateGraceMinutes !== undefined && { lateGraceMinutes: body.lateGraceMinutes }),
+    ...(body.earlyLeaveGraceMinutes !== undefined && { earlyLeaveGraceMinutes: body.earlyLeaveGraceMinutes }),
+    ...(body.nightWorkStartTime && { nightWorkStartTime: body.nightWorkStartTime }),
+    ...(body.nightWorkEndTime && { nightWorkEndTime: body.nightWorkEndTime }),
+    ...(body.overtimeThresholdMinutes !== undefined && { overtimeThresholdMinutes: body.overtimeThresholdMinutes }),
+    ...(body.monthlyWorkHours !== undefined && { monthlyWorkHours: body.monthlyWorkHours }),
+    ...(body.weeklyHoliday !== undefined && { weeklyHoliday: body.weeklyHoliday }),
+    ...(body.weeklyWorkHours !== undefined && { weeklyWorkHours: body.weeklyWorkHours }),
+    ...(body.weeklyOvertimeLimit !== undefined && { weeklyOvertimeLimit: body.weeklyOvertimeLimit }),
+    ...(body.monthlyOvertimeLimit !== undefined && { monthlyOvertimeLimit: body.monthlyOvertimeLimit }),
   });
 
   return successResponse(updated);

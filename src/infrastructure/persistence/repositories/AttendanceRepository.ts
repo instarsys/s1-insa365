@@ -117,6 +117,8 @@ export class AttendanceRepository {
         holidayOvertimeMinutes: true,
         holidayNightMinutes: true,
         holidayNightOvertimeMinutes: true,
+        lateMinutes: true,
+        earlyLeaveMinutes: true,
       },
       _count: { id: true },
     });
@@ -165,6 +167,8 @@ export class AttendanceRepository {
           totalHolidayOvertimeMinutes: agg._sum.holidayOvertimeMinutes ?? 0,
           totalHolidayNightMinutes: agg._sum.holidayNightMinutes ?? 0,
           totalHolidayNightOvertimeMinutes: agg._sum.holidayNightOvertimeMinutes ?? 0,
+          totalLateMinutes: agg._sum.lateMinutes ?? 0,
+          totalEarlyLeaveMinutes: agg._sum.earlyLeaveMinutes ?? 0,
           confirmedAt: new Date(),
           confirmedBy,
           version: nextVersion,
@@ -304,6 +308,8 @@ export class AttendanceRepository {
         isConfirmed: true,
         totalMinutes: true,
         note: true,
+        lateMinutes: true,
+        earlyLeaveMinutes: true,
       },
     });
   }

@@ -195,12 +195,6 @@ model Company {
   phone                    String?
   email                    String?
   payDay                   Int              @default(25) @map("pay_day")
-  monthlyWorkHours         Int              @default(209) @map("monthly_work_hours")
-  lateGraceMinutes         Int              @default(0) @map("late_grace_minutes")
-  earlyLeaveGraceMinutes   Int              @default(0) @map("early_leave_grace_minutes")
-  nightWorkStartTime       String           @default("22:00") @map("night_work_start_time")
-  nightWorkEndTime         String           @default("06:00") @map("night_work_end_time")
-  overtimeThresholdMinutes Int              @default(480) @map("overtime_threshold_minutes")
   prorationMethod          ProrationMethod  @default(CALENDAR_DAY) @map("proration_method")
   subscriptionPlan         SubscriptionPlan @default(TRIAL) @map("subscription_plan")
   employeeCountRange       String?          @map("employee_count_range")
@@ -360,6 +354,21 @@ model WorkPolicy {
   breakMinutes Int       @default(60) @map("break_minutes")
   workDays     String    @default("1,2,3,4,5") @map("work_days")
   isDefault    Boolean   @default(false) @map("is_default")
+
+  // === Company에서 이동된 필드 ===
+  lateGraceMinutes         Int     @default(0)       @map("late_grace_minutes")
+  earlyLeaveGraceMinutes   Int     @default(0)       @map("early_leave_grace_minutes")
+  nightWorkStartTime       String  @default("22:00") @map("night_work_start_time")
+  nightWorkEndTime         String  @default("06:00") @map("night_work_end_time")
+  overtimeThresholdMinutes Int     @default(480)     @map("overtime_threshold_minutes")
+  monthlyWorkHours         Int     @default(209)     @map("monthly_work_hours")
+
+  // === 신규 필드 ===
+  weeklyHoliday            String  @default("0")     @map("weekly_holiday")
+  weeklyWorkHours          Int     @default(40)      @map("weekly_work_hours")
+  weeklyOvertimeLimit      Int     @default(12)      @map("weekly_overtime_limit")
+  monthlyOvertimeLimit     Int     @default(52)      @map("monthly_overtime_limit")
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")

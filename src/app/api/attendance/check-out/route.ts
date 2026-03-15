@@ -11,7 +11,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const { attendanceRepo, employeeRepo, workPolicyRepo, companyRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo } = getContainer();
 
     const attendance = await attendanceRepo.findByDate(auth.companyId, auth.userId, today);
 
@@ -25,7 +25,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     const now = new Date();
 
-    // WorkPolicy + Company 조회
+    // WorkPolicy 조회
     const user = await employeeRepo.findById(auth.companyId, auth.userId);
     let workPolicy = user?.workPolicyId
       ? await workPolicyRepo.findById(auth.companyId, user.workPolicyId)
@@ -33,7 +33,6 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!workPolicy) {
       workPolicy = await workPolicyRepo.findDefault(auth.companyId);
     }
-    const company = await companyRepo.findById(auth.companyId);
 
     let updateData: Record<string, unknown> = {
       checkOutTime: now,
@@ -41,7 +40,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       checkOutLongitude: longitude ?? null,
     };
 
-    if (attendance.checkInTime && workPolicy && company) {
+    if (attendance.checkInTime && workPolicy) {
       const isHoliday = attendance.isHoliday || !isWorkDay(today, workPolicy.workDays);
 
       const result = AttendanceClassifier.classify({
@@ -52,13 +51,11 @@ async function handler(request: NextRequest, auth: AuthContext) {
           endTime: workPolicy.endTime,
           breakMinutes: workPolicy.breakMinutes,
           workDays: workPolicy.workDays,
-        },
-        company: {
-          lateGraceMinutes: company.lateGraceMinutes,
-          earlyLeaveGraceMinutes: company.earlyLeaveGraceMinutes,
-          nightWorkStartTime: company.nightWorkStartTime,
-          nightWorkEndTime: company.nightWorkEndTime,
-          overtimeThresholdMinutes: company.overtimeThresholdMinutes,
+          lateGraceMinutes: workPolicy.lateGraceMinutes,
+          earlyLeaveGraceMinutes: workPolicy.earlyLeaveGraceMinutes,
+          nightWorkStartTime: workPolicy.nightWorkStartTime,
+          nightWorkEndTime: workPolicy.nightWorkEndTime,
+          overtimeThresholdMinutes: workPolicy.overtimeThresholdMinutes,
         },
         isHoliday,
         date: today,

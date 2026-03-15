@@ -13,6 +13,7 @@ import { Trash2 } from 'lucide-react';
 interface AttendanceRecordForModal {
   id: string;
   userId: string;
+  userName?: string;
   date: string;
   checkInTime?: string | null;
   checkOutTime?: string | null;
@@ -214,7 +215,7 @@ export function AttendanceRecordModal({
               placeholder="직원 선택"
             />
           ) : (
-            <Input label="직원" value={userId} disabled onChange={() => {}} />
+            <Input label="직원" value={record?.userName || userId} disabled onChange={() => {}} />
           )}
         </div>
 

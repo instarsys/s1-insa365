@@ -14,7 +14,12 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     return errorResponse('권한이 없습니다.', 403);
   }
 
-  const { name, startTime, endTime, breakMinutes, workDays, isDefault } = await request.json();
+  const body = await request.json();
+  const { name, startTime, endTime, breakMinutes, workDays, isDefault,
+    lateGraceMinutes, earlyLeaveGraceMinutes,
+    nightWorkStartTime, nightWorkEndTime, overtimeThresholdMinutes,
+    monthlyWorkHours, weeklyHoliday, weeklyWorkHours,
+    weeklyOvertimeLimit, monthlyOvertimeLimit } = body;
 
   if (!name || !startTime || !endTime) {
     return errorResponse('이름, 시작시간, 종료시간은 필수입니다.', 400);
@@ -31,6 +36,16 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     breakMinutes: breakMinutes ?? 60,
     workDays: workDays ?? '1,2,3,4,5',
     isDefault: isDefault ?? false,
+    lateGraceMinutes,
+    earlyLeaveGraceMinutes,
+    nightWorkStartTime,
+    nightWorkEndTime,
+    overtimeThresholdMinutes,
+    monthlyWorkHours,
+    weeklyHoliday,
+    weeklyWorkHours,
+    weeklyOvertimeLimit,
+    monthlyOvertimeLimit,
   });
 
   return createdResponse(policy);

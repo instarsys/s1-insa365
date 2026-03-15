@@ -1,4 +1,5 @@
 import { prisma } from '../prisma/client';
+import type { CreateWorkPolicyData } from '@/application/ports/IWorkPolicyRepository';
 
 export class WorkPolicyRepository {
   async findById(companyId: string, id: string) {
@@ -20,14 +21,7 @@ export class WorkPolicyRepository {
     });
   }
 
-  async create(companyId: string, data: {
-    name: string;
-    startTime: string;
-    endTime: string;
-    breakMinutes?: number;
-    workDays?: string;
-    isDefault?: boolean;
-  }) {
+  async create(companyId: string, data: CreateWorkPolicyData) {
     return prisma.workPolicy.create({
       data: {
         companyId,
@@ -37,18 +31,21 @@ export class WorkPolicyRepository {
         breakMinutes: data.breakMinutes ?? 60,
         workDays: data.workDays ?? '1,2,3,4,5',
         isDefault: data.isDefault ?? false,
+        lateGraceMinutes: data.lateGraceMinutes ?? 0,
+        earlyLeaveGraceMinutes: data.earlyLeaveGraceMinutes ?? 0,
+        nightWorkStartTime: data.nightWorkStartTime ?? '22:00',
+        nightWorkEndTime: data.nightWorkEndTime ?? '06:00',
+        overtimeThresholdMinutes: data.overtimeThresholdMinutes ?? 480,
+        monthlyWorkHours: data.monthlyWorkHours ?? 209,
+        weeklyHoliday: data.weeklyHoliday ?? '0',
+        weeklyWorkHours: data.weeklyWorkHours ?? 40,
+        weeklyOvertimeLimit: data.weeklyOvertimeLimit ?? 12,
+        monthlyOvertimeLimit: data.monthlyOvertimeLimit ?? 52,
       },
     });
   }
 
-  async update(companyId: string, id: string, data: Partial<{
-    name: string;
-    startTime: string;
-    endTime: string;
-    breakMinutes: number;
-    workDays: string;
-    isDefault: boolean;
-  }>) {
+  async update(companyId: string, id: string, data: Partial<CreateWorkPolicyData>) {
     const existing = await prisma.workPolicy.findFirst({
       where: { id, companyId, deletedAt: null },
     });

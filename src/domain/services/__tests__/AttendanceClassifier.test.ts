@@ -22,8 +22,6 @@ function makeInput(overrides: Partial<ClassifyInput> = {}): ClassifyInput {
       endTime: '18:00',
       breakMinutes: 60,
       workDays: '1,2,3,4,5',
-    },
-    company: {
       lateGraceMinutes: 0,
       earlyLeaveGraceMinutes: 0,
       nightWorkStartTime: '22:00',
@@ -164,7 +162,11 @@ describe('AttendanceClassifier.classify', () => {
     const result = AttendanceClassifier.classify(
       makeInput({
         checkInTime: timeStringToDate(baseDate, '09:04'),
-        company: {
+        workPolicy: {
+          startTime: '09:00',
+          endTime: '18:00',
+          breakMinutes: 60,
+          workDays: '1,2,3,4,5',
           lateGraceMinutes: 5,
           earlyLeaveGraceMinutes: 0,
           nightWorkStartTime: '22:00',
@@ -181,7 +183,11 @@ describe('AttendanceClassifier.classify', () => {
     const result = AttendanceClassifier.classify(
       makeInput({
         checkInTime: timeStringToDate(baseDate, '09:06'),
-        company: {
+        workPolicy: {
+          startTime: '09:00',
+          endTime: '18:00',
+          breakMinutes: 60,
+          workDays: '1,2,3,4,5',
           lateGraceMinutes: 5,
           earlyLeaveGraceMinutes: 0,
           nightWorkStartTime: '22:00',
@@ -198,7 +204,11 @@ describe('AttendanceClassifier.classify', () => {
     const result = AttendanceClassifier.classify(
       makeInput({
         checkInTime: timeStringToDate(baseDate, '09:10'),
-        company: {
+        workPolicy: {
+          startTime: '09:00',
+          endTime: '18:00',
+          breakMinutes: 60,
+          workDays: '1,2,3,4,5',
           lateGraceMinutes: 10,
           earlyLeaveGraceMinutes: 0,
           nightWorkStartTime: '22:00',
@@ -228,7 +238,11 @@ describe('AttendanceClassifier.classify', () => {
     const result = AttendanceClassifier.classify(
       makeInput({
         checkOutTime: timeStringToDate(baseDate, '17:55'),
-        company: {
+        workPolicy: {
+          startTime: '09:00',
+          endTime: '18:00',
+          breakMinutes: 60,
+          workDays: '1,2,3,4,5',
           lateGraceMinutes: 0,
           earlyLeaveGraceMinutes: 10,
           nightWorkStartTime: '22:00',
@@ -272,11 +286,6 @@ describe('AttendanceClassifier.classify', () => {
   // --- 6. Night Work ---
 
   it('야간근무 09:00~23:00 → regular=480, overtime=240, nightOvertime=60', () => {
-    // 09:00~23:00 = 14h raw. Night: 22:00~23:00 = 60min.
-    // Day: 14h - 60min = 780min. Day after break: 780 - 60 = 720min.
-    // Total = 720 + 60 = 780min.
-    // Regular: 480 (all day). Overtime: 300 - 60 night = 240 day OT.
-    // NightOvertime: 60 (22:00~23:00 is overtime zone since regular filled by day).
     const result = AttendanceClassifier.classify(
       makeInput({
         checkOutTime: timeStringToDate(baseDate, '23:00'),
@@ -302,6 +311,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -323,6 +337,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -344,6 +363,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 0,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -364,6 +388,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 0,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -380,6 +409,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 30,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -391,7 +425,6 @@ describe('AttendanceClassifier.classify', () => {
   // --- 9. workDays auto holiday detection ---
 
   it('workDays 기반 자동 휴일 판정은 isHoliday로 전달', () => {
-    // Saturday (non-workday) is passed as isHoliday=true by the API
     const sat = new Date(2026, 2, 7); // Saturday
     const result = AttendanceClassifier.classify(
       makeInput({
@@ -404,6 +437,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 0,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -435,6 +473,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -452,6 +495,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 0,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -471,6 +519,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -499,6 +552,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -510,9 +568,6 @@ describe('AttendanceClassifier.classify', () => {
   // --- 11. Night shift edge cases ---
 
   it('야간 전용 근무 (22:00~06:00): 전부 night, break는 주간에서 차감되므로 480분', () => {
-    // 22:00~06:00 = 480 min raw. Night overlap = 480 min.
-    // Day = 0 min, break applied to day = max(0, 0-60)=0.
-    // Total = 0 + 480 = 480 min (야간 전용이라 break 무효)
     const result = AttendanceClassifier.classify(
       makeInput({
         checkInTime: timeStringToDate(baseDate, '22:00'),
@@ -526,6 +581,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '06:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );
@@ -547,8 +607,6 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 60,
           workDays: '1,2,3,4,5',
-        },
-        company: {
           lateGraceMinutes: 0,
           earlyLeaveGraceMinutes: 0,
           nightWorkStartTime: '22:00',
@@ -574,6 +632,11 @@ describe('AttendanceClassifier.classify', () => {
           endTime: '18:00',
           breakMinutes: 0,
           workDays: '1,2,3,4,5',
+          lateGraceMinutes: 0,
+          earlyLeaveGraceMinutes: 0,
+          nightWorkStartTime: '22:00',
+          nightWorkEndTime: '06:00',
+          overtimeThresholdMinutes: 480,
         },
       }),
     );

@@ -48,7 +48,13 @@ export interface MonthlyAttendanceSummaryDto {
   totalRegularMinutes: number;
   totalOvertimeMinutes: number;
   totalNightMinutes: number;
+  totalNightOvertimeMinutes: number;
   totalHolidayMinutes: number;
+  totalHolidayOvertimeMinutes: number;
+  totalHolidayNightMinutes: number;
+  totalHolidayNightOvertimeMinutes: number;
+  totalLateMinutes: number;
+  totalEarlyLeaveMinutes: number;
   isConfirmed: boolean;
 }
 

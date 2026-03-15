@@ -6,6 +6,7 @@ import type { IInsuranceRateRepository } from '../../ports/IInsuranceRateReposit
 import type { ITaxBracketRepository } from '../../ports/ITaxBracketRepository';
 import type { ITaxExemptLimitRepository } from '../../ports/ITaxExemptLimitRepository';
 import type { ICompanyRepository } from '../../ports/ICompanyRepository';
+import type { IWorkPolicyRepository } from '../../ports/IWorkPolicyRepository';
 import type { PayrollResultDto } from '../../dtos/payroll';
 import type {
   PayrollInput,
@@ -39,6 +40,7 @@ export class CalculatePayrollUseCase {
     private taxExemptLimitRepo: ITaxExemptLimitRepository,
     private companyRepo: ICompanyRepository,
     private payrollCalculator: IPayrollCalculatorService,
+    private workPolicyRepo: IWorkPolicyRepository,
   ) {}
 
   async execute(companyId: string, year: number, month: number): Promise<PayrollResultDto[]> {
@@ -61,12 +63,10 @@ export class CalculatePayrollUseCase {
       throw new ValidationError('Company not found');
     }
 
-    const settings: PayrollSettings = {
-      monthlyWorkHours: company.monthlyWorkHours,
-      prorationMethod: company.prorationMethod as 'CALENDAR_DAY' | 'WORKING_DAY',
-      nightWorkStart: company.nightWorkStartTime,
-      nightWorkEnd: company.nightWorkEndTime,
-    };
+    // Load all WorkPolicies + default for per-employee settings
+    const allPolicies = await this.workPolicyRepo.findAll(companyId);
+    const policyMap = new Map(allPolicies.map(p => [p.id, p]));
+    const defaultPolicy = allPolicies.find(p => p.isDefault);
 
     // Load insurance rates for the calculation date (15th of the pay month)
     const rateDate = new Date(year, month - 1, 15);
@@ -105,6 +105,18 @@ export class CalculatePayrollUseCase {
 
     for (const emp of employees.items) {
       try {
+        // Per-employee WorkPolicy → PayrollSettings
+        const empPolicy = emp.workPolicyId
+          ? policyMap.get(emp.workPolicyId)
+          : defaultPolicy;
+
+        const settings: PayrollSettings = {
+          monthlyWorkHours: empPolicy?.monthlyWorkHours ?? 209,
+          prorationMethod: company.prorationMethod as 'CALENDAR_DAY' | 'WORKING_DAY',
+          nightWorkStart: empPolicy?.nightWorkStartTime ?? '22:00',
+          nightWorkEnd: empPolicy?.nightWorkEndTime ?? '06:00',
+        };
+
         // Load salary items
         const salaryItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, emp.id);
         const salaryItemProps: SalaryItemProps[] = salaryItems.map((si) => ({

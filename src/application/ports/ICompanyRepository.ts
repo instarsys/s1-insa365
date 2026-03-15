@@ -7,12 +7,6 @@ export interface CompanyDto {
   phone: string | null;
   email: string | null;
   payDay: number;
-  monthlyWorkHours: number;
-  lateGraceMinutes: number;
-  earlyLeaveGraceMinutes: number;
-  nightWorkStartTime: string;
-  nightWorkEndTime: string;
-  overtimeThresholdMinutes: number;
   prorationMethod: string;
   subscriptionPlan: string;
   createdAt: string;
@@ -33,12 +27,6 @@ export interface UpdateCompanyData {
   phone?: string;
   email?: string;
   payDay?: number;
-  monthlyWorkHours?: number;
-  lateGraceMinutes?: number;
-  earlyLeaveGraceMinutes?: number;
-  nightWorkStartTime?: string;
-  nightWorkEndTime?: string;
-  overtimeThresholdMinutes?: number;
   prorationMethod?: string;
 }
 

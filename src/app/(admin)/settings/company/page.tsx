@@ -18,9 +18,6 @@ interface CompanySettings {
   phone: string;
   email: string;
   payDay: number;
-  standardMonthlyHours: number;
-  nightWorkStart: string;
-  nightWorkEnd: string;
   prorationMethod: string;
 }
 
@@ -45,9 +42,6 @@ export default function CompanySettingsPage() {
     phone: '',
     email: '',
     payDay: 25,
-    standardMonthlyHours: 209,
-    nightWorkStart: '22:00',
-    nightWorkEnd: '06:00',
     prorationMethod: 'CALENDAR_DAY',
   });
 
@@ -133,30 +127,15 @@ export default function CompanySettingsPage() {
               value={String(form.payDay)}
               onChange={(v) => updateField('payDay', Number(v))}
             />
-            <Input
-              label="월소정근로시간"
-              type="number"
-              value={String(form.standardMonthlyHours)}
-              onChange={(e) => updateField('standardMonthlyHours', Number(e.target.value))}
-            />
-            <Input
-              label="야간근로 시작"
-              type="time"
-              value={form.nightWorkStart}
-              onChange={(e) => updateField('nightWorkStart', e.target.value)}
-            />
-            <Input
-              label="야간근로 종료"
-              type="time"
-              value={form.nightWorkEnd}
-              onChange={(e) => updateField('nightWorkEnd', e.target.value)}
-            />
             <Select
               label="일할계산 방법"
               options={PRORATION_OPTIONS}
               value={form.prorationMethod}
               onChange={(v) => updateField('prorationMethod', v)}
             />
+            <p className="text-xs text-gray-500 sm:col-span-2">
+              지각/조퇴 유예시간, 야간근로, 소정근로시간 등은 설정 &gt; 근무 정책에서 정책별로 관리합니다.
+            </p>
           </div>
         </CardBody>
       </Card>

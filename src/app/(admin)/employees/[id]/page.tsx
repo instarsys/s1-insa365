@@ -33,12 +33,15 @@ const DETAIL_TABS = [
 interface DepartmentItem { id: string; name: string; }
 interface PositionItem { id: string; name: string; }
 
+interface WorkPolicyItem { id: string; name: string; isDefault: boolean; }
+
 interface EditFormState {
   name: string;
   email: string;
   phone: string;
   departmentId: string;
   positionId: string;
+  workPolicyId: string;
   joinDate: string;
   resignDate: string;
   resignReason: string;
@@ -52,7 +55,7 @@ interface EditFormState {
 
 const emptyEditForm: EditFormState = {
   name: '', email: '', phone: '',
-  departmentId: '', positionId: '',
+  departmentId: '', positionId: '', workPolicyId: '',
   joinDate: '', resignDate: '', resignReason: '',
   address: '', isHouseholder: false, dependents: '1',
   hireType: '', bankName: '', bankAccount: '',
@@ -105,6 +108,16 @@ export default function EmployeeDetailPage() {
     ...(posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
   ], [posData]);
 
+  // WorkPolicy list for select dropdown
+  const { data: wpData } = useSWR<{ items: WorkPolicyItem[] }>('/api/settings/work-policy', fetcher);
+  const workPolicyOptions = useMemo(() => [
+    { value: '', label: '근무정책 선택' },
+    ...(wpData?.items ?? []).map((wp) => ({
+      value: wp.id,
+      label: wp.isDefault ? `${wp.name} (기본)` : wp.name,
+    })),
+  ], [wpData]);
+
   const hireTypeOptions = useMemo(() => [
     { value: '', label: '선택' },
     ...HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
@@ -143,6 +156,7 @@ export default function EmployeeDetailPage() {
       phone: (emp.phone as string) ?? '',
       departmentId: (emp.departmentId as string) ?? '',
       positionId: (emp.positionId as string) ?? '',
+      workPolicyId: (emp.workPolicyId as string) ?? '',
       joinDate: emp.joinDate ? (emp.joinDate as string).slice(0, 10) : '',
       resignDate: emp.resignDate ? (emp.resignDate as string).slice(0, 10) : '',
       resignReason: (emp.resignReason as string) ?? '',
@@ -166,6 +180,10 @@ export default function EmployeeDetailPage() {
       toast.error('이름, 이메일, 연락처는 필수입니다.');
       return;
     }
+    if (!editForm.workPolicyId) {
+      toast.error('근무정책을 선택해주세요.');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -175,6 +193,7 @@ export default function EmployeeDetailPage() {
         phone: editForm.phone,
         departmentId: editForm.departmentId || null,
         positionId: editForm.positionId || null,
+        workPolicyId: editForm.workPolicyId || null,
         joinDate: editForm.joinDate || null,
         resignDate: editForm.resignDate || null,
         resignReason: editForm.resignReason || null,
@@ -527,6 +546,19 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
+                {isEditing ? (
+                  <Select
+                    label="근무정책"
+                    options={workPolicyOptions}
+                    value={editForm.workPolicyId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, workPolicyId: v }))}
+                  />
+                ) : (
+                  <InfoItem
+                    label="근무정책"
+                    value={(emp.workPolicy as { name: string } | null)?.name ?? '기본 정책'}
+                  />
+                )}
                 {(emp.employeeStatus as string) === 'RESIGNED' && (
                   <>
                     {isEditing ? (

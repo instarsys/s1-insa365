@@ -11,7 +11,7 @@ export const createEmployeeSchema = z.object({
   role: z.enum(['COMPANY_ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   departmentId: z.string().uuid().optional().nullable(),
   positionId: z.string().uuid().optional().nullable(),
-  workPolicyId: z.string().uuid().optional().nullable(),
+  workPolicyId: z.string().uuid(),
   workLocationId: z.string().uuid().optional().nullable(),
   joinDate: z.string().optional().nullable(),
   dependents: z.number().int().min(0).max(20).optional(),

@@ -18,6 +18,8 @@ interface CellData {
   isConfirmed: boolean;
   totalMinutes: number;
   note: string | null;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
 }
 
 interface AttendanceCalendarCellProps {

@@ -22,7 +22,6 @@ async function main() {
         phone: '02-1234-5678',
         email: 'admin@test-company.com',
         payDay: 25,
-        monthlyWorkHours: 209,
       },
     });
     console.log('Company created:', company.name);
@@ -62,6 +61,16 @@ async function main() {
       breakMinutes: 60,
       workDays: '1,2,3,4,5',
       isDefault: true,
+      lateGraceMinutes: 0,
+      earlyLeaveGraceMinutes: 0,
+      nightWorkStartTime: '22:00',
+      nightWorkEndTime: '06:00',
+      overtimeThresholdMinutes: 480,
+      monthlyWorkHours: 209,
+      weeklyHoliday: '0',
+      weeklyWorkHours: 40,
+      weeklyOvertimeLimit: 12,
+      monthlyOvertimeLimit: 52,
     },
   });
   console.log('Work policy created');
@@ -838,7 +847,6 @@ async function main() {
       phone: '',
       email: 'system@insa365.com',
       payDay: 25,
-      monthlyWorkHours: 209,
     },
   });
   const sysadminPassword = await bcrypt.hash('sysadmin123!', 10);

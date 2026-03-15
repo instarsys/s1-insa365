@@ -356,6 +356,7 @@ function createContainer(): Container {
     taxExemptLimitRepo as Any,
     companyRepo as Any,
     payrollCalculator,
+    workPolicyRepo as Any,
   );
   const getPayrollSpreadsheetUseCase = new GetPayrollSpreadsheetUseCase(salaryCalcRepo as Any);
   const updatePayrollItemUseCase = new UpdatePayrollItemUseCase(salaryCalcRepo as Any);

@@ -13,22 +13,6 @@ import { Checkbox } from '@/components/ui';
 import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const LATE_THRESHOLDS = [
-  { value: '0', label: '지각범위: 사용안함' },
-  { value: '5', label: '지각범위: 5분' },
-  { value: '10', label: '지각범위: 10분' },
-  { value: '15', label: '지각범위: 15분' },
-  { value: '20', label: '지각범위: 20분' },
-  { value: '30', label: '지각범위: 30분' },
-  { value: '60', label: '지각범위: 60분' },
-];
-
-const EARLY_LEAVE_THRESHOLDS = [
-  { value: '0', label: '조퇴범위: 사용안함' },
-  { value: '15', label: '조퇴범위: 15분' },
-  { value: '30', label: '조퇴범위: 30분' },
-  { value: '60', label: '조퇴범위: 60분' },
-];
 
 export default function AttendanceCalendarPage() {
   const router = useRouter();
@@ -39,8 +23,6 @@ export default function AttendanceCalendarPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [departmentId, setDepartmentId] = useState('');
   const [employeeStatus, setEmployeeStatus] = useState('ACTIVE');
-  const [lateThreshold, setLateThreshold] = useState('20');
-  const [earlyLeaveThreshold, setEarlyLeaveThreshold] = useState('0');
   const [showLeave, setShowLeave] = useState(true);
   const [colorMode, setColorMode] = useState<'status' | 'department'>('status');
   const [compactView, setCompactView] = useState(false);
@@ -53,7 +35,7 @@ export default function AttendanceCalendarPage() {
   const [modalDefaultDate, setModalDefaultDate] = useState<string | undefined>();
   const [modalDefaultUserId, setModalDefaultUserId] = useState<string | undefined>();
   const [modalRecord, setModalRecord] = useState<{
-    id: string; userId: string; date: string;
+    id: string; userId: string; userName?: string; date: string;
     checkInTime?: string | null; checkOutTime?: string | null;
     status: string; isConfirmed: boolean; note?: string | null;
   } | null>(null);
@@ -102,6 +84,7 @@ export default function AttendanceCalendarPage() {
         setModalRecord({
           id: att.id,
           userId,
+          userName: emp?.userName,
           date: dateStr,
           checkInTime: att.checkInTime,
           checkOutTime: att.checkOutTime,
@@ -191,8 +174,6 @@ export default function AttendanceCalendarPage() {
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select options={departmentOptions} value={departmentId} onChange={(v) => { setDepartmentId(v); setPage(1); }} wrapperClassName="w-40" />
         <Select options={employeeStatusOptions} value={employeeStatus} onChange={(v) => { setEmployeeStatus(v); setPage(1); }} wrapperClassName="w-32" />
-        <Select options={LATE_THRESHOLDS} value={lateThreshold} onChange={setLateThreshold} wrapperClassName="w-44" />
-        <Select options={EARLY_LEAVE_THRESHOLDS} value={earlyLeaveThreshold} onChange={setEarlyLeaveThreshold} wrapperClassName="w-44" />
         <Select options={limitOptions} value={String(limit)} onChange={(v) => { setLimit(Number(v)); setPage(1); }} wrapperClassName="w-24" />
         <div className="ml-auto flex items-center gap-4">
           <Checkbox label="휴가 표시" checked={showLeave} onChange={setShowLeave} />

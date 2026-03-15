@@ -359,4 +359,227 @@ describe('PayrollCalculator', () => {
       expect(result.status).toBe('DRAFT');
     });
   });
+
+  describe('Scenario A: non-standard work policy (monthlyWorkHours=174)', () => {
+    it('should calculate higher hourly wage with shorter monthly hours', () => {
+      const input = makeInput({
+        settings: {
+          monthlyWorkHours: 174, // 주35시간 파트타임
+          prorationMethod: 'CALENDAR_DAY',
+          nightWorkStart: '22:00',
+          nightWorkEnd: '06:00',
+        },
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // 3,000,000 / 174 = 17,241 (vs 209시간: 14,354)
+      expect(result.ordinaryWageHourly).toBe(Math.floor(3_000_000 / 174));
+      expect(result.ordinaryWageHourly).toBe(17_241);
+      expect(result.ordinaryWageMonthly).toBe(3_000_000);
+    });
+
+    it('should produce higher overtime pay with shorter monthly hours', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        overtimeMinutes: 600, // 10h
+      };
+      const input174 = makeInput({
+        attendance,
+        settings: {
+          monthlyWorkHours: 174,
+          prorationMethod: 'CALENDAR_DAY',
+          nightWorkStart: '22:00',
+          nightWorkEnd: '06:00',
+        },
+      });
+      const input209 = makeInput({ attendance });
+
+      const result174 = PayrollCalculator.calculate(input174);
+      const result209 = PayrollCalculator.calculate(input209);
+
+      // 174시간 기준이 더 높은 시급 → 더 높은 연장수당
+      expect(result174.overtimePay).toBeGreaterThan(result209.overtimePay);
+      expect(result174.overtimePay).toBe(Math.floor(Math.floor(3_000_000 / 174) * 1.5 * 600 / 60));
+    });
+  });
+
+  describe('Scenario B: hourly employee with compound premiums', () => {
+    it('should calculate all premium types for hourly employee', () => {
+      const attendance: AttendanceSummary = {
+        regularMinutes: 9600,       // 160h
+        overtimeMinutes: 600,       // 10h
+        nightMinutes: 120,          // 2h
+        nightOvertimeMinutes: 0,
+        holidayMinutes: 480,        // 8h (≤8h → 1.5x)
+        holidayOvertimeMinutes: 0,
+        holidayNightMinutes: 0,
+        holidayNightOvertimeMinutes: 0,
+      };
+
+      const input = makeInput({
+        employee: {
+          id: 'emp-hourly-b',
+          name: '시급테스트',
+          dependents: 1,
+          joinDate: new Date(2025, 0, 1),
+          nationalPensionMode: 'AUTO',
+          healthInsuranceMode: 'AUTO',
+          employmentInsuranceMode: 'AUTO',
+          salaryType: 'HOURLY',
+          hourlyRate: 11_000,
+        },
+        salaryItems: [],
+        attendance,
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // 시급제: ordinaryHourlyWage = hourlyRate
+      expect(result.ordinaryWageHourly).toBe(11_000);
+
+      // basePay = 11000 × 9600/60 = 1,760,000
+      expect(result.basePay).toBe(Math.floor(11_000 * 9600 / 60));
+
+      // overtime = 11000 × 1.5 × 600/60 = 165,000
+      expect(result.overtimePay).toBe(Math.floor(11_000 * 1.5 * 600 / 60));
+
+      // night = 11000 × 0.5 × 120/60 = 11,000
+      expect(result.nightPay).toBe(Math.floor(11_000 * 0.5 * 120 / 60));
+
+      // holiday(≤8h) = 11000 × 1.5 × 480/60 = 132,000
+      expect(result.holidayPay).toBe(Math.floor(11_000 * 1.5 * 480 / 60));
+
+      // totalPay = basePay + overtime + night + holiday
+      expect(result.totalPay).toBe(
+        result.basePay + result.overtimePay + result.nightPay + result.holidayPay,
+      );
+    });
+  });
+
+  describe('Scenario C: monthly employee with late/early leave deductions', () => {
+    it('should deduct for late and early leave minutes', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        totalLateMinutes: 60,           // 1시간 지각
+        totalEarlyLeaveMinutes: 120,    // 2시간 조퇴
+      };
+
+      const input = makeInput({ attendance });
+      const result = PayrollCalculator.calculate(input);
+
+      const hourlyWage = Math.floor(3_000_000 / 209);
+      const expectedDeduction = Math.floor(hourlyWage * (60 + 120) / 60);
+
+      expect(result.attendanceDeductions).toBe(expectedDeduction);
+      expect(result.totalPay).toBe(3_000_000 - expectedDeduction);
+    });
+
+    it('should not deduct for hourly employee late/early leave', () => {
+      const attendance: AttendanceSummary = {
+        regularMinutes: 9600,
+        overtimeMinutes: 0,
+        nightMinutes: 0,
+        nightOvertimeMinutes: 0,
+        holidayMinutes: 0,
+        holidayOvertimeMinutes: 0,
+        holidayNightMinutes: 0,
+        holidayNightOvertimeMinutes: 0,
+        totalLateMinutes: 60,
+        totalEarlyLeaveMinutes: 120,
+      };
+
+      const input = makeInput({
+        employee: {
+          id: 'emp-hourly-c',
+          name: '시급지각',
+          dependents: 1,
+          joinDate: new Date(2025, 0, 1),
+          nationalPensionMode: 'AUTO',
+          healthInsuranceMode: 'AUTO',
+          employmentInsuranceMode: 'AUTO',
+          salaryType: 'HOURLY',
+          hourlyRate: 11_000,
+        },
+        salaryItems: [],
+        attendance,
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // 시급제는 지각/조퇴 공제 없음 (근무시간으로 이미 반영)
+      expect(result.attendanceDeductions).toBe(0);
+    });
+  });
+
+  describe('Scenario D: mid-month join proration', () => {
+    it('should prorate basePay and fixedAllowances for March 15 join', () => {
+      const input = makeInput({
+        employee: {
+          id: 'emp-mid-month',
+          name: '중도입사',
+          dependents: 1,
+          joinDate: new Date(2025, 2, 15), // March 15
+          nationalPensionMode: 'AUTO',
+          healthInsuranceMode: 'AUTO',
+          employmentInsuranceMode: 'AUTO',
+          salaryType: 'MONTHLY',
+        },
+        salaryItems: [BASE_SALARY_ITEM, POSITION_ALLOWANCE],
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // March has 31 days, joined on 15th → 17 days remaining (15~31)
+      const ratio = 17 / 31;
+      expect(result.prorationApplied).toBe(true);
+      expect(result.prorationRatio).toBeCloseTo(ratio, 10);
+
+      // basePay pro-rated
+      expect(result.basePay).toBe(Math.floor(3_000_000 * ratio));
+
+      // fixedAllowances (position 200K) also pro-rated
+      expect(result.fixedAllowances).toBe(Math.floor(200_000 * ratio));
+
+      // totalPay = prorated basePay + prorated fixed
+      expect(result.totalPay).toBe(result.basePay + result.fixedAllowances);
+    });
+  });
+
+  describe('Scenario E: custom night work hours in settings', () => {
+    it('should accept non-standard night work settings', () => {
+      const input = makeInput({
+        settings: {
+          monthlyWorkHours: 209,
+          prorationMethod: 'CALENDAR_DAY',
+          nightWorkStart: '20:00',
+          nightWorkEnd: '04:00',
+        },
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      // PayrollCalculator uses pre-classified attendance minutes
+      // (AttendanceClassifier determines night minutes based on nightWorkStart/End upstream)
+      // Calculator itself just processes the numbers
+      expect(result.status).toBe('DRAFT');
+      expect(result.ordinaryWageHourly).toBe(Math.floor(3_000_000 / 209));
+    });
+
+    it('should correctly calculate night premium from pre-classified attendance', () => {
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        nightMinutes: 240, // 4h night (classified by AttendanceClassifier with custom night window)
+      };
+
+      const input = makeInput({
+        attendance,
+        settings: {
+          monthlyWorkHours: 209,
+          prorationMethod: 'CALENDAR_DAY',
+          nightWorkStart: '20:00',
+          nightWorkEnd: '04:00',
+        },
+      });
+      const result = PayrollCalculator.calculate(input);
+
+      const hourlyWage = Math.floor(3_000_000 / 209);
+      expect(result.nightPay).toBe(Math.floor(hourlyWage * 0.5 * 240 / 60));
+    });
+  });
 });

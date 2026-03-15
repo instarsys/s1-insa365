@@ -91,6 +91,8 @@ interface CalendarAttendanceItem {
     isConfirmed: boolean;
     totalMinutes: number;
     note: string | null;
+    lateMinutes: number;
+    earlyLeaveMinutes: number;
   } | null>;
 }
 

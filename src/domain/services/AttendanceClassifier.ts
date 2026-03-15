@@ -17,8 +17,6 @@ export interface ClassifyInput {
     endTime: string;     // "HH:MM" e.g. "18:00"
     breakMinutes: number;
     workDays: string;    // "1,2,3,4,5" (1=Mon..7=Sun)
-  };
-  company: {
     lateGraceMinutes: number;       // default 0
     earlyLeaveGraceMinutes: number; // default 0
     nightWorkStartTime: string;     // default "22:00"
@@ -123,7 +121,6 @@ export class AttendanceClassifier {
       checkInTime,
       checkOutTime,
       workPolicy,
-      company,
       isHoliday,
       date,
     } = input;
@@ -137,8 +134,8 @@ export class AttendanceClassifier {
     }
 
     // Night work window: e.g. 22:00 today ~ 06:00 tomorrow
-    const nightStart = timeStringToDate(date, company.nightWorkStartTime);
-    const nightEnd = timeStringToDate(date, company.nightWorkEndTime);
+    const nightStart = timeStringToDate(date, workPolicy.nightWorkStartTime);
+    const nightEnd = timeStringToDate(date, workPolicy.nightWorkEndTime);
     // Night end is always next day (22:00~06:00)
     if (nightEnd <= nightStart) {
       nightEnd.setDate(nightEnd.getDate() + 1);
@@ -167,7 +164,7 @@ export class AttendanceClassifier {
     } else {
       // Late: checkIn after policyStart + grace
       const lateThreshold = new Date(
-        policyStart.getTime() + company.lateGraceMinutes * 60000,
+        policyStart.getTime() + workPolicy.lateGraceMinutes * 60000,
       );
       if (checkInTime > lateThreshold) {
         lateMinutes = Math.floor(
@@ -177,7 +174,7 @@ export class AttendanceClassifier {
 
       // Early leave: checkOut before policyEnd - grace
       const earlyThreshold = new Date(
-        policyEnd.getTime() - company.earlyLeaveGraceMinutes * 60000,
+        policyEnd.getTime() - workPolicy.earlyLeaveGraceMinutes * 60000,
       );
       if (checkOutTime < earlyThreshold) {
         earlyLeaveMinutes = Math.floor(
@@ -197,7 +194,7 @@ export class AttendanceClassifier {
 
     // Segment calculation
     const segments: SegmentOutput[] = [];
-    const threshold = company.overtimeThresholdMinutes;
+    const threshold = workPolicy.overtimeThresholdMinutes;
 
     if (isHoliday) {
       // ─── Holiday work ───
