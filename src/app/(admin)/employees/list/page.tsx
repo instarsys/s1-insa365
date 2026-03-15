@@ -57,6 +57,8 @@ interface EmployeeForm {
   baseSalary: string;
   hourlyRate: string;
   insuranceMode: string;
+  workPolicyId: string;
+  workLocationId: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -74,6 +76,8 @@ const emptyForm: EmployeeForm = {
   baseSalary: '',
   hourlyRate: '',
   insuranceMode: 'AUTO',
+  workPolicyId: '',
+  workLocationId: '',
 };
 
 export default function EmployeeListPage() {
@@ -87,26 +91,41 @@ export default function EmployeeListPage() {
   // Dynamic department & position data
   const { data: deptData } = useSWR<{ items: DepartmentItem[] }>('/api/departments', fetcher);
   const { data: posData } = useSWR<{ items: PositionItem[] }>('/api/positions', fetcher);
+  const { data: wpData } = useSWR<{ items: { id: string; name: string; isDefault: boolean }[] }>('/api/settings/work-policy', fetcher);
+  const { data: wlData } = useSWR<{ items: { id: string; name: string }[] }>('/api/work-locations', fetcher);
 
   const departmentFilterOptions = useMemo(() => [
     { value: '', label: '전체 부서' },
     ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
   ], [deptData]);
 
-  const departmentOptions = useMemo(() => [
-    { value: '', label: '부서 선택' },
-    ...(deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
-  ], [deptData]);
+  const departmentOptions = useMemo(() =>
+    (deptData?.items ?? []).map((d) => ({ value: d.id, label: d.name })),
+    [deptData]
+  );
 
-  const positionOptions = useMemo(() => [
-    { value: '', label: '직급 선택' },
-    ...(posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
-  ], [posData]);
+  const positionOptions = useMemo(() =>
+    (posData?.items ?? []).map((p) => ({ value: p.id, label: p.name })),
+    [posData]
+  );
 
-  const hireTypeOptions = useMemo(() => [
-    { value: '', label: '선택' },
-    ...HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
-  ], []);
+  const hireTypeOptions = useMemo(() =>
+    HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
+    []
+  );
+
+  const workPolicyOptions = useMemo(() =>
+    (wpData?.items ?? []).map((wp) => ({
+      value: wp.id,
+      label: wp.isDefault ? `${wp.name} (기본)` : wp.name,
+    })),
+    [wpData]
+  );
+
+  const workLocationOptions = useMemo(() =>
+    (wlData?.items ?? []).map((wl) => ({ value: wl.id, label: wl.name })),
+    [wlData]
+  );
 
   // statusTab '' = ACTIVE
   const statusFilter = statusTab || 'ACTIVE';
@@ -155,6 +174,10 @@ export default function EmployeeListPage() {
       toast.error('이름, 이메일, 연락처는 필수입니다.');
       return;
     }
+    if (!form.workPolicyId) {
+      toast.error('근무정책은 필수입니다.');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -173,6 +196,8 @@ export default function EmployeeListPage() {
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         hourlyRate: form.salaryType === 'HOURLY' && form.hourlyRate ? Number(form.hourlyRate) : undefined,
         insuranceMode: form.insuranceMode,
+        workPolicyId: form.workPolicyId || undefined,
+        workLocationId: form.workLocationId || undefined,
       };
 
       await createEmployee(payload);
@@ -371,6 +396,23 @@ export default function EmployeeListPage() {
               value={form.hireType}
               onChange={(v) => setForm((f) => ({ ...f, hireType: v }))}
               placeholder="선택"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="근무정책"
+              options={workPolicyOptions}
+              value={form.workPolicyId}
+              onChange={(v) => setForm((f) => ({ ...f, workPolicyId: v }))}
+              placeholder="근무정책 선택"
+              required
+            />
+            <Select
+              label="근무지"
+              options={workLocationOptions}
+              value={form.workLocationId}
+              onChange={(v) => setForm((f) => ({ ...f, workLocationId: v }))}
+              placeholder="근무지 선택"
             />
           </div>
 
