@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { Breadcrumb, PageHeader } from '@/components/layout';
 import {
@@ -60,10 +60,12 @@ const emptyEditForm: EditFormState = {
 
 export default function EmployeeDetailPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const toast = useToast();
   const { user: authUser } = useAuth();
   const id = params.id as string;
+  const from = searchParams.get('from');
 
   const [activeTab, setActiveTab] = useState('basic');
   const [isEditing, setIsEditing] = useState(false);
@@ -343,10 +345,11 @@ export default function EmployeeDetailPage() {
     <div>
       {/* Breadcrumb */}
       <Breadcrumb
-        items={[
-          { label: '직원 관리', href: '/employees/list' },
-          { label: emp.name as string },
-        ]}
+        items={
+          from === 'attendance-calendar'
+            ? [{ label: '달력형 근태', href: '/attendance/calendar' }, { label: emp.name as string }]
+            : [{ label: '직원 관리', href: '/employees/list' }, { label: emp.name as string }]
+        }
         className="mb-4"
       />
 

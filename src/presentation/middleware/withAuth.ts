@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import * as Sentry from '@sentry/nextjs';
 import jwt from 'jsonwebtoken';
 
 export interface AuthContext {
@@ -34,6 +35,7 @@ export function withAuth(
       return await handler(request, auth);
     } catch (error) {
       console.error(`[API Error] ${request.method} ${request.nextUrl.pathname}:`, error);
+      Sentry.captureException(error);
       const message = error instanceof Error ? error.message : 'Internal Server Error';
       return NextResponse.json({ message }, { status: 500 });
     }

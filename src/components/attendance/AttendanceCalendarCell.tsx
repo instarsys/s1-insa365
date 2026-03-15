@@ -27,6 +27,7 @@ interface AttendanceCalendarCellProps {
   showLeave?: boolean;
   colorMode?: 'status' | 'department';
   departmentName?: string | null;
+  compact?: boolean;
   onClick: () => void;
 }
 
@@ -37,13 +38,15 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
   showLeave = true,
   colorMode = 'status',
   departmentName,
+  compact = false,
   onClick,
 }: AttendanceCalendarCellProps) {
   if (!data) {
     return (
       <td
         className={cn(
-          'h-14 min-w-[68px] border-r border-b border-gray-100 px-1 text-center text-xs cursor-pointer transition-colors',
+          'border-r border-b border-gray-100 text-center cursor-pointer transition-colors',
+          compact ? 'h-11 min-w-[34px] px-0.5 text-[10px]' : 'h-14 min-w-[44px] px-1 text-xs',
           isToday && 'bg-amber-50/50',
           isWeekend && 'bg-gray-50/50',
           'hover:bg-indigo-50/40',
@@ -65,7 +68,8 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
   return (
     <td
       className={cn(
-        'relative h-14 min-w-[68px] border-r border-b border-gray-100 cursor-pointer transition-colors',
+        'relative border-r border-b border-gray-100 cursor-pointer transition-colors',
+        compact ? 'h-11 min-w-[34px]' : 'h-14 min-w-[44px]',
         isToday && 'bg-amber-50/50',
         isWeekend && !data && 'bg-gray-50/50',
         'hover:bg-indigo-50/40',
@@ -79,7 +83,7 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
         <div className={cn('absolute left-0 top-1 bottom-1 w-[3px] rounded-r', barColor)} />
       )}
 
-      <div className={cn('flex flex-col items-center justify-center h-full px-1.5 text-xs leading-tight', textColor)}>
+      <div className={cn('flex flex-col items-center justify-center h-full leading-tight', compact ? 'px-0.5 text-[10px]' : 'px-1 text-xs', textColor)}>
         {isAbsent ? (
           <span className="font-medium">결근</span>
         ) : (isLeave || isHoliday) && !showLeave ? (

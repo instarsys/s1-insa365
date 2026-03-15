@@ -10,7 +10,7 @@ import { AttendanceRecordModal } from '@/components/attendance/AttendanceRecordM
 import { useCalendarAttendance } from '@/hooks';
 import { fetcher } from '@/lib/api';
 import { Checkbox } from '@/components/ui';
-import { CalendarDays, ChevronLeft, ChevronRight, List, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const LATE_THRESHOLDS = [
@@ -43,6 +43,7 @@ export default function AttendanceCalendarPage() {
   const [earlyLeaveThreshold, setEarlyLeaveThreshold] = useState('0');
   const [showLeave, setShowLeave] = useState(true);
   const [colorMode, setColorMode] = useState<'status' | 'department'>('status');
+  const [compactView, setCompactView] = useState(false);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
 
@@ -122,7 +123,7 @@ export default function AttendanceCalendarPage() {
   };
 
   const handleEmployeeClick = (userId: string) => {
-    router.push(`/employees/${userId}`);
+    router.push(`/employees/${userId}?from=attendance-calendar`);
   };
 
   const handleAddNew = () => {
@@ -196,6 +197,14 @@ export default function AttendanceCalendarPage() {
         <div className="ml-auto flex items-center gap-4">
           <Checkbox label="휴가 표시" checked={showLeave} onChange={setShowLeave} />
           <Checkbox label="부서별 색상" checked={colorMode === 'department'} onChange={(v) => setColorMode(v ? 'department' : 'status')} />
+          <button
+            onClick={() => setCompactView(v => !v)}
+            className={cn('p-1.5 rounded-md border transition-colors',
+              compactView ? 'bg-purple-100 text-purple-700 border-purple-200' : 'text-gray-400 border-gray-200 hover:text-gray-600')}
+            title={compactView ? '편한 보기' : '전체 보기'}
+          >
+            {compactView ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+          </button>
         </div>
       </div>
 
@@ -219,6 +228,7 @@ export default function AttendanceCalendarPage() {
             colorMode={colorMode}
             onCellClick={handleCellClick}
             onEmployeeClick={handleEmployeeClick}
+            compact={compactView}
           />
 
           {/* Pagination */}

@@ -153,14 +153,6 @@ export function AdminSidebar() {
       })
     : [];
 
-  // 클릭으로 고정된 펼침 상태
-  const [expandedItems, setExpandedItems] = useState<string[]>(() => {
-    const current = visibleMenuItems.find(
-      (item) => pathname.startsWith(item.href) && item.children,
-    );
-    return current ? [current.href] : [];
-  });
-
   // 호버 자동 펼침
   const [hoveredItem, setHoveredItem] = useState<string | null>(null);
   const hoverTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -212,12 +204,6 @@ export function AdminSidebar() {
     };
   }, []);
 
-  const toggleExpand = (href: string) => {
-    setExpandedItems((prev) =>
-      prev.includes(href) ? prev.filter((h) => h !== href) : [...prev, href],
-    );
-  };
-
   const isActive = (href: string) => pathname === href;
   const isParentActive = (href: string) => pathname.startsWith(href) && pathname !== href;
 
@@ -234,10 +220,10 @@ export function AdminSidebar() {
   if (isLoading || !user) {
     return (
       <aside className={cn(
-        'fixed left-0 top-14 bottom-0 z-40 overflow-y-auto border-r border-gray-200 bg-white transition-all duration-200',
+        'fixed left-0 top-14 bottom-0 z-40 flex flex-col overflow-hidden border-r border-gray-200 bg-white transition-all duration-200',
         collapsed ? 'w-16' : 'w-60',
       )}>
-        <nav className="flex flex-col gap-1 py-4 px-3">
+        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto py-4 px-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-10 animate-pulse rounded-md bg-gray-100" />
           ))}
@@ -252,15 +238,14 @@ export function AdminSidebar() {
   return (
     <>
       <aside className={cn(
-        'fixed left-0 top-14 bottom-0 z-40 border-r border-gray-200 bg-white transition-all duration-200',
+        'fixed left-0 top-14 bottom-0 z-40 flex flex-col border-r border-gray-200 bg-white transition-all duration-200',
         collapsed ? 'w-16' : 'w-60',
-        collapsed ? 'overflow-visible' : 'overflow-y-auto',
+        collapsed ? 'overflow-visible' : 'overflow-hidden',
       )}>
-        <nav className="flex flex-col py-4">
+        <nav className="flex flex-1 flex-col overflow-y-auto py-4">
           {visibleMenuItems.map((item) => {
             const Icon = item.icon;
             const hasChildren = item.children && item.children.length > 0;
-            const isExpanded = expandedItems.includes(item.href);
             const isHovered = hoveredItem === item.href;
             const active = isActive(item.href) || isParentActive(item.href);
             const showSection = sectionStarts.has(item.href);
@@ -327,10 +312,9 @@ export function AdminSidebar() {
                   // 펼친 상태: 아이콘 + 라벨
                   <>
                     {hasChildren ? (
-                      <button
-                        onClick={() => toggleExpand(item.href)}
+                      <div
                         className={cn(
-                          'relative flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors',
+                          'relative flex w-full items-center gap-3 px-4 py-2.5 text-sm transition-colors cursor-default',
                           active
                             ? 'bg-indigo-50 text-indigo-600 before:absolute before:left-0 before:top-0 before:h-full before:w-[3px] before:bg-indigo-600'
                             : 'text-gray-700 hover:bg-gray-50',
@@ -338,12 +322,12 @@ export function AdminSidebar() {
                       >
                         <Icon className={cn('h-5 w-5', active ? 'text-indigo-600' : 'text-gray-500')} />
                         <span className="flex-1 text-left">{item.label}</span>
-                        {isExpanded || isHovered ? (
+                        {isHovered || active ? (
                           <ChevronDown className="h-4 w-4 text-gray-400" />
                         ) : (
                           <ChevronRight className="h-4 w-4 text-gray-400" />
                         )}
-                      </button>
+                      </div>
                     ) : (
                       <Link
                         href={item.href}
@@ -365,7 +349,7 @@ export function AdminSidebar() {
                 {hasChildren && !collapsed && (
                   <div className={cn(
                     'ml-4 grid transition-[grid-template-rows] duration-200 ease-in-out',
-                    (isExpanded || isHovered) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+                    (isHovered || active) ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
                   )}>
                     <div className="overflow-hidden">
                       {item.children!.map((child) => (
@@ -391,7 +375,7 @@ export function AdminSidebar() {
         </nav>
 
         {/* 토글 버튼 + 버전 */}
-        <div className="absolute bottom-0 left-0 right-0 border-t border-gray-200 bg-white">
+        <div className="shrink-0 border-t border-gray-200 bg-white">
           <button
             onClick={toggleCollapsed}
             className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-gray-500 hover:bg-gray-50 transition-colors"
