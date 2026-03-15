@@ -9,7 +9,7 @@ import {
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, Modal, useToast,
   StatusBadgeDropdown,
 } from '@/components/ui';
-import { useEmployee, useEmployees, useEmployeeMutations, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
+import { useEmployee, useEmployees, useEmployeeMutations, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive, syncSalaryItems } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance, useLeaveLedger, type LedgerEntry } from '@/hooks/useLeave';
 import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
@@ -72,7 +72,9 @@ export default function EmployeeDetailPage() {
   const id = params.id as string;
   const from = searchParams.get('from');
 
-  const [activeTab, setActiveTab] = useState('basic');
+  const tabParam = searchParams.get('tab');
+  const initialTab = DETAIL_TABS.some(t => t.key === tabParam) ? tabParam! : 'basic';
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResignModal, setShowResignModal] = useState(false);
@@ -178,8 +180,8 @@ export default function EmployeeDetailPage() {
   };
 
   const saveEdit = async () => {
-    if (!editForm.name || !editForm.email || !editForm.phone) {
-      toast.error('이름, 이메일, 연락처는 필수입니다.');
+    if (!editForm.name || !editForm.email || !editForm.phone || !editForm.rrn) {
+      toast.error('이름, 이메일, 연락처, 주민등록번호는 필수입니다.');
       return;
     }
     if (!editForm.workPolicyId) {
@@ -208,9 +210,7 @@ export default function EmployeeDetailPage() {
       if (editForm.bankAccount) {
         payload.bankAccount = editForm.bankAccount;
       }
-      if (editForm.rrn) {
-        payload.rrn = editForm.rrn;
-      }
+      payload.rrn = editForm.rrn;
       await updateEmployee(id, payload);
       toast.success('직원 정보가 수정되었습니다.');
       setIsEditing(false);
@@ -703,6 +703,7 @@ export default function EmployeeDetailPage() {
                     onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
                     placeholder="000000-0000000"
                     maxLength={14}
+                    required
                   />
                 ) : (
                   <InfoItem label="주민등록번호" value={displayRrn} />
@@ -1184,6 +1185,25 @@ function SalaryTab({
   const [isSavingItems, setIsSavingItems] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showSystemDeductions, setShowSystemDeductions] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setIsSyncing(true);
+    try {
+      const result = await syncSalaryItems(employeeId) as { created: number };
+      await mutateSalaryItems();
+      if (result.created > 0) {
+        toast.success(`${result.created}개 급여 항목을 가져왔습니다.`);
+      } else {
+        toast.info('추가할 항목이 없습니다. 모든 급여 규칙이 이미 등록되어 있습니다.');
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `동기화에 실패했습니다: ${msg}` : '동기화에 실패했습니다.');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // 4대보험 설정 상태
   const [isEditingInsurance, setIsEditingInsurance] = useState(false);
@@ -1547,6 +1567,22 @@ function SalaryTab({
         </CardBody>
       </Card>
 
+      {salaryItems.length === 0 ? (
+        <Card>
+          <CardBody>
+            <EmptyState
+              title="급여 항목이 없습니다"
+              description="급여 규칙에서 항목을 가져와 이 직원의 급여 항목을 설정하세요."
+              action={
+                <Button onClick={handleSync} disabled={isSyncing}>
+                  {isSyncing ? '가져오는 중...' : '급여 규칙에서 항목 가져오기'}
+                </Button>
+              }
+            />
+          </CardBody>
+        </Card>
+      ) : (
+      <>
       {/* 지급 항목 */}
       <Card>
         <CardHeader>
@@ -1580,7 +1616,12 @@ function SalaryTab({
           {payItems.length === 0 ? (
             <EmptyState
               title="지급 항목이 없습니다"
-              description="급여 규칙 설정에서 항목을 추가하세요."
+              description="급여 규칙에서 항목을 가져오거나, 설정에서 항목을 추가하세요."
+              action={
+                <Button variant="ghost" size="sm" onClick={handleSync} disabled={isSyncing}>
+                  {isSyncing ? '가져오는 중...' : '급여 규칙에서 가져오기'}
+                </Button>
+              }
             />
           ) : (
             <>
@@ -1683,7 +1724,12 @@ function SalaryTab({
           {deductionItems.length === 0 ? (
             <EmptyState
               title="공제 항목이 없습니다"
-              description="급여 규칙 설정에서 공제 항목을 추가하세요."
+              description="급여 규칙에서 항목을 가져오거나, 설정에서 공제 항목을 추가하세요."
+              action={
+                <Button variant="ghost" size="sm" onClick={handleSync} disabled={isSyncing}>
+                  {isSyncing ? '가져오는 중...' : '급여 규칙에서 가져오기'}
+                </Button>
+              }
             />
           ) : (
             <>
@@ -1837,6 +1883,8 @@ function SalaryTab({
           </div>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

@@ -172,8 +172,8 @@ export default function EmployeeListPage() {
   }, []);
 
   const handleSave = async () => {
-    if (!form.name || !form.email || !form.phone) {
-      toast.error('이름, 이메일, 연락처는 필수입니다.');
+    if (!form.name || !form.email || !form.phone || !form.rrn) {
+      toast.error('이름, 이메일, 연락처, 주민등록번호는 필수입니다.');
       return;
     }
     if (!form.workPolicyId) {
@@ -197,16 +197,15 @@ export default function EmployeeListPage() {
         salaryType: form.salaryType as 'MONTHLY' | 'HOURLY',
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         hourlyRate: form.salaryType === 'HOURLY' && form.hourlyRate ? Number(form.hourlyRate) : undefined,
-        rrn: form.rrn || undefined,
+        rrn: form.rrn,
         insuranceMode: form.insuranceMode,
         workPolicyId: form.workPolicyId || undefined,
         workLocationId: form.workLocationId || undefined,
       };
 
-      await createEmployee(payload);
-      toast.success('직원이 등록되었습니다.');
-      await mutate();
-      setPanelMode(null);
+      const created = await createEmployee(payload) as { id: string };
+      toast.success('직원이 등록되었습니다. 급여 항목을 확인하세요.');
+      router.push(`/employees/${created.id}?tab=salary`);
     } catch {
       toast.error('저장에 실패했습니다.');
     } finally {
@@ -362,8 +361,8 @@ export default function EmployeeListPage() {
         size="lg"
       >
         <div className="space-y-5">
-          {/* Section 1: 인사 정보 */}
-          <h3 className="text-sm font-semibold text-gray-700">인사 정보</h3>
+          {/* Section 1: 기본 정보 */}
+          <h3 className="text-sm font-semibold text-gray-700">기본 정보</h3>
           <Input
             label="이름"
             required
@@ -371,6 +370,42 @@ export default function EmployeeListPage() {
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
+          <Input
+            label="주민등록번호"
+            placeholder="000000-0000000"
+            maxLength={14}
+            value={form.rrn}
+            onChange={(e) => setForm((f) => ({ ...f, rrn: e.target.value }))}
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="이메일"
+              required
+              type="email"
+              placeholder="name@company.com"
+              value={form.email}
+              onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+            <Input
+              label="연락처"
+              required
+              placeholder="010-1234-5678"
+              value={form.phone}
+              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            />
+          </div>
+          <Input
+            label="주소"
+            placeholder="주소 입력"
+            value={form.address}
+            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+          />
+
+          <hr className="border-gray-200" />
+
+          {/* Section 2: 인사 정보 */}
+          <h3 className="text-sm font-semibold text-gray-700">인사 정보</h3>
           <div className="grid grid-cols-2 gap-4">
             <Select
               label="부서"
@@ -421,68 +456,6 @@ export default function EmployeeListPage() {
 
           <hr className="border-gray-200" />
 
-          {/* Section 2: 개인 정보 */}
-          <h3 className="text-sm font-semibold text-gray-700">개인 정보</h3>
-          <Input
-            label="이메일"
-            required
-            type="email"
-            placeholder="name@company.com"
-            value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-          />
-          <Input
-            label="연락처"
-            required
-            placeholder="010-1234-5678"
-            value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-          />
-          <Input
-            label="주소"
-            placeholder="주소 입력"
-            value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-          />
-          <div className="grid grid-cols-2 gap-4">
-            <div className="w-full">
-              <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
-              <button
-                type="button"
-                onClick={() => setForm((f) => ({ ...f, isHouseholder: !f.isHouseholder }))}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  form.isHouseholder ? 'bg-indigo-600' : 'bg-gray-300'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    form.isHouseholder ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-              <span className="ml-2 text-sm text-gray-600">
-                {form.isHouseholder ? '세대주' : '세대원'}
-              </span>
-            </div>
-            <Input
-              label="부양가족수"
-              type="number"
-              min="0"
-              max="20"
-              value={form.dependents}
-              onChange={(e) => setForm((f) => ({ ...f, dependents: e.target.value }))}
-            />
-          </div>
-          <Input
-            label="주민등록번호"
-            placeholder="000000-0000000"
-            maxLength={14}
-            value={form.rrn}
-            onChange={(e) => setForm((f) => ({ ...f, rrn: e.target.value }))}
-          />
-
-          <hr className="border-gray-200" />
-
           {/* Section 3: 급여 정보 */}
           <h3 className="text-sm font-semibold text-gray-700">급여 정보</h3>
           <Select
@@ -521,6 +494,35 @@ export default function EmployeeListPage() {
               )}
             </>
           )}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="w-full">
+              <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
+              <button
+                type="button"
+                onClick={() => setForm((f) => ({ ...f, isHouseholder: !f.isHouseholder }))}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  form.isHouseholder ? 'bg-indigo-600' : 'bg-gray-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    form.isHouseholder ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <span className="ml-2 text-sm text-gray-600">
+                {form.isHouseholder ? '세대주' : '세대원'}
+              </span>
+            </div>
+            <Input
+              label="부양가족수"
+              type="number"
+              min="0"
+              max="20"
+              value={form.dependents}
+              onChange={(e) => setForm((f) => ({ ...f, dependents: e.target.value }))}
+            />
+          </div>
           <Select
             label="보험 모드"
             options={insuranceModeOptions}

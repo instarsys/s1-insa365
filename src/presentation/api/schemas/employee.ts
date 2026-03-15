@@ -15,7 +15,7 @@ export const createEmployeeSchema = z.object({
   workLocationId: z.string().uuid().optional().nullable(),
   joinDate: z.string().optional().nullable(),
   dependents: z.number().int().min(0).max(20).optional(),
-  rrn: z.string().max(20).optional().nullable(),
+  rrn: z.string().min(13, '주민등록번호는 13자 이상이어야 합니다.').max(14, '주민등록번호는 14자 이하여야 합니다.'),
   bankAccount: z.string().max(50).optional().nullable(),
   bankName: z.string().max(50).optional().nullable(),
   address: z.string().max(200).optional().nullable(),

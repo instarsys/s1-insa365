@@ -2,6 +2,19 @@ import { PrismaClient } from '../src/generated/prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import pg from 'pg';
 import bcrypt from 'bcrypt';
+import { createCipheriv, randomBytes } from 'crypto';
+
+/** PII 암호화 (EncryptionService와 동일 포맷) */
+function encryptPII(plaintext: string): string {
+  const keyHex = process.env.PII_ENCRYPTION_KEY;
+  if (!keyHex || keyHex.length !== 64) return plaintext; // 키 없으면 평문 저장
+  const key = Buffer.from(keyHex, 'hex');
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
+  const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString('base64')}:${authTag.toString('base64')}:${encrypted.toString('base64')}`;
+}
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
@@ -260,6 +273,13 @@ async function main() {
       dependents: 1,
       workPolicyId: workPolicy.id,
       workLocationId: workLocation.id,
+      phone: '010-1234-0001',
+      address: '서울특별시 강남구 테헤란로 123',
+      isHouseholder: true,
+      hireType: 'NEW',
+      bankName: 'KB',
+      encryptedRrn: encryptPII('800101-1234567'),
+      encryptedBankAccount: encryptPII('123-456-789012'),
     },
   });
   console.log('Admin user created');
@@ -271,15 +291,33 @@ async function main() {
 
   const employeeData = [
     // ACTIVE 월급제 — 경영지원팀 부장, 고연봉, 장기 근속
-    { name: '김영수', email: 'kim.ys@test-company.com', num: 'EA0002', dept: 0, pos: 2, base: 4500000, joinDate: '2023-03-15', dependents: 3, status: 'ACTIVE' as const },
+    { name: '김영수', email: 'kim.ys@test-company.com', num: 'EA0002', dept: 0, pos: 2, base: 4500000,
+      joinDate: '2023-03-15', dependents: 3, status: 'ACTIVE' as const,
+      phone: '010-9876-5432', address: '서울특별시 서초구 반포대로 45', isHouseholder: true,
+      hireType: 'EXPERIENCED', bankName: 'SHINHAN', rrn: '850315-1456789', bankAccount: '110-432-567890' },
     // ACTIVE 월급제 — 개발팀 과장, 중간 연봉
-    { name: '박지민', email: 'park.jm@test-company.com', num: 'EA0003', dept: 1, pos: 3, base: 3800000, joinDate: '2024-01-02', dependents: 2, status: 'ACTIVE' as const },
-    // ON_LEAVE 월급제 — 영업팀 사원, 휴직 중
-    { name: '이서연', email: 'lee.sy@test-company.com', num: 'EA0004', dept: 2, pos: 4, base: 3000000, joinDate: '2024-06-01', dependents: 1, status: 'ON_LEAVE' as const },
+    { name: '박지민', email: 'park.jm@test-company.com', num: 'EA0003', dept: 1, pos: 3, base: 3800000,
+      joinDate: '2024-01-02', dependents: 2, status: 'ACTIVE' as const,
+      phone: '010-5555-1234', address: '경기도 성남시 분당구 판교로 123', isHouseholder: true,
+      hireType: 'NEW', bankName: 'KAKAO', rrn: '920102-2345678', bankAccount: '3333-12-3456789' },
+    // ON_LEAVE 월급제 — 영업팀 사원, 휴직 중 (출산휴가)
+    { name: '이서연', email: 'lee.sy@test-company.com', num: 'EA0004', dept: 2, pos: 4, base: 3000000,
+      joinDate: '2024-06-01', dependents: 1, status: 'ON_LEAVE' as const,
+      phone: '010-3333-7890', address: '서울특별시 마포구 월드컵북로 21', isHouseholder: false,
+      hireType: 'NEW', bankName: 'WOORI', rrn: '970601-2567890', bankAccount: '1002-345-678901',
+      leaveStartDate: '2026-01-15', leaveReason: '출산휴가' },
     // ACTIVE 시급제 — 마케팅팀 사원, 파트타임
-    { name: '홍파트', email: 'hong.pt@test-company.com', num: 'EA0005', dept: 3, pos: 4, base: 0, joinDate: '2025-03-01', dependents: 1, status: 'ACTIVE' as const, salaryType: 'HOURLY' as const, hourlyRate: 11000 },
+    { name: '홍파트', email: 'hong.pt@test-company.com', num: 'EA0005', dept: 3, pos: 4, base: 0,
+      joinDate: '2025-03-01', dependents: 1, status: 'ACTIVE' as const,
+      salaryType: 'HOURLY' as const, hourlyRate: 11000,
+      phone: '010-7777-4567', address: '인천광역시 남동구 구월로 88', isHouseholder: false,
+      hireType: 'NEW', bankName: 'TOSS', rrn: '000301-3678901', bankAccount: '1000-1234-5678' },
     // RESIGNED 월급제 — 인사팀 과장, 퇴직
-    { name: '조현우', email: 'cho.hw@test-company.com', num: 'EA0006', dept: 4, pos: 3, base: 3900000, joinDate: '2022-05-01', dependents: 2, status: 'RESIGNED' as const, resignDate: '2025-12-31' },
+    { name: '조현우', email: 'cho.hw@test-company.com', num: 'EA0006', dept: 4, pos: 3, base: 3900000,
+      joinDate: '2022-05-01', dependents: 2, status: 'RESIGNED' as const, resignDate: '2025-12-31',
+      phone: '010-2222-8901', address: '서울특별시 송파구 올림픽로 300', isHouseholder: true,
+      hireType: 'EXPERIENCED', bankName: 'HANA', rrn: '880501-1789012', bankAccount: '267-910-123456',
+      resignReason: '개인 사유' },
   ];
 
   const employees = [];
@@ -299,9 +337,19 @@ async function main() {
         dependents: emp.dependents,
         workPolicyId: workPolicy.id,
         workLocationId: workLocation.id,
+        phone: emp.phone,
+        address: emp.address,
+        isHouseholder: emp.isHouseholder,
+        hireType: emp.hireType,
+        bankName: emp.bankName,
+        encryptedRrn: encryptPII(emp.rrn),
+        encryptedBankAccount: encryptPII(emp.bankAccount),
         ...('salaryType' in emp && emp.salaryType ? { salaryType: emp.salaryType } : {}),
         ...('hourlyRate' in emp && emp.hourlyRate ? { hourlyRate: emp.hourlyRate } : {}),
         ...('resignDate' in emp && emp.resignDate ? { resignDate: new Date(emp.resignDate) } : {}),
+        ...('resignReason' in emp && emp.resignReason ? { resignReason: emp.resignReason } : {}),
+        ...('leaveStartDate' in emp && emp.leaveStartDate ? { leaveStartDate: new Date(emp.leaveStartDate) } : {}),
+        ...('leaveReason' in emp && emp.leaveReason ? { leaveReason: emp.leaveReason } : {}),
       },
     });
     employees.push({ ...user, baseSalary: emp.base, salaryType: ('salaryType' in emp ? emp.salaryType : 'MONTHLY') as string, hourlyRate: ('hourlyRate' in emp ? emp.hourlyRate : undefined) as number | undefined });
@@ -836,6 +884,13 @@ async function main() {
       dependents: 2,
       workPolicyId: workPolicy.id,
       workLocationId: workLocation.id,
+      phone: '010-8888-1234',
+      address: '경기도 수원시 영통구 광교로 156',
+      isHouseholder: true,
+      hireType: 'EXPERIENCED',
+      bankName: 'NH',
+      encryptedRrn: encryptPII('870601-1890123'),
+      encryptedBankAccount: encryptPII('301-0123-4567-11'),
     },
   });
   console.log('Manager user created');

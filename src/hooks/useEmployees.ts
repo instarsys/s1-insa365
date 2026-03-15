@@ -137,6 +137,10 @@ export async function toggleSalaryItemActive(
   return apiPatch(`/api/employees/${employeeId}/salary-items`, { itemId, isActive });
 }
 
+export async function syncSalaryItems(employeeId: string) {
+  return apiPost(`/api/employees/${employeeId}/salary-items`, {});
+}
+
 interface PiiResponse {
   field: string;
   value: string | null;
