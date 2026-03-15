@@ -22,10 +22,20 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
 
   const { password: _pw, refreshToken: _rt, encryptedRrn, encryptedBankAccount, ...rest } = user;
 
+  let rrn: string | null = null;
+  let bankAccount: string | null = null;
+
+  if (auth.canViewSensitive) {
+    if (encryptedRrn) rrn = encryptionService.decrypt(encryptedRrn);
+    if (encryptedBankAccount) bankAccount = encryptionService.decrypt(encryptedBankAccount);
+  }
+
   return successResponse({
     ...rest,
     hasRrn: !!encryptedRrn,
     hasBankAccount: !!encryptedBankAccount,
+    rrn,
+    bankAccount,
   });
 }
 

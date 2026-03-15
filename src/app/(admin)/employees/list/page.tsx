@@ -53,6 +53,7 @@ interface EmployeeForm {
   address: string;
   isHouseholder: boolean;
   dependents: string;
+  rrn: string;
   salaryType: string;
   baseSalary: string;
   hourlyRate: string;
@@ -72,6 +73,7 @@ const emptyForm: EmployeeForm = {
   address: '',
   isHouseholder: false,
   dependents: '1',
+  rrn: '',
   salaryType: 'MONTHLY',
   baseSalary: '',
   hourlyRate: '',
@@ -195,6 +197,7 @@ export default function EmployeeListPage() {
         salaryType: form.salaryType as 'MONTHLY' | 'HOURLY',
         baseSalary: form.baseSalary ? Number(form.baseSalary) : undefined,
         hourlyRate: form.salaryType === 'HOURLY' && form.hourlyRate ? Number(form.hourlyRate) : undefined,
+        rrn: form.rrn || undefined,
         insuranceMode: form.insuranceMode,
         workPolicyId: form.workPolicyId || undefined,
         workLocationId: form.workLocationId || undefined,
@@ -470,6 +473,13 @@ export default function EmployeeListPage() {
               onChange={(e) => setForm((f) => ({ ...f, dependents: e.target.value }))}
             />
           </div>
+          <Input
+            label="주민등록번호"
+            placeholder="000000-0000000"
+            maxLength={14}
+            value={form.rrn}
+            onChange={(e) => setForm((f) => ({ ...f, rrn: e.target.value }))}
+          />
 
           <hr className="border-gray-200" />
 

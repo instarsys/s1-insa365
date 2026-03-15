@@ -9,7 +9,7 @@ import {
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, Modal, useToast,
   StatusBadgeDropdown,
 } from '@/components/ui';
-import { useEmployee, useEmployees, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
+import { useEmployee, useEmployees, useEmployeeMutations, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance, useLeaveLedger, type LedgerEntry } from '@/hooks/useLeave';
 import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
@@ -19,7 +19,7 @@ import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } 
 import {
   ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
-  Home, Users, Landmark, Camera, Eye, EyeOff, Lock, Shield,
+  Home, Users, Landmark, Camera, Lock, Shield,
   UserMinus, UserCheck, LogOut, Clock,
 } from 'lucide-react';
 
@@ -52,6 +52,7 @@ interface EditFormState {
   hireType: string;
   bankName: string;
   bankAccount: string;
+  rrn: string;
 }
 
 const emptyEditForm: EditFormState = {
@@ -59,7 +60,7 @@ const emptyEditForm: EditFormState = {
   departmentId: '', positionId: '', workPolicyId: '',
   joinDate: '', resignDate: '', resignReason: '',
   address: '', isHouseholder: false, dependents: '1',
-  hireType: '', bankName: '', bankAccount: '',
+  hireType: '', bankName: '', bankAccount: '', rrn: '',
 };
 
 export default function EmployeeDetailPage() {
@@ -73,7 +74,6 @@ export default function EmployeeDetailPage() {
 
   const [activeTab, setActiveTab] = useState('basic');
   const [isEditing, setIsEditing] = useState(false);
-  const [showBankAccount, setShowBankAccount] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResignModal, setShowResignModal] = useState(false);
   const [resignDate, setResignDate] = useState(new Date().toISOString().slice(0, 10));
@@ -145,9 +145,6 @@ export default function EmployeeDetailPage() {
   const { requests: leaveRequests } = useLeaveRequests({ userId: id });
   const { entries: ledgerEntries, isLoading: ledgerLoading, mutate: mutateLedger } = useLeaveLedger(id, ledgerYear);
 
-  // PII: bank account
-  const { value: decryptedBankAccount, isLoading: piiLoading } = useEmployeePii(id, 'bankAccount', showBankAccount);
-
   // Edit form state
   const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
 
@@ -169,7 +166,8 @@ export default function EmployeeDetailPage() {
       dependents: String((emp.dependents as number) ?? 1),
       hireType: (emp.hireType as string) ?? '',
       bankName: (emp.bankName as string) ?? '',
-      bankAccount: '',
+      bankAccount: (emp.bankAccount as string) ?? '',
+      rrn: (emp.rrn as string) ?? '',
     });
     setIsEditing(true);
   }, [employee]);
@@ -209,6 +207,9 @@ export default function EmployeeDetailPage() {
       };
       if (editForm.bankAccount) {
         payload.bankAccount = editForm.bankAccount;
+      }
+      if (editForm.rrn) {
+        payload.rrn = editForm.rrn;
       }
       await updateEmployee(id, payload);
       toast.success('직원 정보가 수정되었습니다.');
@@ -362,7 +363,8 @@ export default function EmployeeDetailPage() {
 
   const hireTypeLabel = HIRE_TYPE_OPTIONS.find((h) => h.value === emp.hireType)?.label ?? '-';
   const bankNameLabel = KOREAN_BANKS.find((b) => b.value === emp.bankName)?.label ?? (emp.bankName as string) ?? '-';
-  const maskedAccount = emp.hasBankAccount ? '●●●●●●●●●●' : '-';
+  const displayBankAccount = canViewSensitive ? ((emp.bankAccount as string) || '-') : (emp.hasBankAccount ? '●●●●●●●●●●' : '-');
+  const displayRrn = canViewSensitive ? ((emp.rrn as string) || '-') : (emp.hasRrn ? '●●●●●●-●●●●●●●' : '-');
 
   return (
     <div>
@@ -694,6 +696,17 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="부양가족수" value={`${(emp.dependents as number) ?? 1}명`} />
                 )}
+                {isEditing ? (
+                  <Input
+                    label="주민등록번호"
+                    value={editForm.rrn}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
+                    placeholder="000000-0000000"
+                    maxLength={14}
+                  />
+                ) : (
+                  <InfoItem label="주민등록번호" value={displayRrn} />
+                )}
               </div>
             </CardBody>
           </Card>
@@ -727,31 +740,7 @@ export default function EmployeeDetailPage() {
                     maxLength={50}
                   />
                 ) : (
-                  <div className="w-full">
-                    <p className="mb-1 text-xs font-medium text-gray-500">계좌번호</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-gray-800">
-                        {showBankAccount && decryptedBankAccount
-                          ? decryptedBankAccount
-                          : maskedAccount}
-                      </p>
-                      {(emp.hasBankAccount as boolean) && canViewSensitive && (
-                        <button
-                          onClick={() => setShowBankAccount(!showBankAccount)}
-                          className="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-                          title={showBankAccount ? '숨기기' : '조회'}
-                        >
-                          {piiLoading ? (
-                            <Spinner className="h-4 w-4" />
-                          ) : showBankAccount ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </button>
-                      )}
-                    </div>
-                  </div>
+                  <InfoItem label="계좌번호" value={displayBankAccount} />
                 )}
               </div>
             </CardBody>
