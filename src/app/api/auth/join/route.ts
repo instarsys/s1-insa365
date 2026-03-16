@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { passwordService } from '@/infrastructure/auth/PasswordService';
-import { jwtService } from '@/infrastructure/auth/JwtService';
 import { errorResponse, validateBody } from '@/presentation/api/helpers';
 import { z } from 'zod';
 
@@ -17,7 +15,7 @@ export async function POST(request: NextRequest) {
     const validation = validateBody(joinSchema, body);
     if (!validation.success) return validation.response;
 
-    const { invitationRepo, userRepo, employeeRepo, salaryRuleRepo, employeeSalaryItemRepo } = getContainer();
+    const { invitationRepo, userRepo, employeeRepo, salaryRuleRepo, employeeSalaryItemRepo, jwtService, passwordService } = getContainer();
     const { inviteCode, password, email } = validation.data;
 
     // 코드 검증

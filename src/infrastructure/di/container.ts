@@ -46,6 +46,10 @@ import { PayrollCalculator } from '@domain/services/PayrollCalculator';
 // ─── Infrastructure Services ────────────────────────────────────
 import { jwtService } from '../auth/JwtService';
 import { passwordService } from '../auth/PasswordService';
+import { ExcelService } from '../excel/ExcelService';
+import { encryptionService } from '../encryption/EncryptionService';
+import { s3Service } from '../external/S3Service';
+import { generateInviteCode } from '../invite/InviteCodeGenerator';
 
 // ─── Use Cases ──────────────────────────────────────────────────
 // Auth
@@ -148,6 +152,18 @@ export interface Container {
   subscriptionRepo: SubscriptionRepository;
   paymentRepo: PaymentRepository;
 
+  // Infrastructure Services (cross-cutting concerns)
+  excelService: ExcelService;
+  encryptionService: { encrypt(plaintext: string): string; decrypt(encrypted: string): string };
+  s3Service: { isConfigured(): boolean; getPresignedUploadUrl(key: string, contentType: string, expiresIn?: number): Promise<{ uploadUrl: string; imageUrl: string }> };
+  passwordService: { hash(plain: string): Promise<string>; compare(plain: string, hash: string): Promise<boolean>; verify(plain: string, hash: string): Promise<boolean> };
+  jwtService: {
+    generateAccessToken(payload: { userId: string; companyId: string; role: string; canViewSensitive: boolean }): string;
+    generateRefreshToken(payload: { userId: string; companyId: string; role: string; canViewSensitive: boolean }): string;
+    verifyRefreshToken(token: string): { userId: string; companyId: string; role: string; canViewSensitive: boolean };
+  };
+  generateInviteCode: (length?: number) => string;
+
   // Auth Use Cases
   loginUseCase: LoginUseCase;
   signupUseCase: SignupUseCase;
@@ -247,15 +263,19 @@ function createContainer(): Container {
   const subscriptionRepo = new SubscriptionRepository();
   const paymentRepo = new PaymentRepository();
 
-  // 2. Domain Service 어댑터 (PayrollCalculator.calculate는 static)
+  // 2. Infrastructure Service 인스턴스
+  const excelService = new ExcelService();
+
+  // 3. Domain Service 어댑터 (PayrollCalculator.calculate는 static)
   const payrollCalculator = {
     calculate: (input: Parameters<typeof PayrollCalculator.calculate>[0]) =>
       PayrollCalculator.calculate(input),
   };
 
-  // 3. Infrastructure Service 어댑터
+  // 4. Infrastructure Service 어댑터
   const passwordAdapter = {
     compare: (plain: string, hash: string) => passwordService.verify(plain, hash),
+    verify: (plain: string, hash: string) => passwordService.verify(plain, hash),
     hash: (plain: string) => passwordService.hash(plain),
   };
 
@@ -277,7 +297,7 @@ function createContainer(): Container {
     },
   };
 
-  // 4. Use Case 인스턴스 생성 (Repository를 Port로 캐스팅)
+  // 5. Use Case 인스턴스 생성 (Repository를 Port로 캐스팅)
   // Auth
   const loginUseCase = new LoginUseCase(
     userRepo as Any,
@@ -443,6 +463,13 @@ function createContainer(): Container {
     invitationRepo,
     subscriptionRepo,
     paymentRepo,
+    // Infrastructure Services
+    excelService,
+    encryptionService,
+    s3Service,
+    passwordService: passwordAdapter,
+    jwtService,
+    generateInviteCode,
     // Auth
     loginUseCase,
     signupUseCase,

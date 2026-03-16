@@ -124,48 +124,36 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   const user = await employeeRepo.findById(auth.companyId, id);
   if (!user) return notFoundResponse('직원');
 
-  // 활성 규칙 조회
   const allRules = await salaryRuleRepo.findAll(auth.companyId);
   const activeRules = allRules.filter(r => r.isActive);
 
-  // 기존 항목과 비교 → 누락된 규칙만 생성
-  const existingItems = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);
-  const existingCodes = new Set(existingItems.map(i => i.code));
-  const missingRules = activeRules.filter(r => !existingCodes.has(r.code));
+  const ruleData = activeRules.map(rule => ({
+    code: rule.code,
+    name: rule.name,
+    type: rule.type,
+    paymentType: rule.paymentType,
+    paymentCycle: rule.paymentCycle,
+    defaultAmount: Number(rule.defaultAmount ?? 0),
+    isOrdinaryWage: rule.isOrdinaryWage,
+    isTaxExempt: rule.isTaxExempt,
+    taxExemptCode: rule.taxExemptCode ?? null,
+    sortOrder: rule.sortOrder,
+    formula: rule.formula ?? null,
+  }));
 
-  if (missingRules.length === 0) {
-    return successResponse({ created: 0, items: existingItems });
-  }
-
-  await employeeSalaryItemRepo.createMany(
-    missingRules.map(rule => ({
-      companyId: auth.companyId,
-      userId: id,
-      code: rule.code,
-      name: rule.name,
-      type: rule.type,
-      paymentType: rule.paymentType,
-      paymentCycle: rule.paymentCycle,
-      amount: Number(rule.defaultAmount ?? 0),
-      isOrdinaryWage: rule.isOrdinaryWage,
-      isTaxExempt: rule.isTaxExempt,
-      taxExemptCode: rule.taxExemptCode ?? null,
-      sortOrder: rule.sortOrder,
-      formula: rule.formula ?? null,
-    })),
-  );
+  const result = await employeeSalaryItemRepo.upsertFromRules(auth.companyId, id, ruleData);
 
   await auditLogRepo.create({
     userId: auth.userId,
     companyId: auth.companyId,
-    action: 'CREATE',
+    action: 'UPDATE',
     entityType: 'EmployeeSalaryItem',
     entityId: id,
-    after: { synced: missingRules.map(r => r.code) },
+    after: { mode: 'sync', created: result.created, updated: result.updated },
   });
 
   const updatedItems = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);
-  return createdResponse({ created: missingRules.length, items: updatedItems });
+  return successResponse({ ...result, items: updatedItems });
 }
 
 function createHandler(method: 'GET' | 'PUT' | 'PATCH' | 'POST') {

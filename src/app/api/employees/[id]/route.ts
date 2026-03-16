@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import {
   successResponse,
@@ -15,7 +14,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handleGet(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, encryptionService } = getContainer();
   const user = await employeeRepo.findByIdWithDetails(auth.companyId, id);
 
   if (!user) return notFoundResponse('직원');
@@ -45,7 +44,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const validation = validateBody(updateEmployeeSchema, body);
   if (!validation.success) return validation.response;
 
-  const { employeeRepo, auditLogRepo } = getContainer();
+  const { employeeRepo, auditLogRepo, encryptionService } = getContainer();
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { getContainer } from '@/infrastructure/di/container';
-import { ExcelService } from '@/infrastructure/excel/ExcelService';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   const formData = await request.formData();
@@ -21,7 +20,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return NextResponse.json({ message: '파일 크기가 10MB를 초과합니다.' }, { status: 400 });
   }
 
-  const { departmentRepo, positionRepo } = getContainer();
+  const { departmentRepo, positionRepo, excelService } = getContainer();
   const [depts, positions] = await Promise.all([
     departmentRepo.findAll(auth.companyId),
     positionRepo.findAll(auth.companyId),
@@ -31,7 +30,6 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const posNames = positions.map((p: { name: string }) => p.name);
 
   const arrayBuffer = await file.arrayBuffer();
-  const excelService = new ExcelService();
   const result = excelService.parseEmployeeImport(
     new Uint8Array(arrayBuffer),
     type as 'create' | 'update' | 'wages',

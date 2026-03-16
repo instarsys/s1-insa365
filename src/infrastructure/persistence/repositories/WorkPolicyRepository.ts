@@ -1,5 +1,23 @@
 import { prisma } from '../prisma/client';
-import type { CreateWorkPolicyData } from '@/application/ports/IWorkPolicyRepository';
+
+interface CreateWorkPolicyData {
+  name: string;
+  startTime: string;
+  endTime: string;
+  breakMinutes?: number;
+  workDays?: string;
+  isDefault?: boolean;
+  lateGraceMinutes?: number;
+  earlyLeaveGraceMinutes?: number;
+  nightWorkStartTime?: string;
+  nightWorkEndTime?: string;
+  overtimeThresholdMinutes?: number;
+  monthlyWorkHours?: number;
+  weeklyHoliday?: string;
+  weeklyWorkHours?: number;
+  weeklyOvertimeLimit?: number;
+  monthlyOvertimeLimit?: number;
+}
 
 export class WorkPolicyRepository {
   async findById(companyId: string, id: string) {

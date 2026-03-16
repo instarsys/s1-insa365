@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
-import { ExcelService } from '@/infrastructure/excel/ExcelService';
+import { getContainer } from '@/infrastructure/di/container';
 
 async function handler(_request: NextRequest, _auth: AuthContext) {
-  const excelService = new ExcelService();
+  const { excelService } = getContainer();
   const data = excelService.generateTemplate('wages');
 
   return new Response(data.buffer as ArrayBuffer, {

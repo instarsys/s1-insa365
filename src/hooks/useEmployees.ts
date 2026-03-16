@@ -141,6 +141,10 @@ export async function syncSalaryItems(employeeId: string) {
   return apiPost(`/api/employees/${employeeId}/salary-items`, {});
 }
 
+export async function bulkSyncSalaryRules() {
+  return apiPost('/api/settings/salary-rules/sync', {});
+}
+
 interface PiiResponse {
   field: string;
   value: string | null;

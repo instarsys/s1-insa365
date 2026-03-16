@@ -1,13 +1,11 @@
 import { NextRequest } from 'next/server';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { getContainer } from '@/infrastructure/di/container';
-import { ExcelService } from '@/infrastructure/excel/ExcelService';
 
 async function handler(_request: NextRequest, auth: AuthContext) {
-  const { employeeRepo } = getContainer();
+  const { employeeRepo, excelService } = getContainer();
   const employees = await employeeRepo.findAllForExport(auth.companyId);
 
-  const excelService = new ExcelService();
   const data = excelService.exportEmployees(employees);
 
   return new Response(data.buffer as ArrayBuffer, {

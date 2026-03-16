@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { encryptionService } from '@/infrastructure/encryption/EncryptionService';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -19,7 +18,7 @@ async function handleGet(request: NextRequest, auth: AuthContext) {
     return errorResponse('민감정보 조회 권한이 없습니다.', 403);
   }
 
-  const { employeeRepo, auditLogRepo } = getContainer();
+  const { employeeRepo, auditLogRepo, encryptionService } = getContainer();
   const employee = await employeeRepo.findById(auth.companyId, id);
   if (!employee) return notFoundResponse('직원');
 

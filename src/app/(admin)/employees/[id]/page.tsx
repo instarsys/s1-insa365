@@ -498,6 +498,7 @@ export default function EmployeeDetailPage() {
             )}
           </div>
 
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Section 1: 인사 정보 */}
           <Card>
             <CardHeader>
@@ -615,7 +616,9 @@ export default function EmployeeDetailPage() {
               </div>
             </CardBody>
           </Card>
+          </div>
 
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Section 2: 개인 정보 */}
           <Card>
             <CardHeader>
@@ -712,12 +715,12 @@ export default function EmployeeDetailPage() {
             </CardBody>
           </Card>
 
-          {/* Section 3: 급여 정보 */}
+          {/* Section 3: 계좌 정보 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Landmark className="h-4 w-4 text-gray-400" />
-                급여 정보
+                계좌 정보
               </CardTitle>
             </CardHeader>
             <CardBody>
@@ -746,6 +749,7 @@ export default function EmployeeDetailPage() {
               </div>
             </CardBody>
           </Card>
+          </div>
         </div>
       )}
 
@@ -1186,14 +1190,16 @@ function SalaryTab({
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showSystemDeductions, setShowSystemDeductions] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [showSyncConfirmModal, setShowSyncConfirmModal] = useState(false);
 
   const handleSync = async () => {
     setIsSyncing(true);
+    setShowSyncConfirmModal(false);
     try {
-      const result = await syncSalaryItems(employeeId) as { created: number };
+      const result = await syncSalaryItems(employeeId) as { created: number; updated?: number };
       await mutateSalaryItems();
-      if (result.created > 0) {
-        toast.success(`${result.created}개 급여 항목을 가져왔습니다.`);
+      if (result.created > 0 || (result.updated ?? 0) > 0) {
+        toast.success(`${result.created}개 추가, ${result.updated ?? 0}개 업데이트되었습니다.`);
       } else {
         toast.info('추가할 항목이 없습니다. 모든 급여 규칙이 이미 등록되어 있습니다.');
       }
@@ -1358,7 +1364,8 @@ function SalaryTab({
 
   return (
     <div className="space-y-6">
-      {/* 급여 기본 정보 */}
+      {/* 급여 기본 정보 + 4대보험 설정 */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1566,6 +1573,7 @@ function SalaryTab({
           </div>
         </CardBody>
       </Card>
+      </div>
 
       {salaryItems.length === 0 ? (
         <Card>
@@ -1574,7 +1582,7 @@ function SalaryTab({
               title="급여 항목이 없습니다"
               description="급여 규칙에서 항목을 가져와 이 직원의 급여 항목을 설정하세요."
               action={
-                <Button onClick={handleSync} disabled={isSyncing}>
+                <Button onClick={() => handleSync()} disabled={isSyncing}>
                   {isSyncing ? '가져오는 중...' : '급여 규칙에서 항목 가져오기'}
                 </Button>
               }
@@ -1582,9 +1590,8 @@ function SalaryTab({
           </CardBody>
         </Card>
       ) : (
-      <>
-      {/* 지급 항목 */}
       <Card>
+      {/* 지급 항목 */}
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             지급 항목
@@ -1593,6 +1600,14 @@ function SalaryTab({
             </Badge>
           </CardTitle>
           <div className="flex items-center gap-2">
+            {!isEditingItems && (
+              <>
+                <Button variant="ghost" size="sm" onClick={() => setShowSyncConfirmModal(true)} disabled={isSyncing}
+                  title="급여규칙의 항목명·과세설정 등을 반영합니다. 금액은 변경되지 않습니다.">
+                  급여규칙으로 동기화
+                </Button>
+              </>
+            )}
             {!isEditingItems ? (
               <Button variant="ghost" size="sm" onClick={startEditItems}>
                 <Pencil className="h-4 w-4" />
@@ -1618,7 +1633,7 @@ function SalaryTab({
               title="지급 항목이 없습니다"
               description="급여 규칙에서 항목을 가져오거나, 설정에서 항목을 추가하세요."
               action={
-                <Button variant="ghost" size="sm" onClick={handleSync} disabled={isSyncing}>
+                <Button variant="ghost" size="sm" onClick={() => handleSync()} disabled={isSyncing}>
                   {isSyncing ? '가져오는 중...' : '급여 규칙에서 가져오기'}
                 </Button>
               }
@@ -1708,11 +1723,10 @@ function SalaryTab({
             </>
           )}
         </CardBody>
-      </Card>
 
       {/* 공제 항목 */}
-      <Card>
-        <CardHeader>
+      <div className="border-t-2 border-gray-200">
+        <CardHeader className="border-b-0">
           <CardTitle className="flex items-center gap-2">
             공제 항목
             <Badge variant="error">
@@ -1720,13 +1734,13 @@ function SalaryTab({
             </Badge>
           </CardTitle>
         </CardHeader>
-        <CardBody className="p-0">
+        <div className="p-0">
           {deductionItems.length === 0 ? (
             <EmptyState
               title="공제 항목이 없습니다"
               description="급여 규칙에서 항목을 가져오거나, 설정에서 공제 항목을 추가하세요."
               action={
-                <Button variant="ghost" size="sm" onClick={handleSync} disabled={isSyncing}>
+                <Button variant="ghost" size="sm" onClick={() => handleSync()} disabled={isSyncing}>
                   {isSyncing ? '가져오는 중...' : '급여 규칙에서 가져오기'}
                 </Button>
               }
@@ -1861,11 +1875,11 @@ function SalaryTab({
               </div>
             </>
           )}
-        </CardBody>
-      </Card>
+        </div>
+      </div>
 
       {/* 합계 요약 바 */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4">
+      <div className="border-t-2 border-gray-200 bg-gray-50/80 px-4 py-4">
         <div className="flex items-center justify-between gap-4">
           <div className="text-center">
             <p className="text-xs text-gray-500">총 지급</p>
@@ -1883,8 +1897,31 @@ function SalaryTab({
           </div>
         </div>
       </div>
-      </>
+      </Card>
       )}
+
+      {/* 동기화 확인 모달 (모드 A) */}
+      <Modal
+        open={showSyncConfirmModal}
+        onClose={() => setShowSyncConfirmModal(false)}
+        title="급여규칙으로 동기화"
+      >
+        <div className="space-y-3 text-sm text-gray-600">
+          <p>설정의 급여규칙을 이 직원에게 동기화합니다.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>항목명, 과세 설정 등이 급여규칙에 맞게 업데이트됩니다</li>
+            <li>누락된 항목은 자동으로 추가됩니다</li>
+            <li>금액은 변경되지 않습니다</li>
+          </ul>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" onClick={() => setShowSyncConfirmModal(false)}>취소</Button>
+          <Button onClick={() => handleSync()} disabled={isSyncing}>
+            {isSyncing ? '동기화 중...' : '동기화'}
+          </Button>
+        </div>
+      </Modal>
+
     </div>
   );
 }

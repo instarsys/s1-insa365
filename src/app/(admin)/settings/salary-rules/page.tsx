@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Lock } from 'lucide-react';
+import { Plus, Pencil, Trash2, Lock, RefreshCw } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Table } from '@/components/ui/Table';
@@ -14,6 +14,8 @@ import { Checkbox } from '@/components/ui/Checkbox';
 import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui/Toast';
 import { FormulaEditor } from '@/components/formula/FormulaEditor';
 import { FormulaDisplay } from '@/components/formula/FormulaDisplay';
 import { formatKRW } from '@/lib/utils';
@@ -58,12 +60,15 @@ const TAX_EXEMPT_OPTIONS = [
 type RuleRow = Record<string, unknown>;
 
 export default function SalaryRulesPage() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<string>('ALLOWANCE');
   const [rules, setRules] = useState<SalaryRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPanel, setShowPanel] = useState(false);
   const [editing, setEditing] = useState<SalaryRule | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showBulkSyncModal, setShowBulkSyncModal] = useState(false);
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
 
   // Form state
   const [formCode, setFormCode] = useState('');
@@ -159,6 +164,23 @@ export default function SalaryRulesPage() {
     await loadRules();
   }
 
+  async function handleBulkSync() {
+    setIsBulkSyncing(true);
+    setShowBulkSyncModal(false);
+    try {
+      const result = await apiPost<{ totalEmployees: number; created: number; updated: number }>(
+        '/api/settings/salary-rules/sync',
+        {},
+      );
+      toast.success(`${result.totalEmployees}명 직원 동기화 완료 (${result.created}개 추가, ${result.updated}개 업데이트)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : '';
+      toast.error(msg ? `동기화에 실패했습니다: ${msg}` : '동기화에 실패했습니다.');
+    } finally {
+      setIsBulkSyncing(false);
+    }
+  }
+
   const columns = [
     {
       key: 'code',
@@ -249,10 +271,16 @@ export default function SalaryRulesPage() {
   return (
     <div>
       <PageHeader title="급여 규칙" subtitle="수당/공제 규칙을 설정합니다.">
-        <Button onClick={openCreate} size="sm">
-          <Plus className="h-4 w-4" />
-          규칙 추가
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowBulkSyncModal(true)} disabled={isBulkSyncing}>
+            <RefreshCw className={`h-4 w-4 ${isBulkSyncing ? 'animate-spin' : ''}`} />
+            {isBulkSyncing ? '동기화 중...' : '전체 직원 동기화'}
+          </Button>
+          <Button onClick={openCreate} size="sm">
+            <Plus className="h-4 w-4" />
+            규칙 추가
+          </Button>
+        </div>
       </PageHeader>
 
       <Tabs
@@ -402,6 +430,28 @@ export default function SalaryRulesPage() {
           </div>
         </div>
       </SlidePanel>
+
+      {/* 전체 직원 동기화 확인 모달 */}
+      <Modal
+        open={showBulkSyncModal}
+        onClose={() => setShowBulkSyncModal(false)}
+        title="전체 직원 동기화"
+      >
+        <div className="space-y-3 text-sm text-gray-600">
+          <p>현재 급여규칙을 모든 재직 직원에게 일괄 동기화합니다.</p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>각 직원의 항목명, 과세 설정 등이 급여규칙에 맞게 업데이트됩니다</li>
+            <li>누락된 항목은 자동으로 추가됩니다</li>
+            <li>금액은 변경되지 않습니다</li>
+          </ul>
+        </div>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" onClick={() => setShowBulkSyncModal(false)}>취소</Button>
+          <Button onClick={handleBulkSync} disabled={isBulkSyncing}>
+            {isBulkSyncing ? '동기화 중...' : '동기화'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

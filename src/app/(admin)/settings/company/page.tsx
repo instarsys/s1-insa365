@@ -28,7 +28,7 @@ const PAY_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
 
 const PRORATION_OPTIONS = [
   { value: 'CALENDAR_DAY', label: '역일 기준' },
-  { value: 'WORK_DAY', label: '근무일 기준' },
+  { value: 'WORKING_DAY', label: '근무일 기준' },
 ];
 
 export default function CompanySettingsPage() {
@@ -133,6 +133,10 @@ export default function CompanySettingsPage() {
               value={form.prorationMethod}
               onChange={(v) => updateField('prorationMethod', v)}
             />
+            <p className="text-xs text-gray-500 sm:col-span-2">
+              역일 기준: 해당 월 총 일수(토·일·공휴일 포함) 기준으로 계산합니다.<br />
+              근무일 기준: 해당 월 평일 수(토·일·공휴일 제외) 기준으로 계산합니다.
+            </p>
             <p className="text-xs text-gray-500 sm:col-span-2">
               지각/조퇴 유예시간, 야간근로, 소정근로시간 등은 설정 &gt; 근무 정책에서 정책별로 관리합니다.
             </p>

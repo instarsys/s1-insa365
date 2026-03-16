@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { jwtService } from '@/infrastructure/auth/JwtService';
-import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { loginSchema } from '@/presentation/api/schemas';
 import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { email, password } = validation.data;
 
-    const { userRepo, auditLogRepo } = getContainer();
+    const { userRepo, auditLogRepo, jwtService, passwordService } = getContainer();
 
     const user = await userRepo.findByEmail(email);
 

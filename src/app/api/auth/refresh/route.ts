@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
-import { jwtService } from '@/infrastructure/auth/JwtService';
 import { successResponse, errorResponse } from '@/presentation/api/helpers';
 import { getContainer } from '@/infrastructure/di/container';
 
 export async function POST(request: NextRequest) {
   try {
+    const { userRepo, jwtService } = getContainer();
+
     const refreshToken = request.cookies.get('refresh_token')?.value;
     if (!refreshToken) {
       return errorResponse('리프레시 토큰이 없습니다.', 401);
@@ -16,8 +17,6 @@ export async function POST(request: NextRequest) {
     } catch {
       return errorResponse('유효하지 않은 리프레시 토큰입니다.', 401);
     }
-
-    const { userRepo } = getContainer();
     const user = await userRepo.findByIdAndRefreshToken(payload.userId, refreshToken);
 
     if (!user) {

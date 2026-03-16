@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { getContainer } from '@/infrastructure/di/container';
-import { passwordService } from '@/infrastructure/auth/PasswordService';
 
 interface ImportRow {
   data: Record<string, string>;
@@ -22,7 +21,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return NextResponse.json({ message: '유효한 데이터가 없습니다.' }, { status: 400 });
   }
 
-  const { employeeRepo, departmentRepo, positionRepo } = getContainer();
+  const { employeeRepo, departmentRepo, positionRepo, passwordService } = getContainer();
   const [depts, positions] = await Promise.all([
     departmentRepo.findAll(auth.companyId),
     positionRepo.findAll(auth.companyId),

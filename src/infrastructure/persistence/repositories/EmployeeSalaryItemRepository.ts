@@ -1,5 +1,6 @@
 import { prisma } from '../prisma/client';
 import type { Prisma } from '@/generated/prisma/client';
+import type { SalaryItemType, PaymentType, PaymentCycle } from '@/generated/prisma/client';
 
 export class EmployeeSalaryItemRepository {
   async findByEmployee(companyId: string, userId: string) {
@@ -117,4 +118,70 @@ export class EmployeeSalaryItemRepository {
     });
     return result.count;
   }
+
+  /** 모드 A: 동기화 — 금액 보존, 속성 업데이트 + 누락 항목 추가 */
+  async upsertFromRules(
+    companyId: string,
+    userId: string,
+    rules: Array<{
+      code: string; name: string; type: SalaryItemType;
+      paymentType: PaymentType; paymentCycle: PaymentCycle;
+      defaultAmount: number; isOrdinaryWage: boolean;
+      isTaxExempt: boolean; taxExemptCode: string | null;
+      sortOrder: number; formula: string | null;
+    }>,
+  ): Promise<{ created: number; updated: number }> {
+    return prisma.$transaction(async (tx) => {
+      const existing = await tx.employeeSalaryItem.findMany({
+        where: { companyId, userId, deletedAt: null },
+      });
+      const existingByCode = new Map(existing.map(item => [item.code, item]));
+
+      let created = 0;
+      let updated = 0;
+
+      for (const rule of rules) {
+        const item = existingByCode.get(rule.code);
+        if (item) {
+          await tx.employeeSalaryItem.update({
+            where: { id: item.id },
+            data: {
+              name: rule.name,
+              type: rule.type,
+              paymentType: rule.paymentType,
+              paymentCycle: rule.paymentCycle,
+              isOrdinaryWage: rule.isOrdinaryWage,
+              isTaxExempt: rule.isTaxExempt,
+              taxExemptCode: rule.taxExemptCode,
+              sortOrder: rule.sortOrder,
+              formula: rule.formula,
+            },
+          });
+          updated++;
+        } else {
+          await tx.employeeSalaryItem.create({
+            data: {
+              companyId,
+              userId,
+              code: rule.code,
+              name: rule.name,
+              type: rule.type,
+              paymentType: rule.paymentType,
+              paymentCycle: rule.paymentCycle,
+              amount: rule.defaultAmount,
+              isOrdinaryWage: rule.isOrdinaryWage,
+              isTaxExempt: rule.isTaxExempt,
+              taxExemptCode: rule.taxExemptCode,
+              sortOrder: rule.sortOrder,
+              formula: rule.formula,
+            } as Prisma.EmployeeSalaryItemUncheckedCreateInput,
+          });
+          created++;
+        }
+      }
+
+      return { created, updated };
+    });
+  }
+
 }

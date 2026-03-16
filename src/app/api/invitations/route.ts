@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
 import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
-import { generateInviteCode } from '@/infrastructure/invite/InviteCodeGenerator';
 import { z } from 'zod';
 
 const createInvitationSchema = z.object({
@@ -27,7 +26,7 @@ async function postHandler(request: NextRequest, auth: AuthContext) {
   const validation = validateBody(createInvitationSchema, body);
   if (!validation.success) return validation.response;
 
-  const { invitationRepo } = getContainer();
+  const { invitationRepo, generateInviteCode } = getContainer();
 
   // 유니크 코드 생성 (충돌 방지)
   let code = generateInviteCode();

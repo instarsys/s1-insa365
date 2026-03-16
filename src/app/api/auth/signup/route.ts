@@ -1,7 +1,5 @@
 import { NextRequest } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { jwtService } from '@/infrastructure/auth/JwtService';
-import { passwordService } from '@/infrastructure/auth/PasswordService';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { signupSchema } from '@/presentation/api/schemas';
 import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
@@ -16,7 +14,7 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { companyName, businessNumber, representativeName, employeeCountRange, name, email, password, termsAgreed, privacyAgreed, marketingAgreed } = validation.data;
 
-    const { userRepo } = getContainer();
+    const { userRepo, jwtService, passwordService } = getContainer();
 
     const existingUser = await userRepo.findByEmail(email);
     if (existingUser) {
