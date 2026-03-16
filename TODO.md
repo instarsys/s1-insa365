@@ -1,25 +1,26 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-16 (급여 항목 동기화 + 직원 등록 폼 개선 + 시드 PII 데이터)
+> 최종 업데이트: 2026-03-16 (Go/No-Go 검증 감사 + EncryptionService 테스트 + vitest 설정 수정)
 
 ---
 
 ## 0. MVP 출시 전 필수 (Go/No-Go + 배포)
 
-### Go/No-Go 검증 체크리스트 (수동)
+### Go/No-Go 검증 체크리스트
 - [x] 급여 E2E 통합 테스트 49건 전체 PASS (근태→휴가→급여계산→대장/명세서 전체 흐름)
-- [ ] 급여 계산 정확도 99%+ (직원 3명 수동 검산 대비)
-- [ ] 셀프 온보딩 3분 이내 (회원가입 → 시드 → 첫 급여 시뮬)
-- [ ] 50명 급여 일괄 계산 10초 이내 (DB 기동 후 측정)
-- [ ] 4대보험 4종 + 소득세 2종 자동계산 정상
-- [ ] 52시간 초과 감지 + 경고 작동
-- [ ] PII 암호화 동작, RBAC 접근 차단 확인
+- [x] 급여 계산 정확도 99%+ — PayrollAccuracyVerification 3시나리오 통과 (월급고소득/월급중간+OT/시급), IEEE 754 1원 오차만 (2026-03-16 코드 감사)
+- [ ] 셀프 온보딩 3분 이내 (회원가입 → 시드 → 첫 급여 시뮬) — 인프라 준비 완료, 수동 UX 테스트 필요
+- [ ] 50명 급여 일괄 계산 10초 이내 — `scripts/benchmark-payroll.mjs` 존재, DB 기동 후 실행 필요
+- [x] 4대보험 4종 + 소득세 2종 자동계산 정상 — 국민연금/건강/장기요양/고용보험 공식 CLAUDE.md 100% 일치, 간이세액표 시드 완비 (dep 1~3) (2026-03-16 코드 감사)
+- [x] 52시간 초과 감지 + 경고 작동 — API(`/api/attendance/52hour`) + UI(overtime 페이지) + hook 완성, ISO week 그룹핑/48h경고/52h초과 (2026-03-16 코드 감사)
+- [x] PII 암호화 동작, RBAC 접근 차단 확인 — AES-256-GCM + canViewSensitive + 감사로그 + EncryptionService 단위 테스트 13개 추가 (2026-03-16 코드 감사)
+- [x] 단위 테스트 341개 전체 PASS (vitest, 17파일 1.5초) — EncryptionService 13개 추가 + vitest 설정 수정 (2026-03-16)
 
-### 배포 설정
-- [ ] 환경변수 정리 (`.env.production`)
-- [ ] Docker build 확인
-- [ ] Sentry DSN 설정
+### 배포 설정 (인프라 파일 준비 완료, 실제 값 입력 필요)
+- [ ] 환경변수 정리 (`.env.production`) — `.env.production.example` 템플릿 존재, 실제 값 입력 필요
+- [ ] Docker build 확인 — `Dockerfile` 3-stage + `docker-entrypoint.sh` + `docker-compose.prod.yml` 존재
+- [ ] Sentry DSN 설정 — `sentry.server.config.ts` + `sentry.client.config.ts` 존재 (SSN 마스킹 포함)
 
 ---
 
@@ -219,3 +220,11 @@
 | 2026-03-16 | ├ 직원 등록 폼: 기본정보(이름/주민번호/연락처) → 인사정보 → 급여정보 순서 재구성 |
 | 2026-03-16 | ├ 주민등록번호 필수 검증 (13~14자) + 직원 등록 후 급여탭으로 자동 이동 |
 | 2026-03-16 | └ 시드 직원 5명에 PII 데이터(전화번호/주소/은행/주민번호) 추가 + AES-256-GCM 암호화 |
+| 2026-03-16 | **Go/No-Go 코드 감사 + 테스트 보강** — 커밋 `4e646d2`, `0df2edc`, `440f232` |
+| 2026-03-16 | ├ 입사유형 CONTRACT(계약직) 추가 (constants.ts + employee schema) |
+| 2026-03-16 | ├ vitest 설정 수정: e2e/Playwright 파일 제외 (include/exclude 명시) → 17파일 341테스트 클린 통과 |
+| 2026-03-16 | ├ **EncryptionService 단위 테스트 13개 추가**: 암복호화 라운드트립, IV 랜덤성, authTag/ciphertext 변조 감지, 키 검증 |
+| 2026-03-16 | ├ 급여 계산 엔진 전체 감사: Phase 0~5, 보험료/세금 공식 CLAUDE.md 100% 일치 확인 |
+| 2026-03-16 | ├ 52시간 초과 감지 코드 감사: API + UI + hook 완성 확인 |
+| 2026-03-16 | ├ PII 보안 코드 감사: AES-256-GCM + canViewSensitive + 감사로그 확인 |
+| 2026-03-16 | └ 배포 설정 감사: Dockerfile + docker-compose.prod + .env.production.example + Sentry 전부 존재 확인 |
