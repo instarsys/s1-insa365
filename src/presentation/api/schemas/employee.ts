@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const HIRE_TYPES = ['NEW', 'EXPERIENCED', 'REHIRE', 'CONTRACT_CONVERT'] as const;
+export const HIRE_TYPES = ['NEW', 'EXPERIENCED', 'REHIRE', 'CONTRACT_CONVERT', 'CONTRACT'] as const;
 
 export const SALARY_TYPES = ['MONTHLY', 'HOURLY'] as const;
 

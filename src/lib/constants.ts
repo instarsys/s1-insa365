@@ -44,6 +44,7 @@ export const HIRE_TYPE_OPTIONS = [
   { value: 'EXPERIENCED', label: '경력입사' },
   { value: 'REHIRE', label: '재입사' },
   { value: 'CONTRACT_CONVERT', label: '계약직전환' },
+  { value: 'CONTRACT', label: '계약직' },
 ] as const;
 
 export const KOREAN_BANKS = [
