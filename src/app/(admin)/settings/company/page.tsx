@@ -19,6 +19,7 @@ interface CompanySettings {
   email: string;
   payDay: number;
   prorationMethod: string;
+  gpsEnforcementMode: string;
 }
 
 const PAY_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
@@ -29,6 +30,12 @@ const PAY_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
 const PRORATION_OPTIONS = [
   { value: 'CALENDAR_DAY', label: '역일 기준' },
   { value: 'WORKING_DAY', label: '근무일 기준' },
+];
+
+const GPS_ENFORCEMENT_OPTIONS = [
+  { value: 'OFF', label: '사용 안 함' },
+  { value: 'WARN', label: '경고 (반경 밖 출퇴근 허용, 경고 표시)' },
+  { value: 'BLOCK', label: '차단 (반경 밖 출퇴근 불가)' },
 ];
 
 export default function CompanySettingsPage() {
@@ -43,6 +50,7 @@ export default function CompanySettingsPage() {
     email: '',
     payDay: 25,
     prorationMethod: 'CALENDAR_DAY',
+    gpsEnforcementMode: 'OFF',
   });
 
   useEffect(() => {
@@ -139,6 +147,31 @@ export default function CompanySettingsPage() {
             </p>
             <p className="text-xs text-gray-500 sm:col-span-2">
               지각/조퇴 유예시간, 야간근로, 소정근로시간 등은 설정 &gt; 근무 정책에서 정책별로 관리합니다.
+            </p>
+          </div>
+        </CardBody>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>GPS 출퇴근 정책</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Select
+              label="GPS 검증 모드"
+              options={GPS_ENFORCEMENT_OPTIONS}
+              value={form.gpsEnforcementMode}
+              onChange={(v) => updateField('gpsEnforcementMode', v)}
+            />
+            <div />
+            <p className="text-xs text-gray-500 sm:col-span-2">
+              <strong>사용 안 함</strong>: GPS 좌표만 기록하며 반경 검증을 하지 않습니다.<br />
+              <strong>경고</strong>: 반경 밖 출퇴근 시 경고를 표시하지만 출퇴근은 허용합니다.<br />
+              <strong>차단</strong>: 반경 밖에서는 출퇴근이 불가합니다.
+            </p>
+            <p className="text-xs text-gray-500 sm:col-span-2">
+              근무지별 반경 설정은 설정 &gt; 근무지 관리에서 할 수 있습니다.
             </p>
           </div>
         </CardBody>

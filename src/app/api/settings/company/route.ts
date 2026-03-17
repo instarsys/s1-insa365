@@ -19,7 +19,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const body = await request.json();
   const allowedFields = [
     'name', 'businessNumber', 'representativeName', 'address', 'phone', 'email',
-    'payDay', 'prorationMethod',
+    'payDay', 'prorationMethod', 'gpsEnforcementMode',
   ] as const;
 
   const updateData: Record<string, unknown> = {};

@@ -127,6 +127,7 @@ const menuItems: MenuItemConfig[] = [
     children: [
       { label: '회사 정보', href: '/settings/company' },
       { label: '근무 정책', href: '/settings/work-policy' },
+      { label: '근무지 관리', href: '/settings/work-locations' },
       { label: '급여 규칙', href: '/settings/salary-rules' },
       { label: '휴가 설정', href: '/settings/leave' },
       { label: '플랜/결제', href: '/settings/billing' },

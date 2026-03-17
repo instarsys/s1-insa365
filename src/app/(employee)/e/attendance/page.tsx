@@ -27,6 +27,9 @@ interface AttendanceItem {
   nightMinutes: number;
   totalMinutes: number;
   isHoliday: boolean;
+  isOutOfRange?: boolean;
+  checkInLocationName?: string | null;
+  checkOutLocationName?: string | null;
   note: string | null;
 }
 
@@ -151,7 +154,8 @@ function MonthlyView({ items, year, month }: { items: AttendanceItem[]; year: nu
         date: d,
         hours: Math.round((record.totalMinutes / 60) * 10) / 10,
         status: mapStatus(record.status),
-      });
+        isOutOfRange: record.isOutOfRange,
+      } as DayData);
     } else {
       cells.push({ date: d, hours: 0, status: 'none' });
     }
@@ -190,7 +194,12 @@ function MonthlyView({ items, year, month }: { items: AttendanceItem[]; year: nu
                   {day.date}
                 </span>
                 {day.status !== 'none' && (
-                  <div className={cn('mt-0.5 h-1.5 w-1.5 rounded-full', statusDot[day.status])} />
+                  <div className="mt-0.5 flex items-center gap-0.5">
+                    <div className={cn('h-1.5 w-1.5 rounded-full', statusDot[day.status])} />
+                    {(day as DayData & { isOutOfRange?: boolean }).isOutOfRange && (
+                      <div className="h-1.5 w-1.5 rounded-full bg-amber-400" title="반경 밖" />
+                    )}
+                  </div>
                 )}
               </>
             ) : (

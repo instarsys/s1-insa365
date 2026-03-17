@@ -73,6 +73,9 @@ import { GetDailyAttendanceUseCase } from '@/application/use-cases/attendance/Ge
 import { GetMonthlyAttendanceUseCase } from '@/application/use-cases/attendance/GetMonthlyAttendanceUseCase';
 import { ConfirmAttendanceUseCase } from '@/application/use-cases/attendance/ConfirmAttendanceUseCase';
 import { Get52HourStatusUseCase } from '@/application/use-cases/attendance/Get52HourStatusUseCase';
+import { CheckInAttendanceUseCase } from '@/application/use-cases/attendance/CheckInAttendanceUseCase';
+import { CheckOutAttendanceUseCase } from '@/application/use-cases/attendance/CheckOutAttendanceUseCase';
+import { GetGpsStatusUseCase } from '@/application/use-cases/attendance/GetGpsStatusUseCase';
 
 // Leave
 import { CreateLeaveRequestUseCase } from '@/application/use-cases/leave/CreateLeaveRequestUseCase';
@@ -101,6 +104,7 @@ import { GetCompanySettingsUseCase } from '@/application/use-cases/settings/GetC
 import { UpdateCompanySettingsUseCase } from '@/application/use-cases/settings/UpdateCompanySettingsUseCase';
 import { CrudSalaryRulesUseCase } from '@/application/use-cases/settings/CrudSalaryRulesUseCase';
 import { CrudWorkPolicyUseCase } from '@/application/use-cases/settings/CrudWorkPolicyUseCase';
+import { CrudWorkLocationUseCase } from '@/application/use-cases/settings/CrudWorkLocationUseCase';
 
 // System
 import { CrudInsuranceRateUseCase } from '@/application/use-cases/system/CrudInsuranceRateUseCase';
@@ -185,6 +189,9 @@ export interface Container {
   getMonthlyAttendanceUseCase: GetMonthlyAttendanceUseCase;
   confirmAttendanceUseCase: ConfirmAttendanceUseCase;
   get52HourStatusUseCase: Get52HourStatusUseCase;
+  checkInAttendanceUseCase: CheckInAttendanceUseCase;
+  checkOutAttendanceUseCase: CheckOutAttendanceUseCase;
+  getGpsStatusUseCase: GetGpsStatusUseCase;
 
   // Leave Use Cases
   createLeaveRequestUseCase: CreateLeaveRequestUseCase;
@@ -213,6 +220,7 @@ export interface Container {
   updateCompanySettingsUseCase: UpdateCompanySettingsUseCase;
   crudSalaryRulesUseCase: CrudSalaryRulesUseCase;
   crudWorkPolicyUseCase: CrudWorkPolicyUseCase;
+  crudWorkLocationUseCase: CrudWorkLocationUseCase;
 
   // System Use Cases
   crudInsuranceRateUseCase: CrudInsuranceRateUseCase;
@@ -353,6 +361,25 @@ function createContainer(): Container {
     attendanceRepo as Any,
     employeeRepo as Any,
   );
+  const checkInAttendanceUseCase = new CheckInAttendanceUseCase(
+    attendanceRepo as Any,
+    employeeRepo as Any,
+    workPolicyRepo as Any,
+    workLocationRepo as Any,
+    companyRepo as Any,
+  );
+  const checkOutAttendanceUseCase = new CheckOutAttendanceUseCase(
+    attendanceRepo as Any,
+    employeeRepo as Any,
+    workPolicyRepo as Any,
+    workLocationRepo as Any,
+    companyRepo as Any,
+  );
+  const getGpsStatusUseCase = new GetGpsStatusUseCase(
+    employeeRepo as Any,
+    workLocationRepo as Any,
+    companyRepo as Any,
+  );
 
   // Leave
   const createLeaveRequestUseCase = new CreateLeaveRequestUseCase(
@@ -418,6 +445,7 @@ function createContainer(): Container {
   const updateCompanySettingsUseCase = new UpdateCompanySettingsUseCase(companyRepo as Any);
   const crudSalaryRulesUseCase = new CrudSalaryRulesUseCase(salaryRuleRepo as Any);
   const crudWorkPolicyUseCase = new CrudWorkPolicyUseCase(workPolicyRepo as Any);
+  const crudWorkLocationUseCase = new CrudWorkLocationUseCase(workLocationRepo as Any);
 
   // System
   const crudInsuranceRateUseCase = new CrudInsuranceRateUseCase(insuranceRateRepo as Any);
@@ -489,6 +517,9 @@ function createContainer(): Container {
     getMonthlyAttendanceUseCase,
     confirmAttendanceUseCase,
     get52HourStatusUseCase,
+    checkInAttendanceUseCase,
+    checkOutAttendanceUseCase,
+    getGpsStatusUseCase,
     // Leave
     createLeaveRequestUseCase,
     approveLeaveRequestUseCase,
@@ -513,6 +544,7 @@ function createContainer(): Container {
     updateCompanySettingsUseCase,
     crudSalaryRulesUseCase,
     crudWorkPolicyUseCase,
+    crudWorkLocationUseCase,
     // System
     crudInsuranceRateUseCase,
     crudTaxBracketUseCase,

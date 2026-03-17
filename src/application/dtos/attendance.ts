@@ -74,3 +74,21 @@ export interface UpdateAttendanceDto {
   status?: string;
   note?: string;
 }
+
+export interface GpsValidationResultDto {
+  isWithinRange: boolean;
+  nearestLocation: { id: string; name: string; distance: number } | null;
+  enforcement: string;
+  allowed: boolean;
+  warningMessage?: string;
+}
+
+export interface CheckInResultDto {
+  attendance: DailyAttendanceDto;
+  gpsValidation?: GpsValidationResultDto;
+}
+
+export interface CheckOutResultDto {
+  attendance: DailyAttendanceDto;
+  gpsValidation?: GpsValidationResultDto;
+}

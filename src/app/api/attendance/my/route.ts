@@ -30,6 +30,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     nightMinutes: a.nightMinutes,
     totalMinutes: a.totalMinutes,
     isHoliday: a.isHoliday,
+    isOutOfRange: (a as Record<string, unknown>).isOutOfRange ?? false,
+    checkInLocationName: (a as Record<string, unknown>).checkInLocationName ?? null,
+    checkOutLocationName: (a as Record<string, unknown>).checkOutLocationName ?? null,
     note: a.note,
   }));
 

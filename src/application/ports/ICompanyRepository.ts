@@ -9,6 +9,7 @@ export interface CompanyDto {
   payDay: number;
   prorationMethod: string;
   subscriptionPlan: string;
+  gpsEnforcementMode: string;
   createdAt: string;
 }
 
@@ -28,6 +29,7 @@ export interface UpdateCompanyData {
   email?: string;
   payDay?: number;
   prorationMethod?: string;
+  gpsEnforcementMode?: string;
 }
 
 export interface ICompanyRepository {

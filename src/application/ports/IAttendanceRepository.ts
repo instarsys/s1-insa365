@@ -8,6 +8,11 @@ export interface CreateAttendanceData {
   checkOutTime?: Date;
   latitude?: number;
   longitude?: number;
+  checkInLatitude?: number;
+  checkInLongitude?: number;
+  isOutOfRange?: boolean;
+  checkInLocationName?: string;
+  checkInDistance?: number;
 }
 
 export interface UpdateAttendanceData {
@@ -15,6 +20,11 @@ export interface UpdateAttendanceData {
   checkOutTime?: Date;
   checkOutLatitude?: number;
   checkOutLongitude?: number;
+  isOutOfRange?: boolean;
+  checkInLocationName?: string;
+  checkOutLocationName?: string;
+  checkInDistance?: number;
+  checkOutDistance?: number;
   status?: string;
   regularMinutes?: number;
   overtimeMinutes?: number;

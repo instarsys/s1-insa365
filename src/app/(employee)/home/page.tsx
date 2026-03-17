@@ -2,15 +2,25 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import { MapPin, Clock, Bell, ChevronRight, Wallet, AlertTriangle } from 'lucide-react';
+import { Clock, Bell, ChevronRight, Wallet, AlertTriangle } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui';
 import { useAuth } from '@/hooks';
 import { useNotifications } from '@/hooks';
 import { useAttendanceMutations } from '@/hooks';
 import { cn, formatKRW } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
+import { GpsLocationStatus } from '@/components/employee/GpsLocationStatus';
+import { GpsWarningModal } from '@/components/employee/GpsWarningModal';
 
 type ClockStatus = 'not_started' | 'checked_in' | 'checked_out';
+
+interface GpsValidationResult {
+  isWithinRange: boolean;
+  nearestLocation: { id: string; name: string; distance: number } | null;
+  enforcement: string;
+  allowed: boolean;
+  warningMessage?: string;
+}
 
 function useCurrentTime() {
   const [now, setNow] = useState(new Date());
@@ -85,6 +95,8 @@ export default function EmployeeHomePage() {
   const [checkInTime, setCheckInTime] = useState<string | undefined>(undefined);
   const [checkOutTime, setCheckOutTime] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'checkIn' | 'checkOut' | null>(null);
 
   // Restore today's attendance status on load
   const todayStr = new Date().toISOString().split('T')[0];
@@ -114,6 +126,16 @@ export default function EmployeeHomePage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // GPS 위치 상태 조회
+  const gpsQueryParams = geo.coords
+    ? `?latitude=${geo.coords.latitude}&longitude=${geo.coords.longitude}`
+    : '';
+  const { data: gpsStatus, isLoading: gpsLoading } = useSWR<GpsValidationResult>(
+    geo.coords ? `/api/attendance/gps-status${gpsQueryParams}` : null,
+    fetcher,
+    { revalidateOnFocus: true, refreshInterval: 30000 },
+  );
+
   // Fetch last month's actual salary
   const { data: payHistory } = useSWR<{ items: { netPay: number }[] }>(
     '/api/payroll/history?limit=1',
@@ -132,14 +154,14 @@ export default function EmployeeHomePage() {
   const workHours = Math.floor(workMinutes / 60);
   const workMins = workMinutes % 60;
 
-  const handleClockAction = useCallback(async () => {
+  const executeClockAction = useCallback(async (action: 'checkIn' | 'checkOut') => {
     setIsLoading(true);
     try {
       const locationData = geo.coords
         ? { latitude: geo.coords.latitude, longitude: geo.coords.longitude }
         : {};
 
-      if (clockStatus === 'not_started' || clockStatus === 'checked_out') {
+      if (action === 'checkIn') {
         await checkIn(locationData);
         setCheckInTime(new Date().toISOString());
         setClockStatus('checked_in');
@@ -153,12 +175,41 @@ export default function EmployeeHomePage() {
     } finally {
       setIsLoading(false);
     }
-  }, [clockStatus, checkIn, checkOut, geo.coords]);
+  }, [checkIn, checkOut, geo.coords]);
+
+  const handleClockAction = useCallback(async () => {
+    const action = clockStatus === 'checked_in' ? 'checkOut' : 'checkIn';
+
+    // WARN 모드 + 반경 밖 → 경고 모달 표시
+    if (gpsStatus && gpsStatus.enforcement === 'WARN' && !gpsStatus.isWithinRange) {
+      setPendingAction(action);
+      setShowWarningModal(true);
+      return;
+    }
+
+    await executeClockAction(action);
+  }, [clockStatus, gpsStatus, executeClockAction]);
+
+  const handleWarningConfirm = useCallback(async () => {
+    setShowWarningModal(false);
+    if (pendingAction) {
+      await executeClockAction(pendingAction);
+      setPendingAction(null);
+    }
+  }, [pendingAction, executeClockAction]);
+
+  const handleWarningCancel = useCallback(() => {
+    setShowWarningModal(false);
+    setPendingAction(null);
+  }, []);
 
   const buttonLabel = clockStatus === 'checked_in' ? '퇴근하기' : '출근하기';
   const buttonColor = clockStatus === 'checked_in'
     ? 'bg-red-500 hover:bg-red-600 active:bg-red-700'
     : 'bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800';
+
+  // BLOCK 모드에서 반경 밖이면 버튼 비활성화
+  const isBlocked = gpsStatus?.enforcement === 'BLOCK' && !gpsStatus?.allowed;
 
   const recentNotifications = notifications.slice(0, 5);
 
@@ -181,32 +232,28 @@ export default function EmployeeHomePage() {
         <p className="mb-3 text-3xl font-light tabular-nums text-gray-800">{formatTime(now)}</p>
         <button
           onClick={handleClockAction}
-          disabled={isLoading}
+          disabled={isLoading || isBlocked}
           className={cn(
             'flex h-28 w-28 flex-col items-center justify-center rounded-full text-white shadow-lg transition-all',
             'disabled:opacity-60',
-            buttonColor,
+            isBlocked ? 'bg-gray-400 cursor-not-allowed' : buttonColor,
           )}
         >
           <Clock className="mb-1 h-6 w-6" />
-          <span className="text-base font-semibold">{buttonLabel}</span>
+          <span className="text-base font-semibold">{isBlocked ? '출근불가' : buttonLabel}</span>
         </button>
-        <div className="mt-2 flex items-center gap-1 text-xs text-gray-400">
+        <div className="mt-2">
           {geo.error ? (
-            <>
+            <div className="flex items-center gap-1 text-xs">
               <AlertTriangle className="h-3 w-3 text-amber-500" />
               <span className="text-amber-500">{geo.error}</span>
-            </>
-          ) : geo.coords ? (
-            <>
-              <MapPin className="h-3 w-3 text-emerald-500" />
-              <span className="text-emerald-500">GPS 위치 확인됨</span>
-            </>
+            </div>
           ) : (
-            <>
-              <MapPin className="h-3 w-3" />
-              <span>GPS 위치 확인 중...</span>
-            </>
+            <GpsLocationStatus
+              gpsStatus={gpsStatus ?? null}
+              isLoading={gpsLoading}
+              gpsError={null}
+            />
           )}
         </div>
       </div>
@@ -286,6 +333,15 @@ export default function EmployeeHomePage() {
           </div>
         )}
       </div>
+
+      {/* GPS Warning Modal */}
+      <GpsWarningModal
+        open={showWarningModal}
+        locationName={gpsStatus?.nearestLocation?.name}
+        distance={gpsStatus?.nearestLocation?.distance}
+        onConfirm={handleWarningConfirm}
+        onCancel={handleWarningCancel}
+      />
     </div>
   );
 }
