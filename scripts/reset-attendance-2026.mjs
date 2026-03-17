@@ -12,7 +12,7 @@ import { randomUUID } from 'crypto';
 
 const pool = new pg.Pool({ connectionString: 'postgresql://insa365:insa365dev@localhost:5438/insa365' });
 
-const COMPANY_ID = 'cd04e4b2-129b-4c1c-9f45-5d699b0eaba7';
+const COMPANY_ID = '2abe2f45-7ec6-4623-a472-7542144d3c21'; // 테스트 주식회사
 
 // 활성 직원 (근태 대상)
 const EMPLOYEES = [

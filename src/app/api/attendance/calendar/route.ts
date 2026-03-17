@@ -37,7 +37,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
   // 회사 휴일 조회
   const companyHolidays = await companyHolidayRepo.findByPeriod(auth.companyId, startDate, endDate);
-  const holidays = companyHolidays.map((h: { date: Date }) => new Date(h.date).getUTCDate());
+  // PostgreSQL DATE → pg 드라이버 → JS Date (로컬 타임존 자정) → getDate()
+  const holidays = companyHolidays.map((h: { date: Date }) => new Date(h.date).getDate());
 
   // WorkPolicy 조회 (직원별 workDayPattern 결정용)
   const allPolicies = await workPolicyRepo.findAll(auth.companyId);
@@ -61,7 +62,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     let workDays = 0;
     for (const att of userAttendances) {
-      const day = new Date(att.date).getUTCDate();
+      // PostgreSQL DATE는 pg 드라이버가 로컬 타임존 자정으로 반환하므로 getDate() 사용
+      const day = new Date(att.date).getDate();
       attendancesByDay[day] = {
         id: att.id,
         checkInTime: att.checkInTime?.toISOString() ?? null,
@@ -97,7 +99,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const dailySummary: Record<number, number> = {};
   for (let d = 1; d <= daysInMonth; d++) {
     dailySummary[d] = attendances.filter((a) => {
-      const day = new Date(a.date).getUTCDate();
+      const day = new Date(a.date).getDate();
       return day === d && a.checkInTime;
     }).length;
   }
