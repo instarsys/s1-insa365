@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import useSWR from 'swr';
-import { Clock, Bell, ChevronRight, Wallet, AlertTriangle } from 'lucide-react';
+import { Clock, Bell, ChevronRight, Wallet, AlertTriangle, ClipboardList } from 'lucide-react';
 import { Card, CardBody } from '@/components/ui';
 import { useAuth } from '@/hooks';
 import { useNotifications } from '@/hooks';
@@ -227,59 +227,78 @@ export default function EmployeeHomePage() {
         안녕하세요, <span className="font-medium text-gray-800">{user?.name ?? '직원'}</span>님
       </p>
 
-      {/* Clock button */}
-      <div className="flex flex-col items-center py-4">
-        <p className="mb-3 text-3xl font-light tabular-nums text-gray-800">{formatTime(now)}</p>
-        <button
-          onClick={handleClockAction}
-          disabled={isLoading || isBlocked}
-          className={cn(
-            'flex h-28 w-28 flex-col items-center justify-center rounded-full text-white shadow-lg transition-all',
-            'disabled:opacity-60',
-            isBlocked ? 'bg-gray-400 cursor-not-allowed' : buttonColor,
-          )}
-        >
-          <Clock className="mb-1 h-6 w-6" />
-          <span className="text-base font-semibold">{isBlocked ? '출근불가' : buttonLabel}</span>
-        </button>
-        <div className="mt-2">
-          {geo.error ? (
-            <div className="flex items-center gap-1 text-xs">
-              <AlertTriangle className="h-3 w-3 text-amber-500" />
-              <span className="text-amber-500">{geo.error}</span>
+      {/* Clock button or Exempt notice */}
+      {user?.attendanceExempt ? (
+        <Card className="rounded-2xl">
+          <CardBody className="p-6 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100">
+              <ClipboardList className="h-6 w-6 text-gray-500" />
             </div>
-          ) : (
-            <GpsLocationStatus
-              gpsStatus={gpsStatus ?? null}
-              isLoading={gpsLoading}
-              gpsError={null}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Today's status */}
-      <Card className="rounded-2xl">
-        <CardBody className="p-4">
-          <p className="mb-3 text-xs font-medium text-gray-500">오늘의 근무</p>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400">출근</p>
-              <p className="mt-0.5 text-sm font-semibold text-gray-800">{formatTimeShort(checkInTime)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400">퇴근</p>
-              <p className="mt-0.5 text-sm font-semibold text-gray-800">{formatTimeShort(checkOutTime)}</p>
-            </div>
-            <div className="text-center">
-              <p className="text-[10px] text-gray-400">근무시간</p>
-              <p className="mt-0.5 text-sm font-semibold text-indigo-600">
-                {workHours}시간 {workMins}분
-              </p>
+            <p className="text-sm font-semibold text-gray-800">근태 면제 대상</p>
+            <p className="mt-1 text-xs text-gray-500">
+              출퇴근 기록이 필요 없는 근태 면제 대상입니다.
+            </p>
+            <p className="text-xs text-gray-500">
+              매월 고정 급여가 지급됩니다.
+            </p>
+          </CardBody>
+        </Card>
+      ) : (
+        <>
+          <div className="flex flex-col items-center py-4">
+            <p className="mb-3 text-3xl font-light tabular-nums text-gray-800">{formatTime(now)}</p>
+            <button
+              onClick={handleClockAction}
+              disabled={isLoading || isBlocked}
+              className={cn(
+                'flex h-28 w-28 flex-col items-center justify-center rounded-full text-white shadow-lg transition-all',
+                'disabled:opacity-60',
+                isBlocked ? 'bg-gray-400 cursor-not-allowed' : buttonColor,
+              )}
+            >
+              <Clock className="mb-1 h-6 w-6" />
+              <span className="text-base font-semibold">{isBlocked ? '출근불가' : buttonLabel}</span>
+            </button>
+            <div className="mt-2">
+              {geo.error ? (
+                <div className="flex items-center gap-1 text-xs">
+                  <AlertTriangle className="h-3 w-3 text-amber-500" />
+                  <span className="text-amber-500">{geo.error}</span>
+                </div>
+              ) : (
+                <GpsLocationStatus
+                  gpsStatus={gpsStatus ?? null}
+                  isLoading={gpsLoading}
+                  gpsError={null}
+                />
+              )}
             </div>
           </div>
-        </CardBody>
-      </Card>
+
+          {/* Today's status */}
+          <Card className="rounded-2xl">
+            <CardBody className="p-4">
+              <p className="mb-3 text-xs font-medium text-gray-500">오늘의 근무</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center">
+                  <p className="text-[10px] text-gray-400">출근</p>
+                  <p className="mt-0.5 text-sm font-semibold text-gray-800">{formatTimeShort(checkInTime)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-gray-400">퇴근</p>
+                  <p className="mt-0.5 text-sm font-semibold text-gray-800">{formatTimeShort(checkOutTime)}</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-[10px] text-gray-400">근무시간</p>
+                  <p className="mt-0.5 text-sm font-semibold text-indigo-600">
+                    {workHours}시간 {workMins}분
+                  </p>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
+        </>
+      )}
 
       {/* Next payday */}
       <Card className="rounded-2xl">

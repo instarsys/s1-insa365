@@ -6,6 +6,7 @@ import { Card, CardBody, Tabs } from '@/components/ui';
 import { Spinner } from '@/components/ui/Spinner';
 import { cn } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
+import { useAuth } from '@/hooks/useAuth';
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 
@@ -240,17 +241,33 @@ const tabItems = [
 
 export default function EmployeeAttendancePage() {
   const [activeTab, setActiveTab] = useState('weekly');
+  const { user } = useAuth();
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth() + 1;
 
   const { data, isLoading } = useSWR<MyAttendanceResponse>(
-    `/api/attendance/my?year=${year}&month=${month}`,
+    user?.attendanceExempt ? null : `/api/attendance/my?year=${year}&month=${month}`,
     fetcher,
     { revalidateOnFocus: true },
   );
 
   const items = data?.items ?? [];
+
+  if (user?.attendanceExempt) {
+    return (
+      <div className="space-y-4">
+        <h1 className="text-lg font-semibold text-gray-800">근태</h1>
+        <Card className="rounded-2xl">
+          <CardBody className="p-6 text-center">
+            <p className="text-sm text-gray-500">
+              근태 면제 대상으로 근태 기록이 없습니다.
+            </p>
+          </CardBody>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">

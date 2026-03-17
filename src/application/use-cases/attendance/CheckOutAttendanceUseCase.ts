@@ -9,6 +9,7 @@ interface EmployeeRepo {
   findById(companyId: string, userId: string): Promise<{
     workPolicyId?: string | null;
     workLocationId?: string | null;
+    attendanceExempt?: boolean;
   } | null>;
 }
 
@@ -71,6 +72,11 @@ export class CheckOutAttendanceUseCase {
 
     // 2. GPS 검증
     const user = await this.employeeRepo.findById(companyId, userId);
+
+    // 근태 면제 직원은 출퇴근 불필요
+    if (user?.attendanceExempt) {
+      throw new Error('근태 면제 대상 직원은 출퇴근 기록이 불필요합니다.');
+    }
     const company = await this.companyRepo.findById(companyId);
     const enforcement = (company?.gpsEnforcementMode ?? 'OFF') as GpsEnforcementMode;
 

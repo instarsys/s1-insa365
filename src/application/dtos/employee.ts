@@ -22,6 +22,7 @@ export interface CreateEmployeeDto {
   baseSalary?: number;
   salaryType?: string;
   hourlyRate?: number | null;
+  attendanceExempt?: boolean;
 }
 
 export interface UpdateEmployeeDto {
@@ -49,6 +50,7 @@ export interface UpdateEmployeeDto {
   hireType?: string | null;
   salaryType?: string;
   hourlyRate?: number | null;
+  attendanceExempt?: boolean;
   profileImageUrl?: string | null;
 }
 
@@ -86,6 +88,7 @@ export interface EmployeeDto {
   manualHealthInsuranceBase: number | null;
   salaryType: string;
   hourlyRate: number | null;
+  attendanceExempt: boolean;
   profileImageUrl: string | null;
   createdAt: string;
 }

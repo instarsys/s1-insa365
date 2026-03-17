@@ -24,7 +24,11 @@ export const createEmployeeSchema = z.object({
   baseSalary: z.number().min(0).optional(),
   salaryType: z.enum(SALARY_TYPES).optional(),
   hourlyRate: z.number().min(0).optional().nullable(),
-});
+  attendanceExempt: z.boolean().optional(),
+}).refine(
+  (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
+  { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },
+);
 
 export const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(50).optional(),
@@ -57,7 +61,11 @@ export const updateEmployeeSchema = z.object({
   employmentInsuranceMode: z.enum(['AUTO', 'NONE']).optional(),
   manualNationalPensionBase: z.number().min(0).nullable().optional(),
   manualHealthInsuranceBase: z.number().min(0).nullable().optional(),
-}).strict();
+  attendanceExempt: z.boolean().optional(),
+}).strict().refine(
+  (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
+  { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },
+);
 
 export const startLeaveSchema = z.object({
   leaveStartDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '날짜 형식은 YYYY-MM-DD입니다.'),

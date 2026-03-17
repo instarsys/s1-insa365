@@ -131,8 +131,11 @@ export function AttendanceCalendarGrid({
                     className="text-left hover:text-indigo-600 transition-colors"
                     onClick={() => onEmployeeClick(employee.userId)}
                   >
-                    <div className={cn('font-medium text-gray-800 truncate', compact ? 'text-xs max-w-[56px]' : 'text-xs max-w-[64px]')}>
+                    <div className={cn('font-medium text-gray-800 truncate flex items-center gap-1', compact ? 'text-xs max-w-[56px]' : 'text-xs max-w-[64px]')}>
                       {employee.userName}
+                      {employee.attendanceExempt && (
+                        <span className="shrink-0 rounded bg-gray-200 px-1 py-px text-[9px] font-medium text-gray-500">면제</span>
+                      )}
                     </div>
                     <div className={cn('text-gray-400 truncate', compact ? 'text-[10px] max-w-[56px]' : 'text-[10px] max-w-[64px]')}>
                       {employee.departmentName ?? ''}

@@ -34,6 +34,7 @@ interface Employee {
   employmentInsuranceMode?: string;
   manualNationalPensionBase?: number | null;
   manualHealthInsuranceBase?: number | null;
+  attendanceExempt?: boolean;
 }
 
 interface EmployeeListResponse {

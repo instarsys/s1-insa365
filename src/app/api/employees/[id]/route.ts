@@ -5,6 +5,7 @@ import {
   successResponse,
   notFoundResponse,
   noContentResponse,
+  errorResponse,
   validateBody,
 } from '@/presentation/api/helpers';
 import { updateEmployeeSchema } from '@/presentation/api/schemas';
@@ -48,6 +49,13 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
 
   const existing = await employeeRepo.findById(auth.companyId, id);
   if (!existing) return notFoundResponse('직원');
+
+  // 시급제+근태면제 동시 설정 방어: DB 기존값 포함 effective 검증 + 자동 해제
+  const effectiveSalaryType = validation.data.salaryType ?? existing.salaryType;
+  const effectiveAttendanceExempt = validation.data.attendanceExempt ?? existing.attendanceExempt;
+  if (effectiveSalaryType === 'HOURLY' && effectiveAttendanceExempt) {
+    validation.data.attendanceExempt = false;
+  }
 
   const { rrn, bankAccount, bankName, ...updateData } = validation.data;
 

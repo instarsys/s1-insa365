@@ -38,7 +38,7 @@ export class UserRepository {
     });
   }
 
-  async update(companyId: string, id: string, data: Prisma.UserUpdateInput) {
+  async update(companyId: string, id: string, data: Prisma.UserUncheckedUpdateInput) {
     const existing = await prisma.user.findFirst({
       where: { id, companyId, deletedAt: null },
     });
@@ -193,6 +193,7 @@ export class UserRepository {
           name: true,
           employeeNumber: true,
           workPolicyId: true,
+          attendanceExempt: true,
           department: { select: { name: true } },
         },
         orderBy: { name: 'asc' },
@@ -220,6 +221,7 @@ export class UserRepository {
         employeeStatus: true,
         canViewSensitive: true,
         mustChangePassword: true,
+        attendanceExempt: true,
         departmentId: true,
         positionId: true,
         profileImageUrl: true,

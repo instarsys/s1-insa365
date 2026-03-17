@@ -53,6 +53,7 @@ interface EditFormState {
   bankName: string;
   bankAccount: string;
   rrn: string;
+  attendanceExempt: boolean;
 }
 
 const emptyEditForm: EditFormState = {
@@ -61,6 +62,7 @@ const emptyEditForm: EditFormState = {
   joinDate: '', resignDate: '', resignReason: '',
   address: '', isHouseholder: false, dependents: '1',
   hireType: '', bankName: '', bankAccount: '', rrn: '',
+  attendanceExempt: false,
 };
 
 export default function EmployeeDetailPage() {
@@ -170,6 +172,7 @@ export default function EmployeeDetailPage() {
       bankName: (emp.bankName as string) ?? '',
       bankAccount: (emp.bankAccount as string) ?? '',
       rrn: (emp.rrn as string) ?? '',
+      attendanceExempt: (emp.attendanceExempt as boolean) ?? false,
     });
     setIsEditing(true);
   }, [employee]);
@@ -206,6 +209,7 @@ export default function EmployeeDetailPage() {
         dependents: parseInt(editForm.dependents) || 1,
         hireType: editForm.hireType || null,
         bankName: editForm.bankName || null,
+        attendanceExempt: editForm.attendanceExempt,
       };
       if (editForm.bankAccount) {
         payload.bankAccount = editForm.bankAccount;
@@ -613,6 +617,48 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
+                <div className="sm:col-span-2">
+                  {isEditing ? (
+                    <div className="w-full">
+                      <label className="mb-1 block text-xs font-medium text-gray-700">근태 면제</label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if ((emp.salaryType as string) === 'HOURLY') return;
+                          setEditForm((f) => ({ ...f, attendanceExempt: !f.attendanceExempt }));
+                        }}
+                        disabled={(emp.salaryType as string) === 'HOURLY'}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                          editForm.attendanceExempt ? 'bg-indigo-600' : 'bg-gray-300'
+                        } ${(emp.salaryType as string) === 'HOURLY' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                            editForm.attendanceExempt ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                      <span className="ml-2 text-sm text-gray-600">
+                        {editForm.attendanceExempt ? 'ON' : 'OFF'}
+                      </span>
+                      {(emp.salaryType as string) === 'HOURLY' ? (
+                        <p className="mt-1 text-xs text-amber-600">시급제 직원은 근태 면제를 설정할 수 없습니다.</p>
+                      ) : editForm.attendanceExempt ? (
+                        <p className="mt-1 text-xs text-gray-500">출퇴근 기록 없이 매월 고정 급여가 지급됩니다.</p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div>
+                      <InfoItem
+                        label="근태 면제"
+                        value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
+                      />
+                      {(emp.attendanceExempt as boolean) && (
+                        <p className="mt-1 text-xs text-gray-500">출퇴근 기록 없이 매월 고정 급여가 지급됩니다.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </CardBody>
           </Card>
@@ -1249,6 +1295,7 @@ function SalaryTab({
       await updateEmployee(employeeId, {
         salaryType: editSalaryType,
         hourlyRate: editSalaryType === 'HOURLY' && editHourlyRate ? Number(editHourlyRate) : null,
+        ...(editSalaryType === 'HOURLY' ? { attendanceExempt: false } : {}),
       });
       toast.success('급여 기본 정보가 저장되었습니다.');
       setIsEditingBasic(false);

@@ -89,6 +89,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       userName: user.name,
       employeeNumber: user.employeeNumber,
       departmentName: user.department?.name ?? null,
+      attendanceExempt: user.attendanceExempt,
       workDays,
       workDayPattern,
       attendances: attendancesByDay,

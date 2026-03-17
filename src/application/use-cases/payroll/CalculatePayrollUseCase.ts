@@ -104,43 +104,49 @@ export class CalculatePayrollUseCase {
     const calculations: CreateSalaryCalculationData[] = [];
 
     for (const emp of employees.items) {
-      // 근태 미확정 직원 → SKIPPED 처리
+      // 근태 미확정 직원 처리
       if (!attendanceMap.has(emp.id)) {
-        calculations.push({
-          companyId,
-          userId: emp.id,
-          year,
-          month,
-          status: 'SKIPPED',
-          ordinaryWageMonthly: 0,
-          ordinaryWageHourly: 0,
-          basePay: 0,
-          fixedAllowances: 0,
-          overtimePay: 0,
-          nightPay: 0,
-          nightOvertimePay: 0,
-          holidayPay: 0,
-          holidayOvertimePay: 0,
-          holidayNightPay: 0,
-          holidayNightOvertimePay: 0,
-          variableAllowances: 0,
-          attendanceDeductions: 0,
-          totalPay: 0,
-          totalNonTaxable: 0,
-          taxableIncome: 0,
-          nationalPension: 0,
-          healthInsurance: 0,
-          longTermCare: 0,
-          employmentInsurance: 0,
-          incomeTax: 0,
-          localIncomeTax: 0,
-          totalDeduction: 0,
-          netPay: 0,
-          prorationApplied: false,
-          minimumWageWarning: false,
-          errorMessage: '근태 미확정',
-        });
-        continue;
+        if (emp.attendanceExempt) {
+          // 근태 면제: attData가 없으므로 아래에서 all-zero attendance로 계산 진행
+          // → 기본급+고정수당만 지급, overtime/premium = 0
+        } else {
+          // 기존: 근태 미확정 → SKIPPED
+          calculations.push({
+            companyId,
+            userId: emp.id,
+            year,
+            month,
+            status: 'SKIPPED',
+            ordinaryWageMonthly: 0,
+            ordinaryWageHourly: 0,
+            basePay: 0,
+            fixedAllowances: 0,
+            overtimePay: 0,
+            nightPay: 0,
+            nightOvertimePay: 0,
+            holidayPay: 0,
+            holidayOvertimePay: 0,
+            holidayNightPay: 0,
+            holidayNightOvertimePay: 0,
+            variableAllowances: 0,
+            attendanceDeductions: 0,
+            totalPay: 0,
+            totalNonTaxable: 0,
+            taxableIncome: 0,
+            nationalPension: 0,
+            healthInsurance: 0,
+            longTermCare: 0,
+            employmentInsurance: 0,
+            incomeTax: 0,
+            localIncomeTax: 0,
+            totalDeduction: 0,
+            netPay: 0,
+            prorationApplied: false,
+            minimumWageWarning: false,
+            errorMessage: '근태 미확정',
+          });
+          continue;
+        }
       }
 
       try {

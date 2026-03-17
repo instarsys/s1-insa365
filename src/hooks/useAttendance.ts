@@ -82,6 +82,7 @@ interface CalendarAttendanceItem {
   userName: string;
   employeeNumber: string | null;
   departmentName: string | null;
+  attendanceExempt?: boolean;
   workDays: number;
   workDayPattern: string;
   attendances: Record<number, {

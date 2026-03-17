@@ -17,6 +17,7 @@ interface User {
   employeeNumber?: string;
   canViewSensitive: boolean;
   mustChangePassword?: boolean;
+  attendanceExempt?: boolean;
   companyName?: string;
   departmentName?: string | null;
   positionName?: string | null;

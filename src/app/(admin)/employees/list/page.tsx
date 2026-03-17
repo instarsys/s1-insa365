@@ -60,6 +60,7 @@ interface EmployeeForm {
   insuranceMode: string;
   workPolicyId: string;
   workLocationId: string;
+  attendanceExempt: boolean;
 }
 
 const emptyForm: EmployeeForm = {
@@ -80,6 +81,7 @@ const emptyForm: EmployeeForm = {
   insuranceMode: 'AUTO',
   workPolicyId: '',
   workLocationId: '',
+  attendanceExempt: false,
 };
 
 export default function EmployeeListPage() {
@@ -201,6 +203,7 @@ export default function EmployeeListPage() {
         insuranceMode: form.insuranceMode,
         workPolicyId: form.workPolicyId || undefined,
         workLocationId: form.workLocationId || undefined,
+        attendanceExempt: form.attendanceExempt,
       };
 
       const created = await createEmployee(payload) as { id: string };
@@ -465,7 +468,7 @@ export default function EmployeeListPage() {
               { value: 'HOURLY', label: '시급제' },
             ]}
             value={form.salaryType}
-            onChange={(v) => setForm((f) => ({ ...f, salaryType: v }))}
+            onChange={(v) => setForm((f) => ({ ...f, salaryType: v, ...(v === 'HOURLY' ? { attendanceExempt: false } : {}) }))}
           />
           {form.salaryType === 'MONTHLY' ? (
             <>
@@ -494,6 +497,34 @@ export default function EmployeeListPage() {
               )}
             </>
           )}
+          <div className="w-full">
+            <label className="mb-1 block text-xs font-medium text-gray-700">근태 면제</label>
+            <button
+              type="button"
+              onClick={() => {
+                if (form.salaryType === 'HOURLY') return;
+                setForm((f) => ({ ...f, attendanceExempt: !f.attendanceExempt }));
+              }}
+              disabled={form.salaryType === 'HOURLY'}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                form.attendanceExempt ? 'bg-indigo-600' : 'bg-gray-300'
+              } ${form.salaryType === 'HOURLY' ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                  form.attendanceExempt ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+            <span className="ml-2 text-sm text-gray-600">
+              {form.attendanceExempt ? 'ON' : 'OFF'}
+            </span>
+            {form.salaryType === 'HOURLY' ? (
+              <p className="mt-1 text-xs text-amber-600">시급제는 근태 기반 급여이므로 면제 불가</p>
+            ) : form.attendanceExempt ? (
+              <p className="mt-1 text-xs text-gray-500">ON 시 출퇴근 기록 없이 고정 급여가 지급됩니다.</p>
+            ) : null}
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="w-full">
               <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
