@@ -40,8 +40,9 @@ async function main() {
     console.log('Company created:', company.name);
   } else {
     console.log('Company already exists:', company.name);
-    // 회사가 이미 존재하면 휴가 시드만 추가 실행
+    // 회사가 이미 존재하면 추가 시드만 실행
     await seedLeaveData(company.id);
+    await seedCompanyHolidays(company.id);
     return;
   }
   // 5 Departments
@@ -917,6 +918,9 @@ async function main() {
     console.log('Subscription already exists:', existingSub.plan);
   }
 
+  // 공휴일 시드
+  await seedCompanyHolidays(company.id);
+
   console.log('Company:', company.name);
   console.log('Admin login: admin@test-company.com / admin123! (COMPANY_ADMIN)');
   console.log('System Admin login: sysadmin@insa365.com / sysadmin123! (SYSTEM_ADMIN)');
@@ -924,6 +928,71 @@ async function main() {
   console.log('Employee login: kim.ys@test-company.com / test1234! (and 4 others)');
   const hourlyCount = employees.filter(e => e.salaryType === 'HOURLY').length;
   console.log('Total employees:', employees.length + 2, `(${employees.length} employees [${hourlyCount} hourly] + 1 admin + 1 manager)`);
+}
+
+async function seedCompanyHolidays(companyId: string) {
+  // 이미 공휴일이 있으면 스킵
+  const existing = await prisma.companyHoliday.findFirst({ where: { companyId } });
+  if (existing) {
+    console.log('Company holidays already exist, skipping.');
+    return;
+  }
+
+  const KOREAN_HOLIDAYS = [
+    // 2025년
+    { date: '2025-01-01', name: '신정', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-01-28', name: '설날 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-01-29', name: '설날', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-01-30', name: '설날 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-03-01', name: '삼일절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-03-03', name: '대체공휴일(삼일절)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-05-05', name: '어린이날', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-05-06', name: '대체공휴일(부처님오신날)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-05-15', name: '부처님오신날', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-06-06', name: '현충일', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-08-15', name: '광복절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-10-03', name: '개천절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-10-05', name: '추석 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-10-06', name: '추석', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-10-07', name: '추석 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-10-08', name: '대체공휴일(추석)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2025-10-09', name: '한글날', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2025-12-25', name: '크리스마스', type: 'NATIONAL' as const, isRecurring: true },
+    // 2026년
+    { date: '2026-01-01', name: '신정', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-02-16', name: '설날 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-02-17', name: '설날', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-02-18', name: '설날 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-03-01', name: '삼일절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-03-02', name: '대체공휴일(삼일절)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-05-05', name: '어린이날', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-05-24', name: '부처님오신날', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-06-06', name: '현충일', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-08-15', name: '광복절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-08-17', name: '대체공휴일(광복절)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-09-24', name: '추석 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-09-25', name: '추석', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-09-26', name: '추석 연휴', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-10-03', name: '개천절', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-10-05', name: '대체공휴일(개천절)', type: 'NATIONAL' as const, isRecurring: false },
+    { date: '2026-10-09', name: '한글날', type: 'NATIONAL' as const, isRecurring: true },
+    { date: '2026-12-25', name: '크리스마스', type: 'NATIONAL' as const, isRecurring: true },
+  ];
+
+  for (const h of KOREAN_HOLIDAYS) {
+    await prisma.companyHoliday.upsert({
+      where: { companyId_date: { companyId, date: new Date(h.date) } },
+      update: {},
+      create: {
+        companyId,
+        date: new Date(h.date),
+        name: h.name,
+        type: h.type,
+        isRecurring: h.isRecurring,
+      },
+    });
+  }
+  console.log(`Company holidays seeded: ${KOREAN_HOLIDAYS.length} holidays (2025-2026)`);
 }
 
 async function seedLeaveData(companyId: string) {

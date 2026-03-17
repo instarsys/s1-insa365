@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Calculator,
   ChevronRight,
@@ -26,8 +26,10 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { StatCard } from '@/components/ui/StatCard';
 import { Table } from '@/components/ui/Table';
-import { usePayrollSpreadsheet, usePayrollSummary, usePayrollMutations } from '@/hooks';
+import { useToast } from '@/components/ui';
+import { usePayrollSpreadsheet, usePayrollSummary, usePayrollMutations, usePayrollAttendanceReview, usePayrollDetail } from '@/hooks';
 import { formatKRW } from '@/lib/utils';
+import Link from 'next/link';
 
 const STEPS = [
   { label: '급여 입력', description: 'Step 1' },
@@ -47,6 +49,188 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
   label: `${i + 1}월`,
 }));
 
+interface PayrollDetailData {
+  employeeName: string;
+  employeeNumber: string | null;
+  departmentName: string | null;
+  salaryType: string;
+  ordinaryWageMonthly: number;
+  ordinaryWageHourly: number;
+  attendance: {
+    workDays: number;
+    actualWorkDays: number;
+    absentDays: number;
+    lateDays: number;
+    earlyLeaveDays: number;
+    leaveDays: number;
+    overtimeMinutes: number;
+    nightMinutes: number;
+    holidayMinutes: number;
+  } | null;
+  payItems: { label: string; amount: number; description: string }[];
+  totalPay: number;
+  totalNonTaxable: number;
+  taxableIncome: number;
+  deductionItems: { label: string; amount: number; description: string }[];
+  totalDeduction: number;
+  netPay: number;
+  prorationApplied: boolean;
+  prorationRatio: number | null;
+  minimumWageWarning: boolean;
+}
+
+function PayrollDetailPanel({ detail, isLoading }: { detail: PayrollDetailData | undefined; isLoading: boolean }) {
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <Spinner size="sm" text="세부 내역 로딩중..." />
+      </div>
+    );
+  }
+
+  if (!detail) {
+    return (
+      <div className="px-6 py-4 text-sm text-gray-500">세부 내역을 불러올 수 없습니다.</div>
+    );
+  }
+
+  const minutesToH = (min: number) => Math.round((min / 60) * 10) / 10;
+
+  return (
+    <div className="border-t border-indigo-100 bg-gradient-to-b from-indigo-50/50 to-white px-6 py-5">
+      {/* 통상임금 헤더 */}
+      <div className="mb-4 flex items-center gap-4 text-sm">
+        <span className="font-medium text-gray-700">통상임금</span>
+        <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+          월 {formatKRW(detail.ordinaryWageMonthly)}
+        </span>
+        <span className="rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+          시급 {formatKRW(detail.ordinaryWageHourly)}
+        </span>
+        {detail.minimumWageWarning && (
+          <Badge variant="warning">최저임금 미달</Badge>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {/* 근태 현황 */}
+        {detail.attendance && (
+          <div>
+            <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">근태 현황</h4>
+            <div className="space-y-1 text-xs text-gray-600">
+              <div className="flex justify-between">
+                <span>근무일</span>
+                <span className="font-medium text-gray-800">{detail.attendance.workDays}일</span>
+              </div>
+              <div className="flex justify-between">
+                <span>실근무</span>
+                <span className="font-medium text-gray-800">{detail.attendance.actualWorkDays}일</span>
+              </div>
+              {detail.attendance.absentDays > 0 && (
+                <div className="flex justify-between text-red-600">
+                  <span>결근</span>
+                  <span className="font-medium">{detail.attendance.absentDays}일</span>
+                </div>
+              )}
+              {detail.attendance.lateDays > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>지각</span>
+                  <span className="font-medium">{detail.attendance.lateDays}일</span>
+                </div>
+              )}
+              {detail.attendance.earlyLeaveDays > 0 && (
+                <div className="flex justify-between text-amber-600">
+                  <span>조퇴</span>
+                  <span className="font-medium">{detail.attendance.earlyLeaveDays}일</span>
+                </div>
+              )}
+              {detail.attendance.leaveDays > 0 && (
+                <div className="flex justify-between">
+                  <span>휴가</span>
+                  <span className="font-medium text-gray-800">{detail.attendance.leaveDays}일</span>
+                </div>
+              )}
+              {detail.attendance.overtimeMinutes > 0 && (
+                <div className="flex justify-between">
+                  <span>연장</span>
+                  <span className="font-medium text-gray-800">{minutesToH(detail.attendance.overtimeMinutes)}h</span>
+                </div>
+              )}
+              {detail.attendance.nightMinutes > 0 && (
+                <div className="flex justify-between">
+                  <span>야간</span>
+                  <span className="font-medium text-gray-800">{minutesToH(detail.attendance.nightMinutes)}h</span>
+                </div>
+              )}
+              {detail.attendance.holidayMinutes > 0 && (
+                <div className="flex justify-between">
+                  <span>휴일</span>
+                  <span className="font-medium text-gray-800">{minutesToH(detail.attendance.holidayMinutes)}h</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 지급 항목 */}
+        <div>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-blue-500">지급 항목</h4>
+          <div className="space-y-1.5">
+            {detail.payItems.map((item, i) => (
+              <div key={i} className="flex items-baseline justify-between text-xs">
+                <div>
+                  <span className="font-medium text-gray-700">{item.label}</span>
+                  <span className="ml-2 text-gray-400">{item.description}</span>
+                </div>
+                <span className={`ml-4 whitespace-nowrap font-medium tabular-nums ${item.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                  {formatKRW(item.amount)}
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-blue-200 pt-1.5 text-xs font-semibold text-blue-700">
+              <span>총지급</span>
+              <span className="tabular-nums">{formatKRW(detail.totalPay)}</span>
+            </div>
+          </div>
+
+          {/* 비과세 */}
+          <div className="mt-3 rounded bg-gray-100 px-2 py-1.5 text-xs text-gray-600">
+            비과세 {formatKRW(detail.totalNonTaxable)} → 과세소득 {formatKRW(detail.taxableIncome)}
+          </div>
+        </div>
+
+        {/* 공제 항목 */}
+        <div>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-500">공제 항목</h4>
+          <div className="space-y-1.5">
+            {detail.deductionItems.map((item, i) => (
+              <div key={i} className="flex items-baseline justify-between text-xs">
+                <div>
+                  <span className="font-medium text-gray-700">{item.label}</span>
+                  <span className="ml-2 text-gray-400">{item.description}</span>
+                </div>
+                <span className="ml-4 whitespace-nowrap font-medium tabular-nums text-red-600">
+                  {formatKRW(item.amount)}
+                </span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-red-200 pt-1.5 text-xs font-semibold text-red-700">
+              <span>총공제</span>
+              <span className="tabular-nums">{formatKRW(detail.totalDeduction)}</span>
+            </div>
+          </div>
+
+          {/* 실수령 */}
+          <div className="mt-3 rounded bg-emerald-50 px-3 py-2 text-center">
+            <span className="text-xs text-emerald-600">실수령</span>
+            <span className="ml-2 text-sm font-bold tabular-nums text-emerald-700">{formatKRW(detail.netPay)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PayrollRunPage() {
   const [currentStep, setCurrentStep] = useState(0);
   const [year, setYear] = useState(currentDate.getFullYear());
@@ -57,8 +241,13 @@ export default function PayrollRunPage() {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
 
+  const toast = useToast();
+  const [expandedCalcId, setExpandedCalcId] = useState<string | null>(null);
+
   const { rows, isLoading: spreadsheetLoading, mutate: mutateSpreadsheet } = usePayrollSpreadsheet(year, month);
   const { summary, isLoading: summaryLoading } = usePayrollSummary(year, month);
+  const { review, isLoading: reviewLoading } = usePayrollAttendanceReview(year, month);
+  const { detail, isLoading: detailLoading } = usePayrollDetail(expandedCalcId);
   const mutations = usePayrollMutations();
 
   // Inline editing state: { [employeeId-code]: editValue }
@@ -159,6 +348,10 @@ export default function PayrollRunPage() {
       await mutations.confirm({ year, month });
       setShowConfirmModal(false);
       setConfirmed(true);
+    } catch (err) {
+      setShowConfirmModal(false);
+      const message = err instanceof Error ? err.message : '급여 확정 중 오류가 발생했습니다.';
+      toast.error(message);
     } finally {
       setConfirming(false);
     }
@@ -209,6 +402,67 @@ export default function PayrollRunPage() {
               </div>
             </CardBody>
           </Card>
+
+          {/* 근태 검토 패널 */}
+          {!reviewLoading && review && (
+            <Card className="mb-6">
+              <CardBody>
+                {review.unconfirmedEmployees.length === 0 ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-4 py-3">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                    <span className="text-sm font-medium text-emerald-700">
+                      {review.confirmedCount}/{review.activeEmployeeCount}명 근태 확정 완료
+                    </span>
+                  </div>
+                ) : (
+                  <div className="rounded-lg bg-amber-50 px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-amber-500" />
+                      <span className="text-sm font-medium text-amber-700">
+                        {review.unconfirmedEmployees.length}명 미확정
+                      </span>
+                      <span className="text-xs text-amber-600">
+                        ({review.confirmedCount}/{review.activeEmployeeCount}명 확정)
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {review.unconfirmedEmployees.map((emp) => (
+                        <span
+                          key={emp.id}
+                          className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+                        >
+                          {emp.name}
+                          {emp.departmentName && <span className="ml-1 text-amber-600">({emp.departmentName})</span>}
+                        </span>
+                      ))}
+                    </div>
+                    <div className="mt-2">
+                      <Link href="/attendance" className="text-xs font-medium text-amber-700 underline hover:text-amber-900">
+                        근태 관리 바로가기
+                      </Link>
+                    </div>
+                  </div>
+                )}
+
+                {/* 근태 요약 통계 */}
+                <details className="mt-3">
+                  <summary className="flex cursor-pointer items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-700">
+                    <ChevronDown className="h-3.5 w-3.5" />
+                    근태 요약
+                  </summary>
+                  <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-600">
+                    <span>결근 <strong className="text-gray-800">{review.summary.totalAbsentDays}일</strong></span>
+                    <span>지각 <strong className="text-gray-800">{review.summary.totalLateDays}일</strong></span>
+                    <span>조퇴 <strong className="text-gray-800">{review.summary.totalEarlyLeaveDays}일</strong></span>
+                    <span>휴가 <strong className="text-gray-800">{review.summary.totalLeaveDays}일</strong></span>
+                    <span className="border-l border-gray-300 pl-4">연장 <strong className="text-gray-800">{review.summary.totalOvertimeHours}h</strong></span>
+                    <span>야간 <strong className="text-gray-800">{review.summary.totalNightHours}h</strong></span>
+                    <span>휴일 <strong className="text-gray-800">{review.summary.totalHolidayHours}h</strong></span>
+                  </div>
+                </details>
+              </CardBody>
+            </Card>
+          )}
 
           {/* Spreadsheet Table */}
           <Card>
@@ -280,10 +534,14 @@ export default function PayrollRunPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {rows.map((row) => (
+                      {rows.map((row) => {
+                        const rowCalcId = (row as unknown as Record<string, string>).calculationId;
+                        const isExpanded = expandedCalcId === rowCalcId;
+                        const totalColSpan = 5 + allowanceColumns.length + 1 + deductionColumns.length + 3;
+                        return (
+                        <React.Fragment key={row.employeeId}>
                         <tr
-                          key={row.employeeId}
-                          className={`hover:bg-indigo-50/30 ${row.isSkipped ? 'bg-gray-50 opacity-60' : ''}`}
+                          className={`hover:bg-indigo-50/30 ${row.isSkipped ? 'bg-gray-50 opacity-60' : ''} ${row.status === 'SKIPPED' && row.skipReason === '근태 미확정' ? 'bg-amber-50/50' : ''} ${isExpanded ? 'bg-indigo-50/40' : ''}`}
                         >
                           <td className="sticky left-0 z-10 bg-white px-3 py-3">
                             <Checkbox
@@ -295,7 +553,22 @@ export default function PayrollRunPage() {
                             {row.employeeNumber}
                           </td>
                           <td className="sticky left-[7.5rem] z-10 whitespace-nowrap bg-white px-4 py-3 text-sm font-medium text-gray-800">
-                            {row.employeeName}
+                            <div className="flex items-center gap-1.5">
+                              <button
+                                type="button"
+                                className="cursor-pointer text-left text-indigo-600 hover:text-indigo-800 hover:underline"
+                                onClick={() => setExpandedCalcId(
+                                  expandedCalcId === (row as unknown as Record<string, string>).calculationId
+                                    ? null
+                                    : (row as unknown as Record<string, string>).calculationId ?? null
+                                )}
+                              >
+                                {row.employeeName}
+                              </button>
+                              {row.status === 'SKIPPED' && row.skipReason === '근태 미확정' && (
+                                <Badge variant="warning">근태 미확정</Badge>
+                              )}
+                            </div>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
                             {row.departmentName ?? '-'}
@@ -358,7 +631,16 @@ export default function PayrollRunPage() {
                             />
                           </td>
                         </tr>
-                      ))}
+                        {isExpanded && (
+                          <tr>
+                            <td colSpan={totalColSpan} className="bg-gray-50 p-0">
+                              <PayrollDetailPanel detail={detail} isLoading={detailLoading} />
+                            </td>
+                          </tr>
+                        )}
+                        </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

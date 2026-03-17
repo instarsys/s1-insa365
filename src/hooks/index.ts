@@ -2,7 +2,7 @@ export { useAuth } from './useAuth';
 export { useEmployees, useEmployee, useEmployeeMutations, useEmployeePii, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive, syncSalaryItems, bulkSyncSalaryRules } from './useEmployees';
 export { useDailyAttendance, useMonthlyAttendance, useOvertimeStatus, useAttendanceMutations, useCalendarAttendance, useAttendanceRecords } from './useAttendance';
 export type { AttendanceRecord, CalendarAttendanceItem } from './useAttendance';
-export { usePayrollSpreadsheet, usePayrollSummary, usePayrollHistory, usePayrollMutations, usePayrollLedger } from './usePayroll';
+export { usePayrollSpreadsheet, usePayrollSummary, usePayrollHistory, usePayrollMutations, usePayrollLedger, usePayrollAttendanceReview, usePayrollDetail } from './usePayroll';
 export { useLeaveRequests, useLeaveBalance, useLeaveBalances, useLeaveMutations, useLeaveGroups, useLeaveGroupMutations, useLeaveTypeConfigs, useLeaveTypeConfigMutations, useLeaveAccrualRules, useLeaveAccrualRuleMutations, useLeaveAccruals, useLeaveAccrualGenerate, useLeaveHistory, useLeaveLedger } from './useLeave';
 export type { LeaveGroupItem, LeaveTypeConfigItem, LeaveAccrualRuleItem, AccrualTierItem, LeaveAccrualItem, LeaveBalanceSummary, LedgerEntry } from './useLeave';
 export { useNotifications } from './useNotifications';
@@ -11,3 +11,5 @@ export type { ParsedRow, ParseResult, ConfirmResult } from './useEmployeeImport'
 export { useDashboardTodos, useDashboardWidgets, useAttendanceMissing, useAnnouncements, useEmployeeAlerts, useLeaveStatus } from './useDashboard';
 export { useBilling, usePaymentHistory, useBillingMutations } from './useBilling';
 export type { SubscriptionData, PaymentData, PlanConfig } from './useBilling';
+export { useCompanyHolidays, useCompanyHolidayMutations } from './useCompanyHolidays';
+export type { CompanyHolidayItem } from './useCompanyHolidays';

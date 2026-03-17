@@ -13,7 +13,20 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { year, month } = validation.data;
 
-    const { salaryCalcRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo } = getContainer();
+    const { salaryCalcRepo, salaryAttendanceRepo, employeeRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo } = getContainer();
+
+    // 활성 직원 중 근태 미확정 확인
+    const activeEmployees = await employeeRepo.findAll(auth.companyId, { status: 'ACTIVE', page: 1, limit: 10000 });
+    const attendanceData = await salaryAttendanceRepo.findByPeriod(auth.companyId, year, month);
+    const confirmedUserIds = new Set(attendanceData.map((a) => a.userId));
+    const unconfirmedEmployees = activeEmployees.items.filter((e) => !confirmedUserIds.has(e.id));
+
+    if (unconfirmedEmployees.length > 0) {
+      return errorResponse(
+        `근태 미확정 직원 ${unconfirmedEmployees.length}명이 있습니다. 근태를 먼저 확정해주세요.`,
+        400,
+      );
+    }
 
     const drafts = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
     const draftItems = drafts.filter((d) => d.status === 'DRAFT');

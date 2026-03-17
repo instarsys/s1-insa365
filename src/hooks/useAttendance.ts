@@ -83,6 +83,7 @@ interface CalendarAttendanceItem {
   employeeNumber: string | null;
   departmentName: string | null;
   workDays: number;
+  workDayPattern: string;
   attendances: Record<number, {
     id: string;
     checkInTime: string | null;
@@ -105,6 +106,7 @@ interface CalendarAttendanceResponse {
   page: number;
   items: CalendarAttendanceItem[];
   dailySummary: Record<number, number>;
+  holidays: number[];
 }
 
 interface RecordsAttendanceResponse {

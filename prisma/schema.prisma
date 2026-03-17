@@ -227,6 +227,7 @@ model Company {
   announcements      Announcement[]
   employeeInvitations EmployeeInvitation[]
   subscription       Subscription?
+  companyHolidays    CompanyHoliday[]
 
   @@map("companies")
 }
@@ -1110,6 +1111,31 @@ model Subscription {
   payments            Payment[]
 
   @@map("subscriptions")
+}
+
+// ──────────────────────────────────────────────
+// Company Holiday (회사 휴일)
+// ──────────────────────────────────────────────
+
+enum HolidayType {
+  NATIONAL  // 법정 공휴일
+  COMPANY   // 회사 지정 휴일
+}
+
+model CompanyHoliday {
+  id          String      @id @default(uuid())
+  companyId   String      @map("company_id")
+  company     Company     @relation(fields: [companyId], references: [id])
+  date        DateTime    @db.Date
+  name        String
+  type        HolidayType @default(COMPANY)
+  isRecurring Boolean     @default(false) @map("is_recurring")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@unique([companyId, date])
+  @@index([companyId, date])
+  @@map("company_holidays")
 }
 
 model Payment {

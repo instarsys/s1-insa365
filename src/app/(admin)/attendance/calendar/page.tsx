@@ -7,10 +7,11 @@ import { PageHeader } from '@/components/layout';
 import { Button, Select, Spinner, EmptyState, Pagination, useToast } from '@/components/ui';
 import { AttendanceCalendarGrid } from '@/components/attendance/AttendanceCalendarGrid';
 import { AttendanceRecordModal } from '@/components/attendance/AttendanceRecordModal';
-import { useCalendarAttendance } from '@/hooks';
+import { useCalendarAttendance, useAttendanceMutations } from '@/hooks';
+import { usePayrollAttendanceReview } from '@/hooks';
 import { fetcher } from '@/lib/api';
 import { Checkbox } from '@/components/ui';
-import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -189,6 +190,9 @@ export default function AttendanceCalendarPage() {
         </div>
       </div>
 
+      {/* 일괄 확정 바 */}
+      <AttendanceConfirmBar year={year} month={month} onConfirmed={() => mutate()} />
+
       {/* Calendar Grid */}
       {isLoading ? (
         <Spinner text="달력 데이터를 불러오는 중..." className="py-20" />
@@ -205,6 +209,7 @@ export default function AttendanceCalendarPage() {
             month={month}
             items={data.items}
             dailySummary={data.dailySummary}
+            holidays={data.holidays ?? []}
             showLeave={showLeave}
             colorMode={colorMode}
             onCellClick={handleCellClick}
@@ -238,6 +243,59 @@ export default function AttendanceCalendarPage() {
         defaultDate={modalDefaultDate}
         defaultUserId={modalDefaultUserId}
       />
+    </div>
+  );
+}
+
+// ─── Attendance Confirm Bar ──────────────────────────────────
+function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; month: number; onConfirmed: () => void }) {
+  const toast = useToast();
+  const [confirming, setConfirming] = useState(false);
+  const { review, isLoading } = usePayrollAttendanceReview(year, month);
+  const { confirmAttendance } = useAttendanceMutations();
+
+  if (isLoading || !review) return null;
+
+  const unconfirmedCount = review.unconfirmedEmployees.length;
+  const allConfirmed = unconfirmedCount === 0 && review.confirmedCount > 0;
+
+  async function handleBulkConfirm() {
+    setConfirming(true);
+    try {
+      await confirmAttendance({ year, month });
+      onConfirmed();
+      toast.success(`${year}년 ${month}월 근태가 일괄 확정되었습니다.`);
+    } catch {
+      toast.error('근태 확정 중 오류가 발생했습니다.');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  return (
+    <div className="mb-4 flex items-center justify-between rounded-lg border px-5 py-3">
+      <div className="flex items-center gap-2 text-sm">
+        {allConfirmed ? (
+          <>
+            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+            <span className="font-medium text-emerald-700">
+              {review.confirmedCount}/{review.activeEmployeeCount}명 근태 확정 완료
+            </span>
+          </>
+        ) : (
+          <span className="text-gray-700">
+            확정 <strong>{review.confirmedCount}</strong>명 / 미확정 <strong className="text-amber-600">{unconfirmedCount}</strong>명 / 전체 {review.activeEmployeeCount}명
+          </span>
+        )}
+      </div>
+      <Button
+        onClick={handleBulkConfirm}
+        disabled={allConfirmed || confirming || review.activeEmployeeCount === 0}
+        size="sm"
+      >
+        {confirming ? <Spinner size="sm" /> : null}
+        {year}년 {month}월 일괄 확정
+      </Button>
     </div>
   );
 }

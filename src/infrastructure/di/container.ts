@@ -39,6 +39,7 @@ import { AnnouncementRepository } from '../persistence/repositories/Announcement
 import { InvitationRepository } from '../persistence/repositories/InvitationRepository';
 import { SubscriptionRepository } from '../persistence/repositories/SubscriptionRepository';
 import { PaymentRepository } from '../persistence/repositories/PaymentRepository';
+import { CompanyHolidayRepository } from '../persistence/repositories/CompanyHolidayRepository';
 
 // ─── Domain Services ────────────────────────────────────────────
 import { PayrollCalculator } from '@domain/services/PayrollCalculator';
@@ -49,6 +50,7 @@ import { passwordService } from '../auth/PasswordService';
 import { ExcelService } from '../excel/ExcelService';
 import { encryptionService } from '../encryption/EncryptionService';
 import { s3Service } from '../external/S3Service';
+import { KakaoGeocodingService } from '../external/KakaoGeocodingService';
 import { generateInviteCode } from '../invite/InviteCodeGenerator';
 
 // ─── Use Cases ──────────────────────────────────────────────────
@@ -94,6 +96,8 @@ import { CancelPayrollUseCase } from '@/application/use-cases/payroll/CancelPayr
 import { SkipEmployeePayrollUseCase } from '@/application/use-cases/payroll/SkipEmployeePayrollUseCase';
 import { GetPayrollHistoryUseCase } from '@/application/use-cases/payroll/GetPayrollHistoryUseCase';
 import { GetPayrollLedgerUseCase } from '@/application/use-cases/payroll/GetPayrollLedgerUseCase';
+import { GetAttendanceReviewUseCase } from '@/application/use-cases/payroll/GetAttendanceReviewUseCase';
+import { GetPayrollDetailUseCase } from '@/application/use-cases/payroll/GetPayrollDetailUseCase';
 
 // Dashboard
 import { GetDashboardTodosUseCase } from '@/application/use-cases/dashboard/GetDashboardTodosUseCase';
@@ -105,6 +109,7 @@ import { UpdateCompanySettingsUseCase } from '@/application/use-cases/settings/U
 import { CrudSalaryRulesUseCase } from '@/application/use-cases/settings/CrudSalaryRulesUseCase';
 import { CrudWorkPolicyUseCase } from '@/application/use-cases/settings/CrudWorkPolicyUseCase';
 import { CrudWorkLocationUseCase } from '@/application/use-cases/settings/CrudWorkLocationUseCase';
+import { CrudCompanyHolidayUseCase } from '@/application/use-cases/settings/CrudCompanyHolidayUseCase';
 
 // System
 import { CrudInsuranceRateUseCase } from '@/application/use-cases/system/CrudInsuranceRateUseCase';
@@ -155,11 +160,13 @@ export interface Container {
   invitationRepo: InvitationRepository;
   subscriptionRepo: SubscriptionRepository;
   paymentRepo: PaymentRepository;
+  companyHolidayRepo: CompanyHolidayRepository;
 
   // Infrastructure Services (cross-cutting concerns)
   excelService: ExcelService;
   encryptionService: { encrypt(plaintext: string): string; decrypt(encrypted: string): string };
   s3Service: { isConfigured(): boolean; getPresignedUploadUrl(key: string, contentType: string, expiresIn?: number): Promise<{ uploadUrl: string; imageUrl: string }> };
+  kakaoGeocodingService: KakaoGeocodingService;
   passwordService: { hash(plain: string): Promise<string>; compare(plain: string, hash: string): Promise<boolean>; verify(plain: string, hash: string): Promise<boolean> };
   jwtService: {
     generateAccessToken(payload: { userId: string; companyId: string; role: string; canViewSensitive: boolean }): string;
@@ -210,6 +217,8 @@ export interface Container {
   skipEmployeePayrollUseCase: SkipEmployeePayrollUseCase;
   getPayrollHistoryUseCase: GetPayrollHistoryUseCase;
   getPayrollLedgerUseCase: GetPayrollLedgerUseCase;
+  getAttendanceReviewUseCase: GetAttendanceReviewUseCase;
+  getPayrollDetailUseCase: GetPayrollDetailUseCase;
 
   // Dashboard Use Cases
   getDashboardTodosUseCase: GetDashboardTodosUseCase;
@@ -221,6 +230,7 @@ export interface Container {
   crudSalaryRulesUseCase: CrudSalaryRulesUseCase;
   crudWorkPolicyUseCase: CrudWorkPolicyUseCase;
   crudWorkLocationUseCase: CrudWorkLocationUseCase;
+  crudCompanyHolidayUseCase: CrudCompanyHolidayUseCase;
 
   // System Use Cases
   crudInsuranceRateUseCase: CrudInsuranceRateUseCase;
@@ -270,9 +280,11 @@ function createContainer(): Container {
   const invitationRepo = new InvitationRepository();
   const subscriptionRepo = new SubscriptionRepository();
   const paymentRepo = new PaymentRepository();
+  const companyHolidayRepo = new CompanyHolidayRepository();
 
   // 2. Infrastructure Service 인스턴스
   const excelService = new ExcelService();
+  const kakaoGeocodingService = new KakaoGeocodingService();
 
   // 3. Domain Service 어댑터 (PayrollCalculator.calculate는 static)
   const payrollCalculator = {
@@ -427,6 +439,14 @@ function createContainer(): Container {
     salaryCalcRepo as Any,
     companyRepo as Any,
   );
+  const getAttendanceReviewUseCase = new GetAttendanceReviewUseCase(
+    employeeRepo as Any,
+    salaryAttendanceRepo as Any,
+  );
+  const getPayrollDetailUseCase = new GetPayrollDetailUseCase(
+    salaryCalcRepo as Any,
+    salaryAttendanceRepo as Any,
+  );
 
   // Dashboard
   const getDashboardTodosUseCase = new GetDashboardTodosUseCase(
@@ -446,6 +466,7 @@ function createContainer(): Container {
   const crudSalaryRulesUseCase = new CrudSalaryRulesUseCase(salaryRuleRepo as Any);
   const crudWorkPolicyUseCase = new CrudWorkPolicyUseCase(workPolicyRepo as Any);
   const crudWorkLocationUseCase = new CrudWorkLocationUseCase(workLocationRepo as Any);
+  const crudCompanyHolidayUseCase = new CrudCompanyHolidayUseCase(companyHolidayRepo as Any);
 
   // System
   const crudInsuranceRateUseCase = new CrudInsuranceRateUseCase(insuranceRateRepo as Any);
@@ -491,10 +512,12 @@ function createContainer(): Container {
     invitationRepo,
     subscriptionRepo,
     paymentRepo,
+    companyHolidayRepo,
     // Infrastructure Services
     excelService,
     encryptionService,
     s3Service,
+    kakaoGeocodingService,
     passwordService: passwordAdapter,
     jwtService,
     generateInviteCode,
@@ -536,6 +559,8 @@ function createContainer(): Container {
     skipEmployeePayrollUseCase,
     getPayrollHistoryUseCase,
     getPayrollLedgerUseCase,
+    getAttendanceReviewUseCase,
+    getPayrollDetailUseCase,
     // Dashboard
     getDashboardTodosUseCase,
     getDashboardWidgetsUseCase,
@@ -545,6 +570,7 @@ function createContainer(): Container {
     crudSalaryRulesUseCase,
     crudWorkPolicyUseCase,
     crudWorkLocationUseCase,
+    crudCompanyHolidayUseCase,
     // System
     crudInsuranceRateUseCase,
     crudTaxBracketUseCase,

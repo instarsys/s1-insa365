@@ -11,6 +11,7 @@ import {
   isSaturday,
   isWeekend as checkWeekend,
   isToday as checkToday,
+  isScheduledWorkDay,
 } from '@/lib/attendance-utils';
 import type { CalendarAttendanceItem } from '@/hooks/useAttendance';
 
@@ -19,6 +20,7 @@ interface AttendanceCalendarGridProps {
   month: number;
   items: CalendarAttendanceItem[];
   dailySummary: Record<number, number>;
+  holidays?: number[];
   showLeave?: boolean;
   colorMode?: 'status' | 'department';
   onCellClick: (userId: string, day: number, hasData: boolean, recordId?: string) => void;
@@ -31,6 +33,7 @@ export function AttendanceCalendarGrid({
   month,
   items,
   dailySummary,
+  holidays = [],
   showLeave = true,
   colorMode = 'status',
   onCellClick,
@@ -90,16 +93,19 @@ export function AttendanceCalendarGrid({
               <th className={cn('sticky left-0 z-20 border-r border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600', compact ? 'min-w-[72px] px-1.5 py-2' : 'min-w-[80px] px-2 py-2.5')}>
                 직원
               </th>
-              {days.map((day) => (
+              {days.map((day) => {
+                const isHolidayDay = holidays.includes(day);
+                return (
                 <th
                   key={day}
                   className={cn(
                     'border-r border-b border-gray-200 text-center font-medium cursor-pointer hover:bg-indigo-50/50 transition-colors',
                     compact ? 'min-w-[34px] px-0.5 py-2' : 'min-w-[44px] px-1 py-2.5',
                     checkToday(year, month, day) && 'bg-amber-50',
-                    isSunday(year, month, day) && 'text-red-500',
-                    isSaturday(year, month, day) && 'text-blue-500',
-                    !isSunday(year, month, day) && !isSaturday(year, month, day) && 'text-gray-600',
+                    isHolidayDay && 'text-red-500',
+                    !isHolidayDay && isSunday(year, month, day) && 'text-red-500',
+                    !isHolidayDay && isSaturday(year, month, day) && 'text-blue-500',
+                    !isHolidayDay && !isSunday(year, month, day) && !isSaturday(year, month, day) && 'text-gray-600',
                   )}
                   onClick={() => handleDateHeaderClick(day)}
                 >
@@ -108,7 +114,8 @@ export function AttendanceCalendarGrid({
                     {getDayOfWeek(year, month, day)}
                   </div>
                 </th>
-              ))}
+                );
+              })}
               {/* 합계 열 — sticky right */}
               <th className={cn('sticky right-0 z-20 border-b border-gray-200 bg-gray-50 text-center text-xs font-semibold text-gray-600', compact ? 'min-w-[44px] px-1.5 py-2' : 'min-w-[52px] px-2 py-2.5')}>
                 합계
@@ -134,12 +141,19 @@ export function AttendanceCalendarGrid({
                 </td>
                 {days.map((day) => {
                   const att = employee.attendances[day];
+                  const empWorkDay = isScheduledWorkDay(year, month, day, employee.workDayPattern ?? '1,2,3,4,5');
+                  const isHolidayDay = holidays.includes(day);
                   return (
                     <AttendanceCalendarCell
                       key={day}
+                      year={year}
+                      month={month}
+                      day={day}
                       data={att}
                       isWeekend={checkWeekend(year, month, day)}
                       isToday={checkToday(year, month, day)}
+                      isEmployeeWorkDay={empWorkDay}
+                      isHoliday={isHolidayDay}
                       showLeave={showLeave}
                       colorMode={colorMode}
                       departmentName={employee.departmentName}

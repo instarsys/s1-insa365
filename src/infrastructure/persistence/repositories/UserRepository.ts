@@ -192,6 +192,7 @@ export class UserRepository {
           id: true,
           name: true,
           employeeNumber: true,
+          workPolicyId: true,
           department: { select: { name: true } },
         },
         orderBy: { name: 'asc' },

@@ -1,14 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Save } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Save, Plus, Download, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
+import { Badge } from '@/components/ui/Badge';
+import { Modal } from '@/components/ui/Modal';
+import { useToast } from '@/components/ui';
+import { AddressSearchInput } from '@/components/address/AddressSearchInput';
 import { apiGet, apiPut } from '@/lib/api';
+import { useCompanyHolidays, useCompanyHolidayMutations } from '@/hooks';
 
 interface CompanySettings {
   name: string;
@@ -113,10 +118,10 @@ export default function CompanySettingsPage() {
               onChange={(e) => updateField('email', e.target.value)}
             />
             <div className="sm:col-span-2">
-              <Input
+              <AddressSearchInput
                 label="주소"
                 value={form.address}
-                onChange={(e) => updateField('address', e.target.value)}
+                onChange={(addr) => updateField('address', addr)}
               />
             </div>
           </div>
@@ -183,6 +188,174 @@ export default function CompanySettingsPage() {
           저장
         </Button>
       </div>
+
+      {/* 휴일 설정 */}
+      <HolidaySection />
     </div>
+  );
+}
+
+// ─── Holiday Section ─────────────────────────────────────────
+function HolidaySection() {
+  const toast = useToast();
+  const now = new Date();
+  const [holidayYear, setHolidayYear] = useState(now.getFullYear());
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newHolidayDate, setNewHolidayDate] = useState('');
+  const [newHolidayName, setNewHolidayName] = useState('');
+  const [importing, setImporting] = useState(false);
+
+  const { holidays, isLoading: holidaysLoading, mutate: mutateHolidays } = useCompanyHolidays(holidayYear);
+  const mutations = useCompanyHolidayMutations();
+
+  const yearOptions = useMemo(() =>
+    Array.from({ length: 5 }, (_, i) => {
+      const y = now.getFullYear() - 1 + i;
+      return { value: String(y), label: `${y}년` };
+    }),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  []);
+
+  const nationalCount = holidays.filter((h) => h.type === 'NATIONAL').length;
+  const companyCount = holidays.filter((h) => h.type === 'COMPANY').length;
+
+  async function handleImportNational() {
+    setImporting(true);
+    try {
+      await mutations.importNational(holidayYear);
+      await mutateHolidays();
+      toast.success(`${holidayYear}년 법정 공휴일을 불러왔습니다.`);
+    } catch {
+      toast.error('공휴일 불러오기에 실패했습니다.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  async function handleAddHoliday() {
+    if (!newHolidayDate || !newHolidayName) return;
+    try {
+      await mutations.create({ date: newHolidayDate, name: newHolidayName, type: 'COMPANY' });
+      await mutateHolidays();
+      setShowAddModal(false);
+      setNewHolidayDate('');
+      setNewHolidayName('');
+      toast.success('회사 휴일이 추가되었습니다.');
+    } catch {
+      toast.error('휴일 추가에 실패했습니다.');
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await mutations.deleteHoliday(id);
+      await mutateHolidays();
+    } catch {
+      toast.error('휴일 삭제에 실패했습니다.');
+    }
+  }
+
+  return (
+    <>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>휴일 설정</CardTitle>
+          <div className="flex items-center gap-2">
+            <Select
+              options={yearOptions}
+              value={String(holidayYear)}
+              onChange={(v) => setHolidayYear(Number(v))}
+              wrapperClassName="w-28"
+            />
+            <Button variant="secondary" onClick={handleImportNational} disabled={importing}>
+              {importing ? <Spinner size="sm" /> : <Download className="h-4 w-4" />}
+              한국 공휴일 불러오기
+            </Button>
+            <Button onClick={() => setShowAddModal(true)}>
+              <Plus className="h-4 w-4" />
+              회사 휴일 추가
+            </Button>
+          </div>
+        </CardHeader>
+        <CardBody className="p-0">
+          {holidaysLoading ? (
+            <Spinner text="휴일 목록 로딩중..." className="py-8" />
+          ) : holidays.length === 0 ? (
+            <div className="py-8 text-center text-sm text-gray-500">
+              등록된 휴일이 없습니다. &quot;한국 공휴일 불러오기&quot;를 눌러 법정 공휴일을 추가하세요.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b bg-gray-50">
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">휴일명</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">날짜</th>
+                    <th className="px-4 py-3 text-left font-medium text-gray-600">유형</th>
+                    <th className="px-4 py-3 text-center font-medium text-gray-600">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {holidays.map((h) => (
+                    <tr key={h.id} className="hover:bg-gray-50">
+                      <td className="px-4 py-2.5 font-medium text-gray-800">{h.name}</td>
+                      <td className="px-4 py-2.5 text-gray-600">
+                        {new Date(h.date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'UTC' })}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {h.type === 'NATIONAL' ? (
+                          <Badge variant="info">법정</Badge>
+                        ) : (
+                          <Badge variant="warning">회사</Badge>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <button
+                          onClick={() => handleDelete(h.id)}
+                          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <div className="border-t bg-gray-50 px-4 py-3 text-xs text-gray-500">
+            법정 공휴일 {nationalCount}일 + 회사 지정 {companyCount}일 = 총 {nationalCount + companyCount}일
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Add Holiday Modal */}
+      <Modal
+        open={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title="회사 휴일 추가"
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => setShowAddModal(false)}>취소</Button>
+            <Button onClick={handleAddHoliday} disabled={!newHolidayDate || !newHolidayName}>추가</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Input
+            label="휴일명"
+            placeholder="예: 창립기념일"
+            value={newHolidayName}
+            onChange={(e) => setNewHolidayName(e.target.value)}
+          />
+          <Input
+            label="날짜"
+            type="date"
+            value={newHolidayDate}
+            onChange={(e) => setNewHolidayDate(e.target.value)}
+          />
+        </div>
+      </Modal>
+    </>
   );
 }

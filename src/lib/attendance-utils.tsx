@@ -157,6 +157,16 @@ export function findNearestLocation(
   return nearest;
 }
 
+/**
+ * WorkPolicy.workDays 기반 근무일 판정.
+ * workDayPattern: "1,2,3,4,5" (1=Mon..7=Sun, ISO 8601)
+ */
+export function isScheduledWorkDay(year: number, month: number, day: number, workDayPattern: string): boolean {
+  const jsDay = new Date(year, month - 1, day).getDay(); // 0=Sun..6=Sat
+  const isoDay = jsDay === 0 ? 7 : jsDay; // 1=Mon..7=Sun
+  return workDayPattern.split(',').map(Number).includes(isoDay);
+}
+
 export const STATUS_OPTIONS = [
   { value: 'ON_TIME', label: '정상' },
   { value: 'LATE', label: '지각' },

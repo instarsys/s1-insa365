@@ -16,13 +16,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const startDate = new Date(year, month - 1, 1);
     const endDate = new Date(year, month, 0);
 
-    const { userRepo, attendanceRepo, salaryAttendanceRepo, employeeRepo, workPolicyRepo, leaveRequestRepo, auditLogRepo } = getContainer();
+    const { userRepo, attendanceRepo, salaryAttendanceRepo, employeeRepo, workPolicyRepo, leaveRequestRepo, auditLogRepo, companyHolidayRepo } = getContainer();
 
     const employees = await userRepo.findActiveUsers(auth.companyId, userIds);
     const empIds = employees.map((e) => e.id);
 
     // 회사 기본 WorkPolicy (fallback용)
     const defaultWorkPolicy = await workPolicyRepo.findDefault(auth.companyId);
+
+    // 회사 휴일 조회
+    const companyHolidays = await companyHolidayRepo.findByPeriod(auth.companyId, startDate, endDate);
+    const holidayDates = new Set(
+      companyHolidays.map((h: { date: Date }) => h.date.toISOString().split('T')[0]),
+    );
 
     // 결근 자동 생성 + 근태 확정
     const now = new Date();
@@ -75,6 +81,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
         // 근무일이 아니면 스킵
         if (!isWorkDay(dateObj, workDays)) continue;
+
+        // 회사 휴일이면 스킵 (결근 미생성)
+        if (holidayDates.has(dateStr)) continue;
 
         // 이미 근태 기록 있으면 스킵
         if (attendanceDates.has(dateStr)) continue;

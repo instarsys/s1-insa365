@@ -24,10 +24,14 @@ async function handler(request: NextRequest, auth: AuthContext) {
       after: { year, month, employeeCount: results.length } as Record<string, unknown>,
     });
 
+    const skippedItems = results.filter((r) => r.status === 'SKIPPED');
+    const calculatedItems = results.filter((r) => r.status !== 'SKIPPED');
+
     return successResponse({
       year,
       month,
-      calculatedCount: results.length,
+      calculatedCount: calculatedItems.length,
+      skippedCount: skippedItems.length,
       items: results,
     });
   } catch (err) {
