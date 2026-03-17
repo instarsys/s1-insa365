@@ -23,6 +23,11 @@ export async function POST(request: NextRequest) {
       return errorResponse('유효하지 않은 리프레시 토큰입니다.', 401);
     }
 
+    // 교차 검증: JWT의 companyId와 DB user의 companyId가 일치하는지 확인
+    if (user.companyId !== payload.companyId) {
+      return errorResponse('유효하지 않은 리프레시 토큰입니다.', 401);
+    }
+
     const tokenPayload = {
       userId: user.id,
       companyId: user.companyId,

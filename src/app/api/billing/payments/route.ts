@@ -10,7 +10,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
     return NextResponse.json({ payments: [] });
   }
 
-  const payments = await paymentRepo.findBySubscriptionId(subscription.id);
+  const payments = await paymentRepo.findBySubscriptionId(auth.companyId, subscription.id);
   return NextResponse.json({ payments });
 }
 

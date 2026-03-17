@@ -21,6 +21,7 @@ const TENANT_MODELS = new Set([
   'Notification',
   'PayrollMonthly',
   'AuditLog',
+  'CompanyHoliday',
 ]);
 
 /**
@@ -89,5 +90,9 @@ export function createTenantExtension(companyId: string) {
  * Must be called within a transaction or at the start of a request.
  */
 export async function setTenantContext(prisma: PrismaClient, companyId: string) {
-  await prisma.$executeRawUnsafe(`SET LOCAL app.company_id = '${companyId.replace(/'/g, "''")}'`);
+  // UUID 형식 검증 (SQL injection 방지)
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
+    throw new Error('Invalid companyId format');
+  }
+  await prisma.$executeRawUnsafe(`SET LOCAL app.company_id = '${companyId}'`);
 }

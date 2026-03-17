@@ -45,7 +45,11 @@ export class SalaryCalculationRepository {
     return result.count;
   }
 
-  async update(id: string, data: Prisma.SalaryCalculationUpdateInput) {
+  async update(companyId: string, id: string, data: Prisma.SalaryCalculationUpdateInput) {
+    const existing = await prisma.salaryCalculation.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return null;
     return prisma.salaryCalculation.update({
       where: { id },
       data,

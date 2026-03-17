@@ -44,6 +44,10 @@ import { CompanyHolidayRepository } from '../persistence/repositories/CompanyHol
 // ─── Domain Services ────────────────────────────────────────────
 import { PayrollCalculator } from '@domain/services/PayrollCalculator';
 
+// ─── Tenant Context ─────────────────────────────────────────────
+import { setTenantContext } from '../persistence/prisma/tenant-extension';
+import { prisma } from '../persistence/prisma/client';
+
 // ─── Infrastructure Services ────────────────────────────────────
 import { jwtService } from '../auth/JwtService';
 import { passwordService } from '../auth/PasswordService';
@@ -243,6 +247,9 @@ export interface Container {
   createNotificationUseCase: CreateNotificationUseCase;
   getNotificationsUseCase: GetNotificationsUseCase;
   markNotificationReadUseCase: MarkNotificationReadUseCase;
+
+  // Tenant Context (RLS 활성화)
+  setTenantContext: (companyId: string) => Promise<void>;
 }
 
 // ─── Singleton Container ────────────────────────────────────────
@@ -581,6 +588,8 @@ function createContainer(): Container {
     createNotificationUseCase,
     getNotificationsUseCase,
     markNotificationReadUseCase,
+    // Tenant Context
+    setTenantContext: (companyId: string) => setTenantContext(prisma, companyId),
   };
 }
 

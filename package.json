@@ -25,6 +25,7 @@
     "next": "16.1.6",
     "pg": "^8.18.0",
     "react": "19.2.3",
+    "react-daum-postcode": "^4.0.0",
     "react-dom": "19.2.3",
     "swr": "^2.4.0",
     "tailwind-merge": "^3.4.0",

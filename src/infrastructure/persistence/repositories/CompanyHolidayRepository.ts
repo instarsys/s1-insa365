@@ -57,6 +57,6 @@ export class CompanyHolidayRepository {
       where: { id, companyId },
     });
     if (!existing) return;
-    await prisma.companyHoliday.delete({ where: { id } });
+    await prisma.companyHoliday.deleteMany({ where: { id, companyId } });
   }
 }

@@ -45,7 +45,7 @@ export interface ISalaryCalculationRepository {
   findByEmployeeAndPeriod(companyId: string, userId: string, year: number, month: number): Promise<PayrollResultDto | null>;
   create(data: CreateSalaryCalculationData): Promise<PayrollResultDto>;
   createMany(data: CreateSalaryCalculationData[]): Promise<number>;
-  update(id: string, data: Partial<CreateSalaryCalculationData>): Promise<PayrollResultDto>;
+  update(companyId: string, id: string, data: Partial<CreateSalaryCalculationData>): Promise<PayrollResultDto | null>;
   updateStatus(companyId: string, year: number, month: number, status: string, confirmedBy?: string): Promise<void>;
   deleteByPeriod(companyId: string, year: number, month: number): Promise<void>;
   getSpreadsheet(companyId: string, year: number, month: number): Promise<PayrollSpreadsheetRowDto[]>;
@@ -62,4 +62,5 @@ export interface ISalaryCalculationRepository {
     totalNetPay: number;
     status: string;
   } | null>;
+  findByIdWithDetails(companyId: string, id: string, userId?: string): Promise<PayrollResultDto | null>;
 }

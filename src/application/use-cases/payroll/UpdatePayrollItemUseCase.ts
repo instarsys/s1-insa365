@@ -8,7 +8,7 @@ export class UpdatePayrollItemUseCase {
   async execute(companyId: string, calculationId: string, dto: UpdatePayrollItemDto): Promise<PayrollResultDto> {
     // We need to find by period first, then filter. But we only have the ID.
     // The repo update method handles the lookup.
-    const result = await this.salaryCalcRepo.update(calculationId, {
+    const result = await this.salaryCalcRepo.update(companyId, calculationId, {
       variableAllowances: dto.variableAllowances,
     });
 

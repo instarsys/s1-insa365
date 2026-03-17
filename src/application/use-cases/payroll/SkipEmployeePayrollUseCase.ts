@@ -15,11 +15,17 @@ export class SkipEmployeePayrollUseCase {
       throw new ValidationError('Cannot skip confirmed or paid payroll');
     }
 
-    return this.salaryCalcRepo.update(existing.id, {
+    const result = await this.salaryCalcRepo.update(companyId, existing.id, {
       status: 'SKIPPED',
       totalPay: 0,
       totalDeduction: 0,
       netPay: 0,
     });
+
+    if (!result) {
+      throw new EntityNotFoundError('SalaryCalculation', `${userId}/${year}/${month}`);
+    }
+
+    return result;
   }
 }

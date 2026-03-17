@@ -30,7 +30,11 @@ export class InvitationRepository {
     return prisma.employeeInvitation.create({ data });
   }
 
-  async update(id: string, data: Prisma.EmployeeInvitationUncheckedUpdateInput) {
+  async update(companyId: string, id: string, data: Prisma.EmployeeInvitationUncheckedUpdateInput) {
+    const existing = await prisma.employeeInvitation.findFirst({
+      where: { id, companyId },
+    });
+    if (!existing) return null;
     return prisma.employeeInvitation.update({
       where: { id },
       data,

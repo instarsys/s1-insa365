@@ -19,7 +19,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   if (!calc) return notFoundResponse('급여 계산');
   if (calc.status !== 'DRAFT') return errorResponse('임시 상태의 급여만 건너뛸 수 있습니다.', 400);
 
-  const updated = await salaryCalcRepo.update(id, {
+  const updated = await salaryCalcRepo.update(auth.companyId, id, {
     status: 'SKIPPED',
     skipReason: reason ?? null,
   });

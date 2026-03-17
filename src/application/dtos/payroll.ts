@@ -150,3 +150,89 @@ export interface PayrollLedgerDto {
     totalNetPay: number;
   };
 }
+
+// ─── 근태 검토 (Attendance Review) ────────────────────────
+
+export interface UnconfirmedEmployeeDto {
+  id: string;
+  name: string;
+  employeeNumber: string | null;
+  departmentName: string | null;
+}
+
+export interface AttendanceReviewDto {
+  activeEmployeeCount: number;
+  confirmedCount: number;
+  unconfirmedEmployees: UnconfirmedEmployeeDto[];
+  summary: {
+    totalAbsentDays: number;
+    totalLateDays: number;
+    totalEarlyLeaveDays: number;
+    totalLeaveDays: number;
+    totalOvertimeHours: number;
+    totalNightHours: number;
+    totalHolidayHours: number;
+  };
+}
+
+// ─── 급여 세부 내역 (Payroll Detail) ──────────────────────
+
+export interface PayBreakdownItem {
+  label: string;
+  amount: number;
+  hours?: number;
+  rate?: number;
+  multiplier?: number;
+  description: string;
+}
+
+export interface DeductionBreakdownItem {
+  label: string;
+  amount: number;
+  base?: number;
+  rate?: number;
+  description: string;
+}
+
+export interface PayrollDetailDto {
+  employeeName: string;
+  employeeNumber: string | null;
+  departmentName: string | null;
+  salaryType: string;
+
+  ordinaryWageMonthly: number;
+  ordinaryWageHourly: number;
+
+  attendance: {
+    workDays: number;
+    actualWorkDays: number;
+    absentDays: number;
+    lateDays: number;
+    earlyLeaveDays: number;
+    leaveDays: number;
+    overtimeMinutes: number;
+    nightMinutes: number;
+    nightOvertimeMinutes: number;
+    holidayMinutes: number;
+    holidayOvertimeMinutes: number;
+    holidayNightMinutes: number;
+    holidayNightOvertimeMinutes: number;
+    lateMinutes: number;
+    earlyLeaveMinutes: number;
+  } | null;
+
+  payItems: PayBreakdownItem[];
+  totalPay: number;
+
+  totalNonTaxable: number;
+  taxableIncome: number;
+
+  deductionItems: DeductionBreakdownItem[];
+  totalDeduction: number;
+
+  netPay: number;
+
+  prorationApplied: boolean;
+  prorationRatio: number | null;
+  minimumWageWarning: boolean;
+}

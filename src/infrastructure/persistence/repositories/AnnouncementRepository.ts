@@ -25,7 +25,12 @@ export class AnnouncementRepository {
     return prisma.announcement.create({ data });
   }
 
-  async softDelete(id: string) {
+  async softDelete(companyId: string | null, id: string) {
+    // companyId=null → 시스템 공지 (SYSTEM_ADMIN만), otherwise → 해당 회사 공지
+    const existing = await prisma.announcement.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return null;
     return prisma.announcement.update({
       where: { id },
       data: { deletedAt: new Date() },

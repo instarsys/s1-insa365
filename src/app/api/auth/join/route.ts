@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 초대 상태 업데이트
-    await invitationRepo.update(invitation.id, {
+    await invitationRepo.update(invitation.companyId, invitation.id, {
       status: 'ACCEPTED',
       acceptedAt: new Date(),
       userId: user.id,

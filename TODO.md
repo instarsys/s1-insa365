@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-16 (Go/No-Go 검증 감사 + EncryptionService 테스트 + vitest 설정 수정)
+> 최종 업데이트: 2026-03-18 (테넌트 격리 3중 방어 체계 완성 + 단위 테스트 373개)
 
 ---
 
@@ -15,7 +15,7 @@
 - [x] 4대보험 4종 + 소득세 2종 자동계산 정상 — 국민연금/건강/장기요양/고용보험 공식 CLAUDE.md 100% 일치, 간이세액표 시드 완비 (dep 1~3) (2026-03-16 코드 감사)
 - [x] 52시간 초과 감지 + 경고 작동 — API(`/api/attendance/52hour`) + UI(overtime 페이지) + hook 완성, ISO week 그룹핑/48h경고/52h초과 (2026-03-16 코드 감사)
 - [x] PII 암호화 동작, RBAC 접근 차단 확인 — AES-256-GCM + canViewSensitive + 감사로그 + EncryptionService 단위 테스트 13개 추가 (2026-03-16 코드 감사)
-- [x] 단위 테스트 341개 전체 PASS (vitest, 17파일 1.5초) — EncryptionService 13개 추가 + vitest 설정 수정 (2026-03-16)
+- [x] 단위 테스트 373개 전체 PASS (vitest, 18파일 1.4초) — 테넌트 격리 33개 + EncryptionService 13개 포함 (2026-03-18)
 
 ### 배포 설정 (인프라 파일 준비 완료, 실제 값 입력 필요)
 - [ ] 환경변수 정리 (`.env.production`) — `.env.production.example` 템플릿 존재, 실제 값 입력 필요
@@ -79,7 +79,7 @@
 | 2-12 | 커스텀 리포트 | 컬럼 선택, 복합 필터, 템플릿, 스케줄 |
 | 2-13 | BullMQ 비동기 배치 | 300명+ 급여 일괄 계산 (현재 동기) |
 | 2-14 | Excel/CSV Import/Export | 직원 일괄 등록 + 데이터 내보내기 |
-| 2-15 | `getPrismaForTenant` 전환 | RLS + app-level guard에서 점진적 이관 |
+| 2-15 | `getPrismaForTenant` 전환 | RLS + app-level guard에서 점진적 이관 (현재 `withTenantAuth` 미들웨어 준비 완료) |
 | 2-16 | 휴가 자동 발생 배치 (BullMQ) | LeaveAccrualRule 기반 자동 부여 (규칙은 구현 완료) |
 | 2-17 | 결제 시스템 | Stripe/토스페이먼츠 연동 |
 
@@ -228,3 +228,13 @@
 | 2026-03-16 | ├ 52시간 초과 감지 코드 감사: API + UI + hook 완성 확인 |
 | 2026-03-16 | ├ PII 보안 코드 감사: AES-256-GCM + canViewSensitive + 감사로그 확인 |
 | 2026-03-16 | └ 배포 설정 감사: Dockerfile + docker-compose.prod + .env.production.example + Sentry 전부 존재 확인 |
+| 2026-03-18 | **테넌트 격리(companyId) 3중 방어 체계 완성** |
+| 2026-03-18 | ├ **P0 CRITICAL 5건**: SalaryCalculation/Payment/Invitation/Announcement/UserAuth에 companyId 가드 추가 |
+| 2026-03-18 | ├ auth/refresh: JWT companyId ↔ DB companyId 교차 검증 (토큰 조작 방어) |
+| 2026-03-18 | ├ CompanyHolidayRepository.delete(): `delete({id})` → `deleteMany({id, companyId})` 이중 안전 |
+| 2026-03-18 | ├ **P1 구조적 개선 4건**: company_holidays RLS + FORCE RLS 17테이블 + withTenantAuth 미들웨어 + setTenantContext UUID 검증 |
+| 2026-03-18 | ├ DB 마이그레이션: `20260318100000_tenant_isolation_hardening` (company_holidays RLS + FORCE RLS 17테이블) |
+| 2026-03-18 | ├ withTenantAuth 미들웨어 신규: withAuth + RLS 세션 변수 설정 결합 (점진 적용 대기) |
+| 2026-03-18 | ├ tenant-extension: TENANT_MODELS에 CompanyHoliday 추가 (17개), setTenantContext UUID 형식 검증 |
+| 2026-03-18 | ├ DI 컨테이너: setTenantContext(companyId) 함수 export 추가 |
+| 2026-03-18 | └ 테넌트 격리 단위 테스트: 19개 → **33개** (P0 14개 + CompanyHoliday 2개 추가), vitest 373개 전체 통과 |

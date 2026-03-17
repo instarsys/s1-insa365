@@ -4,9 +4,11 @@ import { useState, useCallback } from 'react';
 import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
 import { Button, Spinner, EmptyState, useToast } from '@/components/ui';
-import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { fetcher, apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { MapPin, Plus, Pencil, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { AddressSearchInput } from '@/components/address/AddressSearchInput';
+import { KakaoMap } from '@/components/address/KakaoMap';
 
 interface WorkLocation {
   id: string;
@@ -44,6 +46,7 @@ export default function WorkLocationsPage() {
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState<FormData>(defaultForm);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
 
   const { data, isLoading, mutate } = useSWR<{ items: WorkLocation[] }>(
     `/api/work-locations${includeInactive ? '?includeInactive=true' : ''}`,
@@ -70,6 +73,26 @@ export default function WorkLocationsPage() {
     setEditId(loc.id);
     setModalOpen(true);
   };
+
+  const handleAddressSelected = useCallback(async (result: { address: string }) => {
+    setIsGeocoding(true);
+    try {
+      const geo = await apiGet<{ latitude: number | null; longitude: number | null }>(
+        `/api/geocode?address=${encodeURIComponent(result.address)}`,
+      );
+      if (geo.latitude != null && geo.longitude != null) {
+        setForm((prev) => ({
+          ...prev,
+          latitude: geo.latitude!.toString(),
+          longitude: geo.longitude!.toString(),
+        }));
+      }
+    } catch {
+      // 지오코딩 실패 시 수동 입력 유지
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, []);
 
   const handleSave = useCallback(async () => {
     if (!form.name.trim() || !form.address.trim()) {
@@ -123,6 +146,9 @@ export default function WorkLocationsPage() {
       toast.error('변경에 실패했습니다.');
     }
   }, [mutate, toast]);
+
+  const parsedLat = form.latitude ? parseFloat(form.latitude) : null;
+  const parsedLng = form.longitude ? parseFloat(form.longitude) : null;
 
   return (
     <div>
@@ -225,7 +251,7 @@ export default function WorkLocationsPage() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-4 text-lg font-semibold text-gray-800">
               {editId ? '근무지 수정' : '근무지 추가'}
             </h3>
@@ -240,19 +266,17 @@ export default function WorkLocationsPage() {
                   placeholder="예: 서울 본사"
                 />
               </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">주소 *</label>
-                <input
-                  type="text"
-                  value={form.address}
-                  onChange={(e) => setForm({ ...form, address: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  placeholder="예: 서울시 중구 세종대로 110"
-                />
-              </div>
+              <AddressSearchInput
+                label="주소 *"
+                value={form.address}
+                onChange={(addr) => setForm({ ...form, address: addr })}
+                onAddressSelected={handleAddressSelected}
+              />
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">위도</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    위도 {isGeocoding && <span className="text-xs text-gray-400">(조회중...)</span>}
+                  </label>
                   <input
                     type="number"
                     step="0.0000001"
@@ -263,7 +287,9 @@ export default function WorkLocationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">경도</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    경도 {isGeocoding && <span className="text-xs text-gray-400">(조회중...)</span>}
+                  </label>
                   <input
                     type="number"
                     step="0.0000001"
@@ -291,6 +317,15 @@ export default function WorkLocationsPage() {
                   <span>500m</span>
                 </div>
               </div>
+
+              {/* 지도 표시 */}
+              <KakaoMap
+                latitude={parsedLat}
+                longitude={parsedLng}
+                radiusMeters={form.radiusMeters}
+                height={250}
+              />
+
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
                   type="checkbox"

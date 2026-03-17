@@ -1,3 +1,4 @@
+import Script from 'next/script';
 import { AdminTopBar } from '@/components/layout/AdminTopBar';
 import { AdminSidebar } from '@/components/layout/AdminSidebar';
 import { Providers } from '@/components/layout/Providers';
@@ -21,6 +22,12 @@ export default function AdminLayout({
           </div>
         </SidebarProvider>
       </PasswordChangeGuard>
+      {process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY && (
+        <Script
+          src={`//dapi.kakao.com/v2/maps/sdk.js?appkey=${process.env.NEXT_PUBLIC_KAKAO_MAP_APP_KEY}&autoload=false`}
+          strategy="afterInteractive"
+        />
+      )}
     </Providers>
   );
 }

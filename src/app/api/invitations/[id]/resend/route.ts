@@ -12,7 +12,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   if (invitation.status === 'ACCEPTED') return errorResponse('이미 수락된 초대입니다.', 400);
   if (invitation.status === 'CANCELLED') return errorResponse('취소된 초대입니다.', 400);
 
-  const updated = await invitationRepo.update(id, {
+  const updated = await invitationRepo.update(auth.companyId, id, {
     status: 'SENT',
     sentAt: new Date(),
   });

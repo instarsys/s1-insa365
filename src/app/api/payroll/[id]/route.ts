@@ -30,7 +30,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (body[field] !== undefined) updateData[field] = body[field];
   }
 
-  const updated = await salaryCalcRepo.update(id, updateData);
+  const updated = await salaryCalcRepo.update(auth.companyId, id, updateData);
 
   await auditLogRepo.create({
     userId: auth.userId,
