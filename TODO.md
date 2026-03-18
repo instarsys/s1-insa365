@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-18 (테넌트 격리 3중 방어 체계 완성 + 단위 테스트 373개)
+> 최종 업데이트: 2026-03-18 (근태면제 기능 + 시급제+근태면제 동시 설정 방어)
 
 ---
 
@@ -238,3 +238,15 @@
 | 2026-03-18 | ├ tenant-extension: TENANT_MODELS에 CompanyHoliday 추가 (17개), setTenantContext UUID 형식 검증 |
 | 2026-03-18 | ├ DI 컨테이너: setTenantContext(companyId) 함수 export 추가 |
 | 2026-03-18 | └ 테넌트 격리 단위 테스트: 19개 → **33개** (P0 14개 + CompanyHoliday 2개 추가), vitest 373개 전체 통과 |
+| 2026-03-18 | **근태면제(attendanceExempt) 기능 구현 + 시급제+근태면제 동시 설정 방어** |
+| 2026-03-18 | ├ DB: User에 `attendance_exempt` Boolean 컬럼 추가 (마이그레이션 `20260317164902`) |
+| 2026-03-18 | ├ 직원 등록/수정 API: `attendanceExempt` 필드 지원 + Zod refine (HOURLY+면제 동시 금지) |
+| 2026-03-18 | ├ 직원 수정 PUT: DB 기존값 포함 effective 검증 + 시급제 변경 시 근태면제 자동 해제 |
+| 2026-03-18 | ├ CheckIn/CheckOutUseCase: 근태면제 직원 출퇴근 차단 |
+| 2026-03-18 | ├ CalculatePayrollUseCase: 근태면제 직원은 근태 미확정이어도 기본급+고정수당 지급 (SKIPPED 아님) |
+| 2026-03-18 | ├ 직원앱 홈/근태 페이지: 근태면제 직원에게 면제 안내 카드 표시 (출퇴근 버튼 숨김) |
+| 2026-03-18 | ├ 관리자 직원 상세: 기본정보 탭에 근태면제 토글 (시급제 시 비활성) + 급여 탭 save 시 동기화 |
+| 2026-03-18 | ├ 관리자 직원 등록: 근태면제 토글 추가 + 시급제 변경 시 자동 OFF |
+| 2026-03-18 | ├ 근태 달력: 면제 직원에 "면제" 뱃지 표시 |
+| 2026-03-18 | ├ useAuth/useEmployees/useAttendance 훅: attendanceExempt 필드 추가 |
+| 2026-03-18 | └ 직원 상세 근태면제 안내 문구 UI 개선: plain text → styled info box (gray/amber) + 읽기 전용에서도 항상 표시 |

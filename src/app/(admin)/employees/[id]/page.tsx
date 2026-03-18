@@ -20,7 +20,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
   Home, Users, Landmark, Camera, Lock, Shield,
-  UserMinus, UserCheck, LogOut, Clock,
+  UserMinus, UserCheck, LogOut, Clock, Info, AlertTriangle,
 } from 'lucide-react';
 
 const DETAIL_TABS = [
@@ -641,11 +641,23 @@ export default function EmployeeDetailPage() {
                       <span className="ml-2 text-sm text-gray-600">
                         {editForm.attendanceExempt ? 'ON' : 'OFF'}
                       </span>
-                      {(emp.salaryType as string) === 'HOURLY' ? (
-                        <p className="mt-1 text-xs text-amber-600">시급제 직원은 근태 면제를 설정할 수 없습니다.</p>
-                      ) : editForm.attendanceExempt ? (
-                        <p className="mt-1 text-xs text-gray-500">출퇴근 기록 없이 매월 고정 급여가 지급됩니다.</p>
-                      ) : null}
+                      <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="flex items-start gap-2">
+                          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          <div className="text-xs text-gray-500">
+                            <p>근태면제 기능은 월급제 직원만 사용할 수 있습니다. 설정 시 출퇴근 기록 없이 매월 기본급과 고정수당이 지급됩니다.</p>
+                            <p className="mt-1">시급제는 근무시간을 기준으로 급여가 산정되므로 근태면제를 사용할 수 없습니다.</p>
+                          </div>
+                        </div>
+                      </div>
+                      {(emp.salaryType as string) === 'HOURLY' && (
+                        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                          <div className="flex items-start gap-2">
+                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                            <p className="text-xs text-amber-700">현재 이 직원은 시급제이므로 근태면제를 설정할 수 없습니다.</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div>
@@ -653,9 +665,15 @@ export default function EmployeeDetailPage() {
                         label="근태 면제"
                         value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
                       />
-                      {(emp.attendanceExempt as boolean) && (
-                        <p className="mt-1 text-xs text-gray-500">출퇴근 기록 없이 매월 고정 급여가 지급됩니다.</p>
-                      )}
+                      <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                        <div className="flex items-start gap-2">
+                          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                          <div className="text-xs text-gray-500">
+                            <p>근태면제 기능은 월급제 직원만 사용할 수 있습니다. 설정 시 출퇴근 기록 없이 매월 기본급과 고정수당이 지급됩니다.</p>
+                            <p className="mt-1">시급제는 근무시간을 기준으로 급여가 산정되므로 근태면제를 사용할 수 없습니다.</p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
