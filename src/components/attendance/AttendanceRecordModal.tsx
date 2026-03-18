@@ -162,41 +162,59 @@ export function AttendanceRecordModal({
     }
   };
 
+  const isReadOnly = mode === 'edit' && !!record?.isConfirmed;
+
   const statusOptions = STATUS_OPTIONS.map((s) => ({ value: s.value, label: s.label }));
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={mode === 'edit' ? '출퇴근기록 수정' : '출퇴근기록 추가'}
+      title={isReadOnly ? '출퇴근기록 조회' : (mode === 'edit' ? '출퇴근기록 수정' : '출퇴근기록 추가')}
       size="lg"
       footer={
-        <div className="flex w-full items-center justify-between">
-          <div>
-            {mode === 'edit' && record && (
-              <Button
-                variant="secondary"
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="!text-red-600 hover:!bg-red-50"
-              >
-                <Trash2 className="mr-1 h-4 w-4" />
-                {isDeleting ? '삭제 중...' : '삭제하기'}
-              </Button>
-            )}
-          </div>
-          <div className="flex gap-2">
+        isReadOnly ? (
+          <div className="flex w-full justify-end">
             <Button variant="secondary" onClick={onClose}>
               닫기
             </Button>
-            <Button onClick={handleSave} disabled={isSaving}>
-              {isSaving ? '저장 중...' : '저장'}
-            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex w-full items-center justify-between">
+            <div>
+              {mode === 'edit' && record && (
+                <Button
+                  variant="secondary"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="!text-red-600 hover:!bg-red-50"
+                >
+                  <Trash2 className="mr-1 h-4 w-4" />
+                  {isDeleting ? '삭제 중...' : '삭제하기'}
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={onClose}>
+                닫기
+              </Button>
+              <Button onClick={handleSave} disabled={isSaving}>
+                {isSaving ? '저장 중...' : '저장'}
+              </Button>
+            </div>
+          </div>
+        )
       }
     >
       <div className="space-y-5">
+        {/* 확정 상태 안내 배너 */}
+        {isReadOnly && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            <span className="mt-0.5 shrink-0">&#9888;</span>
+            <span>확정된 근태 기록입니다. 수정하려면 근태 확정을 취소해주세요.</span>
+          </div>
+        )}
+
         {/* Date + Employee */}
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -229,19 +247,21 @@ export function AttendanceRecordModal({
                 type="time"
                 value={checkIn}
                 onChange={(e) => setCheckIn(e.target.value)}
+                disabled={isReadOnly}
               />
               <Input
                 label="퇴근 시간"
                 type="time"
                 value={checkOut}
                 onChange={(e) => setCheckOut(e.target.value)}
-                disabled={isWorking}
+                disabled={isReadOnly || isWorking}
               />
             </div>
             <Checkbox
               label="현재 근무 중 (퇴근 시간 비활성)"
               checked={isWorking}
               onChange={setIsWorking}
+              disabled={isReadOnly}
             />
             <div className="grid grid-cols-2 gap-4">
               <Select
@@ -249,12 +269,14 @@ export function AttendanceRecordModal({
                 options={statusOptions}
                 value={status}
                 onChange={setStatus}
+                disabled={isReadOnly}
               />
               <div className="flex items-end pb-1">
                 <Checkbox
                   label="공휴일"
                   checked={isHoliday}
                   onChange={setIsHoliday}
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -289,6 +311,7 @@ export function AttendanceRecordModal({
           onChange={(e) => setNote(e.target.value)}
           rows={2}
           placeholder="비고 사항을 입력하세요"
+          disabled={isReadOnly}
         />
 
         {/* 관리 */}
@@ -299,6 +322,7 @@ export function AttendanceRecordModal({
               label="확정됨"
               checked={isConfirmed}
               onChange={setIsConfirmed}
+              disabled={isReadOnly}
             />
             {mode === 'edit' && record?.createdAt && (
               <p className="text-xs text-gray-400">

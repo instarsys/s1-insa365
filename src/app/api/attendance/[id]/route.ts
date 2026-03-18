@@ -18,6 +18,10 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
 
   if (!attendance) return notFoundResponse('근태 기록');
 
+  if (attendance.isConfirmed) {
+    return errorResponse('확정된 근태는 삭제할 수 없습니다. 근태 확정을 먼저 취소해주세요.', 400);
+  }
+
   await attendanceRepo.update(auth.companyId, id, { deletedAt: new Date() });
 
   await auditLogRepo.create({

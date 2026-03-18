@@ -103,6 +103,7 @@ interface PayrollSummary {
     totalPay: number;
     totalNetPay: number;
   }[];
+  status: string | null;
 }
 
 interface PayrollHistoryItem {
@@ -147,13 +148,13 @@ export function usePayrollSpreadsheet(year: number, month: number) {
 }
 
 export function usePayrollSummary(year: number, month: number) {
-  const { data, error, isLoading } = useSWR<PayrollSummary>(
+  const { data, error, isLoading, mutate } = useSWR<PayrollSummary>(
     `/api/payroll/summary?year=${year}&month=${month}`,
     fetcher,
     { revalidateOnFocus: false },
   );
 
-  return { summary: data, isLoading, error };
+  return { summary: data, isLoading, error, mutate };
 }
 
 export function usePayrollHistory(page?: number) {
@@ -180,13 +181,13 @@ export function usePayrollMutations() {
 }
 
 export function usePayrollAttendanceReview(year: number, month: number) {
-  const { data, error, isLoading } = useSWR<AttendanceReview>(
+  const { data, error, isLoading, mutate } = useSWR<AttendanceReview>(
     `/api/payroll/attendance-review?year=${year}&month=${month}`,
     fetcher,
     { revalidateOnFocus: false },
   );
 
-  return { review: data, isLoading, error };
+  return { review: data, isLoading, error, mutate };
 }
 
 export function usePayrollDetail(calculationId: string | null) {

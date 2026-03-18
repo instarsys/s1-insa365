@@ -29,6 +29,14 @@ export class SalaryAttendanceDataRepository {
     return prisma.salaryAttendanceData.create({ data });
   }
 
+  /** 지정 기간의 스냅샷 전체 삭제 */
+  async deleteByPeriod(companyId: string, year: number, month: number) {
+    const result = await prisma.salaryAttendanceData.deleteMany({
+      where: { companyId, year, month },
+    });
+    return result.count;
+  }
+
   async createMany(dataArr: Prisma.SalaryAttendanceDataCreateManyInput[]) {
     const result = await prisma.salaryAttendanceData.createMany({ data: dataArr });
     return result.count;

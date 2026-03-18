@@ -8,7 +8,7 @@ import { Button, Select, Spinner, EmptyState, Pagination, useToast } from '@/com
 import { AttendanceCalendarGrid } from '@/components/attendance/AttendanceCalendarGrid';
 import { AttendanceRecordModal } from '@/components/attendance/AttendanceRecordModal';
 import { useCalendarAttendance, useAttendanceMutations } from '@/hooks';
-import { usePayrollAttendanceReview } from '@/hooks';
+import { usePayrollAttendanceReview, usePayrollSummary, usePayrollMutations } from '@/hooks';
 import { fetcher } from '@/lib/api';
 import { Checkbox } from '@/components/ui';
 import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus, CheckCircle2 } from 'lucide-react';
@@ -44,6 +44,10 @@ export default function AttendanceCalendarPage() {
   const { data, isLoading, mutate } = useCalendarAttendance(
     year, month, departmentId || undefined, page, limit, employeeStatus,
   );
+
+  // Payroll attendance review for confirm status
+  const { review, mutate: mutateReview } = usePayrollAttendanceReview(year, month);
+  const allConfirmed = review ? review.unconfirmedEmployees.length === 0 && review.confirmedCount > 0 : false;
 
   // Department options
   const { data: deptData } = useSWR<{ items: { id: string; name: string }[] }>('/api/departments', fetcher);
@@ -164,7 +168,7 @@ export default function AttendanceCalendarPage() {
               <List className="h-4 w-4" />
             </button>
           </div>
-          <Button onClick={handleAddNew}>
+          <Button onClick={handleAddNew} disabled={allConfirmed}>
             <Plus className="h-4 w-4" />
             출퇴근기록 추가
           </Button>
@@ -191,7 +195,7 @@ export default function AttendanceCalendarPage() {
       </div>
 
       {/* 일괄 확정 바 */}
-      <AttendanceConfirmBar year={year} month={month} onConfirmed={() => mutate()} />
+      <AttendanceConfirmBar year={year} month={month} onConfirmed={() => { mutate(); mutateReview(); }} />
 
       {/* Calendar Grid */}
       {isLoading ? (
@@ -251,8 +255,13 @@ export default function AttendanceCalendarPage() {
 function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; month: number; onConfirmed: () => void }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
-  const { review, isLoading } = usePayrollAttendanceReview(year, month);
-  const { confirmAttendance } = useAttendanceMutations();
+  const [cancelling, setCancelling] = useState(false);
+  const { review, isLoading, mutate: mutateReview } = usePayrollAttendanceReview(year, month);
+  const { confirmAttendance, cancelConfirmAttendance } = useAttendanceMutations();
+  const { summary: payrollSummary, mutate: mutatePayroll } = usePayrollSummary(year, month);
+  const { cancel: cancelPayroll } = usePayrollMutations();
+  const isPayrollConfirmed = payrollSummary?.status === 'CONFIRMED';
+  const isPayrollPaid = payrollSummary?.status === 'PAID';
 
   if (isLoading || !review) return null;
 
@@ -264,11 +273,57 @@ function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; mont
     try {
       await confirmAttendance({ year, month });
       onConfirmed();
+      mutateReview();
       toast.success(`${year}년 ${month}월 근태가 일괄 확정되었습니다.`);
     } catch {
       toast.error('근태 확정 중 오류가 발생했습니다.');
     } finally {
       setConfirming(false);
+    }
+  }
+
+  async function handleCancelConfirm() {
+    if (isPayrollPaid) {
+      toast.error('급여가 지급 완료된 상태입니다. 취소할 수 없습니다.');
+      return;
+    }
+
+    if (isPayrollConfirmed) {
+      if (!confirm(`${year}년 ${month}월 급여가 확정된 상태입니다.\n급여 확정을 먼저 취소한 후 근태 확정을 취소합니다.\n\n계속하시겠습니까?`)) return;
+
+      setCancelling(true);
+      try {
+        // 1단계: 급여 취소
+        await cancelPayroll({ year, month });
+        // 2단계: 근태 취소
+        await cancelConfirmAttendance({ year, month });
+        onConfirmed();
+        mutateReview();
+        mutatePayroll();
+        toast.success('급여 및 근태 확정이 취소되었습니다.');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : '취소 중 오류가 발생했습니다.';
+        toast.error(message);
+        mutatePayroll();
+      } finally {
+        setCancelling(false);
+      }
+      return;
+    }
+
+    // 급여 미확정 — 기존 동작
+    if (!confirm(`${year}년 ${month}월 근태 확정을 취소하시겠습니까?\n자동 생성된 결근 기록과 스냅샷이 삭제됩니다.`)) return;
+    setCancelling(true);
+    try {
+      await cancelConfirmAttendance({ year, month });
+      onConfirmed();
+      mutateReview();
+      toast.success(`${year}년 ${month}월 근태 확정이 취소되었습니다.`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '근태 확정 취소 중 오류가 발생했습니다.';
+      toast.error(message);
+    } finally {
+      setCancelling(false);
     }
   }
 
@@ -281,6 +336,16 @@ function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; mont
             <span className="font-medium text-emerald-700">
               {review.confirmedCount}/{review.activeEmployeeCount}명 근태 확정 완료
             </span>
+            {isPayrollConfirmed && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                급여 확정됨
+              </span>
+            )}
+            {isPayrollPaid && (
+              <span className="ml-2 inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                급여 지급완료
+              </span>
+            )}
           </>
         ) : (
           <span className="text-gray-700">
@@ -288,14 +353,27 @@ function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; mont
           </span>
         )}
       </div>
-      <Button
-        onClick={handleBulkConfirm}
-        disabled={allConfirmed || confirming || review.activeEmployeeCount === 0}
-        size="sm"
-      >
-        {confirming ? <Spinner size="sm" /> : null}
-        {year}년 {month}월 일괄 확정
-      </Button>
+      <div className="flex items-center gap-2">
+        {allConfirmed && (
+          <Button
+            onClick={handleCancelConfirm}
+            disabled={cancelling || isPayrollPaid}
+            size="sm"
+            variant="secondary"
+          >
+            {cancelling ? <Spinner size="sm" /> : null}
+            확정 취소
+          </Button>
+        )}
+        <Button
+          onClick={handleBulkConfirm}
+          disabled={allConfirmed || confirming || review.activeEmployeeCount === 0}
+          size="sm"
+        >
+          {confirming ? <Spinner size="sm" /> : null}
+          {year}년 {month}월 일괄 확정
+        </Button>
+      </div>
     </div>
   );
 }

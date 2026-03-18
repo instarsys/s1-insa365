@@ -46,8 +46,9 @@ export class AttendanceRepository {
   }
 
   async findMonthly(companyId: string, userId: string, year: number, month: number) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
 
     return prisma.attendance.findMany({
       where: {
@@ -86,8 +87,9 @@ export class AttendanceRepository {
     month: number,
     confirmedBy: string,
   ) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
 
     // Mark all attendance as confirmed
     await prisma.attendance.updateMany({
@@ -272,8 +274,9 @@ export class AttendanceRepository {
 
   /** 전체 월별 근태 조회 (리포트 요약용) */
   async findAllByMonth(companyId: string, year: number, month: number) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
     return prisma.attendance.findMany({
       where: {
         companyId,
@@ -466,8 +469,9 @@ export class AttendanceRepository {
     month: number,
     options: { departmentId?: string } = {},
   ) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
     return prisma.user.findMany({
       where: {
         companyId,
@@ -511,8 +515,9 @@ export class AttendanceRepository {
     month: number,
     options: { departmentId?: string } = {},
   ) {
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
     return prisma.user.findMany({
       where: {
         companyId,
@@ -567,6 +572,34 @@ export class AttendanceRepository {
         })),
       });
     }
+  }
+
+  /** 기간 내 근태 확정 해제 (isConfirmed → false) */
+  async unconfirmByDateRange(companyId: string, startDate: Date, endDate: Date) {
+    const result = await prisma.attendance.updateMany({
+      where: {
+        companyId,
+        date: { gte: startDate, lte: endDate },
+        deletedAt: null,
+        isConfirmed: true,
+      },
+      data: { isConfirmed: false },
+    });
+    return result.count;
+  }
+
+  /** 확정 시 자동 생성된 결근 레코드 삭제 (ABSENT + checkInTime=null) */
+  async deleteAutoAbsentByDateRange(companyId: string, startDate: Date, endDate: Date) {
+    const result = await prisma.attendance.deleteMany({
+      where: {
+        companyId,
+        date: { gte: startDate, lte: endDate },
+        status: 'ABSENT',
+        checkInTime: null,
+        deletedAt: null,
+      },
+    });
+    return result.count;
   }
 
   /** 출퇴근 누락 조회: checkIn 있지만 checkOut 없는 기록 */

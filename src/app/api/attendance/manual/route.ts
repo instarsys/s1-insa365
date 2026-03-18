@@ -20,6 +20,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
+    if (existing?.isConfirmed) {
+      return errorResponse('확정된 근태는 수정할 수 없습니다. 근태 확정을 먼저 취소해주세요.', 400);
+    }
+
     // checkIn+checkOut 둘 다 있으면 AttendanceClassifier로 자동 계산
     let minutesData: Record<string, unknown> = {};
     let autoStatus: string | null = null;

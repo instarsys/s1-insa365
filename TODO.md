@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-18 (근태면제 기능 + 시급제+근태면제 동시 설정 방어)
+> 최종 업데이트: 2026-03-19 (근태 확정 취소 + 급여 연쇄 취소 + 확정 근태 보호)
 
 ---
 
@@ -250,3 +250,16 @@
 | 2026-03-18 | ├ 근태 달력: 면제 직원에 "면제" 뱃지 표시 |
 | 2026-03-18 | ├ useAuth/useEmployees/useAttendance 훅: attendanceExempt 필드 추가 |
 | 2026-03-18 | └ 직원 상세 근태면제 안내 문구 UI 개선: plain text → styled info box (gray/amber) + 읽기 전용에서도 항상 표시 |
+| 2026-03-19 | **근태 확정 취소 + 급여 연쇄 취소 + 확정 근태 보호** |
+| 2026-03-19 | ├ **POST /api/attendance/cancel** (신규): 급여 CONFIRMED/PAID 차단 + 확정 해제 + 자동 결근 삭제 + 스냅샷 삭제 + 감사 로그 |
+| 2026-03-19 | ├ AttendanceRepository: `unconfirmByDateRange()`, `deleteAutoAbsentByDateRange()` 메서드 추가 |
+| 2026-03-19 | ├ SalaryAttendanceDataRepository: `deleteByPeriod()` 메서드 추가 |
+| 2026-03-19 | ├ useAttendance 훅: `cancelConfirmAttendance()` 함수 추가 |
+| 2026-03-19 | ├ AttendanceConfirmBar UI: 급여 상태 SWR 연동 + 연쇄 취소(급여→근태) + PAID 취소 불가 + 급여 확정/지급완료 뱃지 |
+| 2026-03-19 | ├ AttendanceRecordModal: 확정 근태 읽기 전용 모드 (수정/삭제 불가 + 안내 배너) |
+| 2026-03-19 | ├ attendance/[id] API: 확정된 근태 삭제 차단 |
+| 2026-03-19 | ├ attendance/manual API: 확정된 근태 수정 차단 |
+| 2026-03-19 | ├ attendance/confirm API: 타임존 안전 날짜 처리(toDateStr) + 근태면제 직원 all-zero 스냅샷 + 에러 로깅 |
+| 2026-03-19 | ├ AttendanceRepository: 5개 메서드 UTC 날짜 범위 수정 (findMonthly/confirmByPeriod/findAllByMonth/findForCalendar×2) |
+| 2026-03-19 | ├ usePayroll 훅: PayrollSummary에 status 필드 추가 + mutate 반환 |
+| 2026-03-19 | └ e2e/attendance-confirm.spec.ts: 근태 확정/취소 E2E 테스트 추가 |
