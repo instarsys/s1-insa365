@@ -47,7 +47,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
           name: data.name,
           email: data.email,
           password: defaultPassword,
-          phone: data.phone || null,
+          phone: data.phone ? data.phone.replace(/\D/g, '') : null,
           employeeNumber,
           departmentId: deptMap.get(data.department) || null,
           positionId: posMap.get(data.position) || null,
@@ -75,7 +75,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
         const updateData: Record<string, unknown> = {};
         if (data.name) updateData.name = data.name;
         if (data.email) updateData.email = data.email;
-        if (data.phone) updateData.phone = data.phone;
+        if (data.phone) updateData.phone = data.phone.replace(/\D/g, '');
         if (data.department && deptMap.has(data.department)) {
           updateData.departmentId = deptMap.get(data.department);
         }

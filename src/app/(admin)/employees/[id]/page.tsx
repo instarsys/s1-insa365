@@ -7,13 +7,14 @@ import { Breadcrumb, PageHeader } from '@/components/layout';
 import {
   Avatar, Badge, Button, Card, CardHeader, CardTitle, CardBody,
   Tabs, Spinner, EmptyState, Input, Select, DatePicker, Modal, useToast,
-  StatusBadgeDropdown,
+  StatusBadgeDropdown, PhoneInput,
 } from '@/components/ui';
 import { useEmployee, useEmployees, useEmployeeMutations, useEmployeeSalaryItems, updateSalaryItems, toggleSalaryItemActive, syncSalaryItems } from '@/hooks';
 import { useAuth } from '@/hooks/useAuth';
 import { useLeaveRequests, useLeaveBalance, useLeaveLedger, type LedgerEntry } from '@/hooks/useLeave';
 import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
 import { formatDate, formatKRW } from '@/lib/utils';
+import { formatPhoneNumber, stripPhoneNumber } from '@/lib/phone';
 import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
 import {
@@ -158,7 +159,7 @@ export default function EmployeeDetailPage() {
     setEditForm({
       name: (emp.name as string) ?? '',
       email: (emp.email as string) ?? '',
-      phone: (emp.phone as string) ?? '',
+      phone: stripPhoneNumber((emp.phone as string) ?? ''),
       departmentId: (emp.departmentId as string) ?? '',
       positionId: (emp.positionId as string) ?? '',
       workPolicyId: (emp.workPolicyId as string) ?? '',
@@ -705,15 +706,15 @@ export default function EmployeeDetailPage() {
                   <InfoItem label="이메일" value={emp.email as string} required />
                 )}
                 {isEditing ? (
-                  <Input
+                  <PhoneInput
                     label="연락처"
                     required
                     value={editForm.phone}
-                    onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))}
+                    onChange={(digits) => setEditForm((f) => ({ ...f, phone: digits }))}
                     placeholder="010-1234-5678"
                   />
                 ) : (
-                  <InfoItem label="연락처" value={(emp.phone as string) || '-'} required />
+                  <InfoItem label="연락처" value={formatPhoneNumber((emp.phone as string) || '')} required />
                 )}
                 <div className="sm:col-span-2">
                   {isEditing ? (

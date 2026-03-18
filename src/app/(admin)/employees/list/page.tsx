@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/layout';
 import {
   Button, Table, Badge, SearchInput, Select, Pagination,
   Spinner, EmptyState, SlidePanel, Input, DatePicker, useToast,
-  Tabs, Avatar,
+  Tabs, Avatar, PhoneInput,
 } from '@/components/ui';
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
@@ -390,12 +390,12 @@ export default function EmployeeListPage() {
               value={form.email}
               onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
             />
-            <Input
+            <PhoneInput
               label="연락처"
               required
               placeholder="010-1234-5678"
               value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+              onChange={(digits) => setForm((f) => ({ ...f, phone: digits }))}
             />
           </div>
           <Input

@@ -3,6 +3,7 @@
  * 직원 데이터의 엑셀 내보내기/가져오기 처리
  */
 import * as XLSX from 'xlsx';
+import { formatPhoneNumber } from '@/lib/phone';
 
 export interface ExcelColumn {
   header: string;
@@ -69,7 +70,7 @@ export class ExcelService {
       사번: e.employeeNumber || '',
       이름: e.name,
       이메일: e.email,
-      연락처: e.phone || '',
+      연락처: e.phone ? formatPhoneNumber(e.phone) : '',
       부서: e.department?.name || '',
       직급: e.position?.name || '',
       입사일: e.joinDate

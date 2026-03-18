@@ -5,6 +5,8 @@ import { Save, Plus, Download, Trash2 } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
+import { PhoneInput } from '@/components/ui/PhoneInput';
+import { stripPhoneNumber } from '@/lib/phone';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Spinner } from '@/components/ui/Spinner';
@@ -60,7 +62,7 @@ export default function CompanySettingsPage() {
 
   useEffect(() => {
     apiGet<CompanySettings>('/api/settings/company')
-      .then((data) => setForm(data))
+      .then((data) => setForm({ ...data, phone: stripPhoneNumber(data.phone || '') }))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -106,10 +108,10 @@ export default function CompanySettingsPage() {
               value={form.representativeName}
               onChange={(e) => updateField('representativeName', e.target.value)}
             />
-            <Input
+            <PhoneInput
               label="전화번호"
               value={form.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
+              onChange={(digits) => updateField('phone', digits)}
             />
             <Input
               label="이메일"

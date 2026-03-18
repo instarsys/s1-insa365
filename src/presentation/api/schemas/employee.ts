@@ -7,7 +7,10 @@ export const SALARY_TYPES = ['MONTHLY', 'HOURLY'] as const;
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요.').max(50),
   email: z.string().email('올바른 이메일 형식이 아닙니다.'),
-  phone: z.string().min(1, '연락처를 입력해주세요.').max(20),
+  phone: z.preprocess(
+    (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
+    z.string().min(1, '연락처를 입력해주세요.').max(11),
+  ),
   role: z.enum(['COMPANY_ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   departmentId: z.string().uuid().optional().nullable(),
   positionId: z.string().uuid().optional().nullable(),
@@ -33,7 +36,10 @@ export const createEmployeeSchema = z.object({
 export const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
-  phone: z.string().min(1, '연락처를 입력해주세요.').max(20).optional(),
+  phone: z.preprocess(
+    (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
+    z.string().min(1, '연락처를 입력해주세요.').max(11),
+  ).optional(),
   role: z.enum(['COMPANY_ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   employeeStatus: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']).optional(),
   departmentId: z.string().uuid().optional().nullable(),

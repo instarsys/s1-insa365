@@ -5,6 +5,7 @@ export { Badge } from './Badge';
 export type { BadgeProps, BadgeVariant } from './Badge';
 export { Input } from './Input';
 export type { InputProps } from './Input';
+export { PhoneInput } from './PhoneInput';
 export { SlidePanel } from './SlidePanel';
 export type { SlidePanelProps } from './SlidePanel';
 

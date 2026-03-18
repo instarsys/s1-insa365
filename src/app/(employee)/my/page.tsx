@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { LogOut, Lock, Bell, Mail, Phone, Calendar } from 'lucide-react';
-import { Card, CardBody, Avatar, Button, Input, Modal } from '@/components/ui';
+import { Card, CardBody, Avatar, Button, Input, Modal, PhoneInput } from '@/components/ui';
 import { useAuth } from '@/hooks';
 import { apiPut } from '@/lib/api';
+import { formatPhoneNumber, stripPhoneNumber } from '@/lib/phone';
 
 export default function EmployeeMyPage() {
   const { user, logout } = useAuth();
@@ -17,10 +18,10 @@ export default function EmployeeMyPage() {
   const [changingPassword, setChangingPassword] = useState(false);
 
   const [phoneEditing, setPhoneEditing] = useState(false);
-  const [phone, setPhone] = useState(user?.phone ?? '');
+  const [phone, setPhone] = useState(stripPhoneNumber(user?.phone ?? ''));
 
   useEffect(() => {
-    if (user?.phone) setPhone(user.phone);
+    if (user?.phone) setPhone(stripPhoneNumber(user.phone));
   }, [user?.phone]);
 
   const [notifPayroll, setNotifPayroll] = useState(true);
@@ -109,9 +110,9 @@ export default function EmployeeMyPage() {
                     <p className="text-[10px] text-gray-400">연락처</p>
                     {phoneEditing ? (
                       <div className="mt-1 flex items-center gap-2">
-                        <Input
+                        <PhoneInput
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
+                          onChange={setPhone}
                           className="h-8 w-32 text-xs"
                         />
                         <Button size="sm" onClick={handlePhoneSave} className="h-7 px-2 text-xs">
@@ -122,7 +123,7 @@ export default function EmployeeMyPage() {
                         </Button>
                       </div>
                     ) : (
-                      <p className="text-xs font-medium text-gray-800">{phone}</p>
+                      <p className="text-xs font-medium text-gray-800">{formatPhoneNumber(phone)}</p>
                     )}
                   </div>
                   {!phoneEditing && (
