@@ -20,6 +20,9 @@ export interface SalaryAttendanceDataDto {
   totalHolidayNightOvertimeMinutes: number;
   totalLateMinutes: number;
   totalEarlyLeaveMinutes: number;
+  paidLeaveDays: number;
+  unpaidLeaveDays: number;
+  paidLeaveMinutes: number;
   confirmedAt: string;
   confirmedBy: string;
   version: number;
@@ -46,6 +49,9 @@ export interface CreateSalaryAttendanceData {
   totalHolidayNightOvertimeMinutes: number;
   totalLateMinutes: number;
   totalEarlyLeaveMinutes: number;
+  paidLeaveDays: number;
+  unpaidLeaveDays: number;
+  paidLeaveMinutes: number;
   confirmedAt: Date;
   confirmedBy: string;
 }

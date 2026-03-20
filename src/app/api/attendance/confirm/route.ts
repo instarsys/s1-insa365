@@ -68,6 +68,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
           totalHolidayMinutes: 0, totalHolidayOvertimeMinutes: 0,
           totalHolidayNightMinutes: 0, totalHolidayNightOvertimeMinutes: 0,
           totalLateMinutes: 0, totalEarlyLeaveMinutes: 0,
+          paidLeaveDays: 0, unpaidLeaveDays: 0, paidLeaveMinutes: 0,
           confirmedAt: now, confirmedBy: auth.userId,
           version: (existing?.version ?? 0) + 1,
         });
@@ -88,13 +89,29 @@ async function handler(request: NextRequest, auth: AuthContext) {
         endDate,
       );
 
-      // 휴가가 적용되는 날짜 Set
+      // 직원의 1일 소정근로시간 (User.dailyWorkHours)
+      const dailyWorkMinutes = Math.round(Number(emp?.dailyWorkHours ?? 8) * 60);
+
+      // 휴가가 적용되는 날짜 Set + 유급/무급 분리
       const leaveDates = new Set<string>();
+      let paidLeaveDays = 0;
+      let unpaidLeaveDays = 0;
+      let paidLeaveMinutes = 0;
+
       for (const leave of approvedLeaves) {
+        const isPaid = leave.leaveTypeConfig?.deductsFromBalance !== false;
+        const leaveType = leave.type;
         const ls = new Date(leave.startDate);
         const le = new Date(leave.endDate);
         for (let d = new Date(ls); d <= le; d.setDate(d.getDate() + 1)) {
           leaveDates.add(toDateStr(d));
+          const isHalf = leaveType === 'HALF_DAY_AM' || leaveType === 'HALF_DAY_PM';
+          if (isPaid) {
+            paidLeaveDays += isHalf ? 0.5 : 1;
+            paidLeaveMinutes += isHalf ? Math.floor(dailyWorkMinutes / 2) : dailyWorkMinutes;
+          } else {
+            unpaidLeaveDays += isHalf ? 0.5 : 1;
+          }
         }
       }
 
@@ -161,6 +178,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
           totalHolidayNightOvertimeMinutes: allAttendances.reduce((s, a) => s + a.holidayNightOvertimeMinutes, 0),
           totalLateMinutes: allAttendances.reduce((s, a) => s + (a.lateMinutes ?? 0), 0),
           totalEarlyLeaveMinutes: allAttendances.reduce((s, a) => s + (a.earlyLeaveMinutes ?? 0), 0),
+          paidLeaveDays,
+          unpaidLeaveDays,
+          paidLeaveMinutes,
           confirmedAt: now,
           confirmedBy: auth.userId,
           version: (existing?.version ?? 0) + 1,

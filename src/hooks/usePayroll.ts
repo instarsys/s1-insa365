@@ -19,6 +19,14 @@ interface PayrollSpreadsheetRow {
   calculationId?: string;
 }
 
+interface PendingLeaveItem {
+  id: string;
+  employeeName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+}
+
 interface AttendanceReview {
   activeEmployeeCount: number;
   confirmedCount: number;
@@ -32,6 +40,7 @@ interface AttendanceReview {
     totalNightHours: number;
     totalHolidayHours: number;
   };
+  pendingLeaveRequests: PendingLeaveItem[];
 }
 
 interface PayBreakdownItem {

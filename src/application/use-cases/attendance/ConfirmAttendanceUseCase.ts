@@ -44,6 +44,9 @@ export class ConfirmAttendanceUseCase {
       totalHolidayNightOvertimeMinutes: s.totalHolidayNightOvertimeMinutes,
       totalLateMinutes: s.totalLateMinutes,
       totalEarlyLeaveMinutes: s.totalEarlyLeaveMinutes,
+      paidLeaveDays: 0,
+      unpaidLeaveDays: 0,
+      paidLeaveMinutes: 0,
       confirmedAt: new Date(),
       confirmedBy,
     }));

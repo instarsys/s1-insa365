@@ -2,10 +2,19 @@ import type { IEmployeeRepository } from '../../ports/IEmployeeRepository';
 import type { ISalaryAttendanceDataRepository } from '../../ports/ISalaryAttendanceDataRepository';
 import type { AttendanceReviewDto } from '../../dtos/payroll';
 
+export interface ILeaveRequestQueryPort {
+  findPendingByPeriod(
+    companyId: string,
+    startDate: Date,
+    endDate: Date,
+  ): Promise<{ id: string; type: string; startDate: Date; endDate: Date; user: { name: string } }[]>;
+}
+
 export class GetAttendanceReviewUseCase {
   constructor(
     private employeeRepo: IEmployeeRepository,
     private salaryAttendanceRepo: ISalaryAttendanceDataRepository,
+    private leaveRequestRepo?: ILeaveRequestQueryPort,
   ) {}
 
   async execute(companyId: string, year: number, month: number): Promise<AttendanceReviewDto> {
@@ -55,11 +64,28 @@ export class GetAttendanceReviewUseCase {
     summary.totalNightHours = Math.round(summary.totalNightHours * 10) / 10;
     summary.totalHolidayHours = Math.round(summary.totalHolidayHours * 10) / 10;
 
+    // 5. 미처리 휴가 조회
+    let pendingLeaveRequests: { id: string; employeeName: string; leaveType: string; startDate: string; endDate: string }[] = [];
+    if (this.leaveRequestRepo) {
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const startDate = new Date(Date.UTC(year, month - 1, 1));
+      const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
+      const pending = await this.leaveRequestRepo.findPendingByPeriod(companyId, startDate, endDate);
+      pendingLeaveRequests = pending.map((p) => ({
+        id: p.id,
+        employeeName: p.user.name,
+        leaveType: p.type,
+        startDate: p.startDate.toISOString().slice(0, 10),
+        endDate: p.endDate.toISOString().slice(0, 10),
+      }));
+    }
+
     return {
       activeEmployeeCount: employees.length,
       confirmedCount: snapshots.length,
       unconfirmedEmployees,
       summary,
+      pendingLeaveRequests,
     };
   }
 }

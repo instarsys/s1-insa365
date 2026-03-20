@@ -1247,6 +1247,9 @@ function SalaryTab({
   const [isEditingBasic, setIsEditingBasic] = useState(false);
   const [editSalaryType, setEditSalaryType] = useState((employee.salaryType as string) || 'MONTHLY');
   const [editHourlyRate, setEditHourlyRate] = useState(employee.hourlyRate ? String(employee.hourlyRate) : '');
+  const [editDailyWorkHours, setEditDailyWorkHours] = useState(
+    (employee as Record<string, unknown>).dailyWorkHours ? String((employee as Record<string, unknown>).dailyWorkHours) : '8',
+  );
   const [isSavingBasic, setIsSavingBasic] = useState(false);
 
   const [isEditingItems, setIsEditingItems] = useState(false);
@@ -1305,6 +1308,9 @@ function SalaryTab({
   const startEditBasic = () => {
     setEditSalaryType((employee.salaryType as string) || 'MONTHLY');
     setEditHourlyRate(employee.hourlyRate ? String(employee.hourlyRate) : '');
+    setEditDailyWorkHours(
+      (employee as Record<string, unknown>).dailyWorkHours ? String((employee as Record<string, unknown>).dailyWorkHours) : '8',
+    );
     setIsEditingBasic(true);
   };
 
@@ -1314,6 +1320,7 @@ function SalaryTab({
       await updateEmployee(employeeId, {
         salaryType: editSalaryType,
         hourlyRate: editSalaryType === 'HOURLY' && editHourlyRate ? Number(editHourlyRate) : null,
+        dailyWorkHours: editDailyWorkHours ? Number(editDailyWorkHours) : 8,
         ...(editSalaryType === 'HOURLY' ? { attendanceExempt: false } : {}),
       });
       toast.success('급여 기본 정보가 저장되었습니다.');
@@ -1480,6 +1487,20 @@ function SalaryTab({
               <InfoItem label="시급" value={formatKRW(Number(employee.hourlyRate ?? 0))} />
             ) : null}
             <InfoItem label="통상시급 (자동)" value={formatKRW(ordinaryHourly)} />
+            {isEditingBasic ? (
+              <div>
+                <Input
+                  label="통상 일일 근무시간"
+                  type="number"
+                  value={editDailyWorkHours}
+                  onChange={(e) => setEditDailyWorkHours(e.target.value)}
+                  placeholder="8"
+                />
+                <p className="mt-1 text-xs text-gray-500">연차 유급휴가 급여 산정 기준입니다. 시급 x 통상 일일 근무시간으로 계산됩니다.</p>
+              </div>
+            ) : (
+              <InfoItem label="통상 일일 근무시간" value={`${(employee as Record<string, unknown>).dailyWorkHours ?? 8}시간`} />
+            )}
           </div>
         </CardBody>
       </Card>

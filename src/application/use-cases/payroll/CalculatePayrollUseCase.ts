@@ -194,6 +194,9 @@ export class CalculatePayrollUseCase {
               workDays: attData.workDays,
               totalLateMinutes: attData.totalLateMinutes,
               totalEarlyLeaveMinutes: attData.totalEarlyLeaveMinutes,
+              paidLeaveDays: Number(attData.paidLeaveDays) || 0,
+              unpaidLeaveDays: Number(attData.unpaidLeaveDays) || 0,
+              paidLeaveMinutes: attData.paidLeaveMinutes || 0,
             }
           : {
               regularMinutes: 0,

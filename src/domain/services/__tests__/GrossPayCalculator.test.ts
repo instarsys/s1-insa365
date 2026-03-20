@@ -284,6 +284,79 @@ describe('GrossPayCalculator', () => {
     });
   });
 
+  describe('leave pay (유급/무급 휴가 처리)', () => {
+    it('월급제 + 유급 휴가 → 공제 없음 (basePay 변동 없음)', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9120, // 152h (20일-2일 유급 = 18일 실출근 × 8h)
+        workDays: 22,
+        absentDays: 0,
+        paidLeaveDays: 2,
+        unpaidLeaveDays: 0,
+        paidLeaveMinutes: 960, // 16h
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      // 월급제는 유급 휴가에 대한 별도 공제/추가 없음
+      expect(result.basePay).toBe(3_000_000);
+      expect(result.attendanceDeductions).toBe(0);
+      expect(result.totalPay).toBe(3_000_000);
+    });
+
+    it('월급제 + 무급 휴가 2일 → dailyPay × 2 공제', () => {
+      const items: SalaryItemProps[] = [BASE_SALARY];
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9120,
+        workDays: 22,
+        absentDays: 0,
+        paidLeaveDays: 0,
+        unpaidLeaveDays: 2,
+        paidLeaveMinutes: 0,
+      };
+      const result = GrossPayCalculator.calculate(items, attendance, 15_311, 1.0);
+
+      const dailyPay = Math.floor(3_000_000 / 22);
+      expect(result.attendanceDeductions).toBe(dailyPay * 2);
+      expect(result.totalPay).toBe(3_000_000 - dailyPay * 2);
+    });
+
+    it('시급제 + 유급 휴가 → paidLeaveMinutes로 보전', () => {
+      const hourlyRate = 10_320;
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 9120, // 152h 실근무
+        paidLeaveDays: 1,
+        unpaidLeaveDays: 0,
+        paidLeaveMinutes: 480, // 8h 유급 보전
+      };
+      const result = GrossPayCalculator.calculate([], attendance, hourlyRate, 1.0, 'HOURLY', hourlyRate);
+
+      // basePay = floor(10320 × 9120 / 60) + floor(10320 × 480 / 60)
+      const regularPay = Math.floor(hourlyRate * 9120 / 60);
+      const leavePay = Math.floor(hourlyRate * 480 / 60);
+      expect(result.basePay).toBe(regularPay + leavePay);
+      expect(result.attendanceDeductions).toBe(0);
+    });
+
+    it('시급제 + 무급 휴가 2일 → 별도 공제 없음 (자연 감소)', () => {
+      const hourlyRate = 10_320;
+      const attendance: AttendanceSummary = {
+        ...ZERO_ATTENDANCE,
+        regularMinutes: 8640, // 144h (출근 안 한 시간만큼 자연 감소)
+        paidLeaveDays: 0,
+        unpaidLeaveDays: 2,
+        paidLeaveMinutes: 0,
+      };
+      const result = GrossPayCalculator.calculate([], attendance, hourlyRate, 1.0, 'HOURLY', hourlyRate);
+
+      // 시급제: 실근무 시간 기반 → 무급 휴가 공제 로직 불필요
+      expect(result.basePay).toBe(Math.floor(hourlyRate * 8640 / 60));
+      expect(result.attendanceDeductions).toBe(0);
+    });
+  });
+
   describe('edge cases', () => {
     it('should handle empty salary items', () => {
       const result = GrossPayCalculator.calculate([], ZERO_ATTENDANCE, 14_354, 1.0);

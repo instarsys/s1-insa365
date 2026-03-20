@@ -104,6 +104,10 @@ export class GrossPayCalculator {
     if (salaryType === 'HOURLY' && hourlyRate !== undefined) {
       // 시급제: hourlyRate × regularMinutes / 60
       basePay = Math.floor(hourlyRate * attendance.regularMinutes / 60);
+      // 시급제 유급 휴가: 시급 × paidLeaveMinutes / 60 (근로기준법: 연차 사용 시 1일 소정근로시간 × 시급)
+      if ((attendance.paidLeaveMinutes ?? 0) > 0) {
+        basePay += Math.floor(hourlyRate * attendance.paidLeaveMinutes! / 60);
+      }
     } else {
       // 월급제: sum of BASE type items, prorated
       basePay = Math.floor(
@@ -185,6 +189,17 @@ export class GrossPayCalculator {
       const dailyPay = Math.floor(basePay / attendance.workDays);
       const absentDeduction = dailyPay * attendance.absentDays;
       attendanceDeductions += absentDeduction;
+    }
+
+    // 5-1b. 월급제 무급 휴가 공제: basePay × unpaidLeaveDays / workDays
+    if (
+      salaryType === 'MONTHLY' &&
+      (attendance.unpaidLeaveDays ?? 0) > 0 &&
+      attendance.workDays !== undefined &&
+      attendance.workDays > 0
+    ) {
+      const dailyPay = Math.floor(basePay / attendance.workDays);
+      attendanceDeductions += dailyPay * attendance.unpaidLeaveDays!;
     }
 
     // 5-2. 월급제 지각/조퇴 공제: ordinaryHourlyWage × (totalLateMinutes + totalEarlyLeaveMinutes) / 60

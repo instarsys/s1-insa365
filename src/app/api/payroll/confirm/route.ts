@@ -13,7 +13,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { year, month } = validation.data;
 
-    const { salaryCalcRepo, salaryAttendanceRepo, employeeRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo } = getContainer();
+    const { salaryCalcRepo, salaryAttendanceRepo, employeeRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo, leaveRequestRepo } = getContainer();
 
     // 활성 직원 중 근태 미확정 확인
     const activeEmployees = await employeeRepo.findAll(auth.companyId, { status: 'ACTIVE', page: 1, limit: 10000 });
@@ -24,6 +24,20 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (unconfirmedEmployees.length > 0) {
       return errorResponse(
         `근태 미확정 직원 ${unconfirmedEmployees.length}명이 있습니다. 근태를 먼저 확정해주세요.`,
+        400,
+      );
+    }
+
+    // 미처리 휴가 확인
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = new Date(Date.UTC(year, month - 1, 1));
+    const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
+    const pendingLeaves = await leaveRequestRepo.findPendingByPeriod(
+      auth.companyId, startDate, endDate,
+    );
+    if (pendingLeaves.length > 0) {
+      return errorResponse(
+        `미처리 휴가 ${pendingLeaves.length}건이 있습니다. 휴가 관리에서 먼저 승인/거절해주세요.`,
         400,
       );
     }

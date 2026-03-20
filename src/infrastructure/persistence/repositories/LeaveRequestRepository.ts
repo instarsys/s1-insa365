@@ -255,7 +255,36 @@ export class LeaveRequestRepository {
         startDate: true,
         endDate: true,
         type: true,
+        leaveTypeConfig: { select: { deductsFromBalance: true } },
       },
+    });
+  }
+
+  /** 기간 내 미처리(PENDING) 휴가 조회 (급여 확정 차단용) */
+  async findPendingByPeriod(
+    companyId: string,
+    startDate: Date,
+    endDate: Date,
+  ) {
+    return prisma.leaveRequest.findMany({
+      where: {
+        companyId,
+        status: 'PENDING',
+        deletedAt: null,
+        OR: [
+          { startDate: { gte: startDate, lte: endDate } },
+          { endDate: { gte: startDate, lte: endDate } },
+          { startDate: { lte: startDate }, endDate: { gte: endDate } },
+        ],
+      },
+      select: {
+        id: true,
+        type: true,
+        startDate: true,
+        endDate: true,
+        user: { select: { name: true } },
+      },
+      orderBy: { startDate: 'asc' },
     });
   }
 

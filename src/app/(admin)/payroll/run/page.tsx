@@ -464,6 +464,40 @@ export default function PayrollRunPage() {
             </Card>
           )}
 
+          {/* 미처리 휴가 경고 */}
+          {!reviewLoading && review && review.pendingLeaveRequests && review.pendingLeaveRequests.length > 0 && (
+            <Card className="mb-6">
+              <CardBody>
+                <div className="rounded-lg bg-amber-50 px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-amber-500" />
+                    <span className="text-sm font-medium text-amber-700">
+                      미처리 휴가 {review.pendingLeaveRequests.length}건
+                    </span>
+                    <span className="text-xs text-amber-600">
+                      승인/거부 후 급여를 실행하세요
+                    </span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {review.pendingLeaveRequests.map((leave) => (
+                      <span
+                        key={leave.id}
+                        className="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800"
+                      >
+                        {leave.employeeName} — {leave.leaveType === 'ANNUAL' ? '연차' : leave.leaveType === 'HALF_DAY_AM' ? '오전반차' : leave.leaveType === 'HALF_DAY_PM' ? '오후반차' : leave.leaveType === 'SICK' ? '병가' : leave.leaveType === 'FAMILY_EVENT' ? '경조사' : leave.leaveType === 'UNPAID' ? '무급휴가' : '기타'} ({leave.startDate}~{leave.endDate})
+                      </span>
+                    ))}
+                  </div>
+                  <div className="mt-2">
+                    <Link href="/leave" className="text-xs font-medium text-amber-700 underline hover:text-amber-900">
+                      휴가 관리 바로가기
+                    </Link>
+                  </div>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           {/* Spreadsheet Table */}
           <Card>
             <CardHeader>

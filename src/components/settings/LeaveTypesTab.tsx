@@ -182,10 +182,16 @@ export function LeaveTypesTab() {
           <Select label="휴가 그룹" options={groupOptions} value={formGroupId} onChange={setFormGroupId} />
           <Select label="시간 옵션" options={TIME_OPTIONS} value={formTimeOption} onChange={setFormTimeOption} />
           <div className="grid grid-cols-2 gap-4">
-            <Input label="유급 시간 (h)" type="number" value={String(formPaidHours)} onChange={(e) => setFormPaidHours(Number(e.target.value))} />
+            <div>
+              <Input label="유급 시간 (h)" type="number" value={String(formPaidHours)} onChange={(e) => setFormPaidHours(Number(e.target.value))} />
+              <p className="mt-1 text-xs text-gray-500">유급 휴가 사용 시 지급되는 근무 시간입니다. 시급제 직원은 이 시간 x 시급으로 급여가 계산됩니다.</p>
+            </div>
             <Input label="차감 일수" type="number" value={String(formDeductionDays)} onChange={(e) => setFormDeductionDays(Number(e.target.value))} />
           </div>
-          <Checkbox label="잔여일수에서 차감" checked={formDeductsFromBalance} onChange={setFormDeductsFromBalance} />
+          <div>
+            <Checkbox label="잔여일수에서 차감" checked={formDeductsFromBalance} onChange={setFormDeductsFromBalance} />
+            <p className="mt-1 text-xs text-gray-500">체크 시 유급 휴가로 분류되며, 잔여 휴가일수에서 차감됩니다. 미체크 시 무급 휴가로 분류되어 월급제 직원은 일할 공제가 적용됩니다.</p>
+          </div>
           <Checkbox label="승인 필요" checked={formRequiresApproval} onChange={setFormRequiresApproval} />
           <Input label="메모" value={formDescription} onChange={(e) => setFormDescription(e.target.value)} placeholder="메모 (선택)" />
         </div>

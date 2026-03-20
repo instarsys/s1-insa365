@@ -449,6 +449,7 @@ function createContainer(): Container {
   const getAttendanceReviewUseCase = new GetAttendanceReviewUseCase(
     employeeRepo as Any,
     salaryAttendanceRepo as Any,
+    leaveRequestRepo as Any,
   );
   const getPayrollDetailUseCase = new GetPayrollDetailUseCase(
     salaryCalcRepo as Any,

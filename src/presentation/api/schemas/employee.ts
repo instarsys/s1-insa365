@@ -68,6 +68,7 @@ export const updateEmployeeSchema = z.object({
   manualNationalPensionBase: z.number().min(0).nullable().optional(),
   manualHealthInsuranceBase: z.number().min(0).nullable().optional(),
   attendanceExempt: z.boolean().optional(),
+  dailyWorkHours: z.number().min(1).max(24).optional(),
 }).strict().refine(
   (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
   { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },

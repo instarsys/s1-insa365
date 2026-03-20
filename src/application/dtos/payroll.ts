@@ -160,6 +160,14 @@ export interface UnconfirmedEmployeeDto {
   departmentName: string | null;
 }
 
+export interface PendingLeaveDto {
+  id: string;
+  employeeName: string;
+  leaveType: string;
+  startDate: string;
+  endDate: string;
+}
+
 export interface AttendanceReviewDto {
   activeEmployeeCount: number;
   confirmedCount: number;
@@ -173,6 +181,7 @@ export interface AttendanceReviewDto {
     totalNightHours: number;
     totalHolidayHours: number;
   };
+  pendingLeaveRequests: PendingLeaveDto[];
 }
 
 // ─── 급여 세부 내역 (Payroll Detail) ──────────────────────

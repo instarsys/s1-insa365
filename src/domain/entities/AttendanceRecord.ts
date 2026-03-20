@@ -43,6 +43,12 @@ export interface AttendanceSummary {
   totalLateMinutes?: number;
   /** Total early leave minutes in the month (월간 조퇴 분) */
   totalEarlyLeaveMinutes?: number;
+  /** Paid leave days (유급 휴가일수) */
+  paidLeaveDays?: number;
+  /** Unpaid leave days (무급 휴가일수) */
+  unpaidLeaveDays?: number;
+  /** Paid leave minutes for hourly workers (유급 휴가 시간(분) — 시급제 급여 계산용) */
+  paidLeaveMinutes?: number;
 }
 
 export class AttendanceRecord {
