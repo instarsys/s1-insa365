@@ -61,6 +61,17 @@ export const generateAccrualsSchema = z.object({
 
 export type GenerateAccrualsInput = z.infer<typeof generateAccrualsSchema>;
 
+export const grantLeaveSchema = z.object({
+  userId: z.string().uuid('직원을 선택해주세요.'),
+  leaveTypeConfigId: z.string().uuid('휴가 유형을 선택해주세요.'),
+  startDate: z.string().min(1, '시작일을 입력해주세요.'),
+  endDate: z.string().min(1, '종료일을 입력해주세요.'),
+  days: z.number().min(0.5, '최소 0.5일 이상이어야 합니다.').max(365),
+  reason: z.string().max(500).optional().nullable(),
+});
+
+export type GrantLeaveInput = z.infer<typeof grantLeaveSchema>;
+
 export const manualAdjustmentSchema = z.object({
   userId: z.string().uuid('유효한 사용자 ID가 필요합니다.'),
   year: z.number().int().min(2020).max(2100),

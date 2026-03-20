@@ -163,6 +163,10 @@ export function useLeaveMutations() {
       apiPut(`/api/leave/balance/${userId}`, data),
     adjustBalance: (data: { userId: string; year: number; days: number; reason: string; leaveTypeConfigId: string }) =>
       apiPost('/api/leave/accrual-records/manual', data),
+    grantLeave: (data: {
+      userId: string; leaveTypeConfigId: string;
+      startDate: string; endDate: string; days: number; reason?: string;
+    }) => apiPost('/api/leave/grant', data),
   };
 }
 

@@ -50,6 +50,15 @@ export interface LeaveBalanceDto {
   remainingDays: number;
 }
 
+export interface GrantLeaveDto {
+  userId: string;
+  leaveTypeConfigId: string;
+  startDate: string;
+  endDate: string;
+  days: number;
+  reason?: string;
+}
+
 export interface LeaveFilters {
   userId?: string;
   status?: string;

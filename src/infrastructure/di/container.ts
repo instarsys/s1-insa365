@@ -89,6 +89,7 @@ import { ApproveLeaveRequestUseCase } from '@/application/use-cases/leave/Approv
 import { RejectLeaveRequestUseCase } from '@/application/use-cases/leave/RejectLeaveRequestUseCase';
 import { GetLeaveBalanceUseCase } from '@/application/use-cases/leave/GetLeaveBalanceUseCase';
 import { GenerateEmployeeAccrualsUseCase } from '@/application/use-cases/leave/GenerateEmployeeAccrualsUseCase';
+import { GrantLeaveUseCase } from '@/application/use-cases/leave/GrantLeaveUseCase';
 
 // Payroll
 import { CalculatePayrollUseCase } from '@/application/use-cases/payroll/CalculatePayrollUseCase';
@@ -210,6 +211,7 @@ export interface Container {
   rejectLeaveRequestUseCase: RejectLeaveRequestUseCase;
   getLeaveBalanceUseCase: GetLeaveBalanceUseCase;
   generateEmployeeAccrualsUseCase: GenerateEmployeeAccrualsUseCase;
+  grantLeaveUseCase: GrantLeaveUseCase;
 
   // Payroll Use Cases
   calculatePayrollUseCase: CalculatePayrollUseCase;
@@ -415,6 +417,12 @@ function createContainer(): Container {
     leaveAccrualRuleRepo as Any,
     leaveAccrualRecordRepo as Any,
   );
+  const grantLeaveUseCase = new GrantLeaveUseCase(
+    leaveRequestRepo as Any,
+    leaveBalanceRepo as Any,
+    leaveTypeConfigRepo as Any,
+    notificationRepo as Any,
+  );
 
   // Payroll
   const calculatePayrollUseCase = new CalculatePayrollUseCase(
@@ -557,6 +565,7 @@ function createContainer(): Container {
     rejectLeaveRequestUseCase,
     getLeaveBalanceUseCase,
     generateEmployeeAccrualsUseCase,
+    grantLeaveUseCase,
     // Payroll
     calculatePayrollUseCase,
     getPayrollSpreadsheetUseCase,

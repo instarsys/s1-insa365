@@ -12,9 +12,10 @@ import { LeaveHistoryListView } from '@/components/leave/LeaveHistoryListView';
 import { LeaveHistoryMonthlyView } from '@/components/leave/LeaveHistoryMonthlyView';
 import { LeaveBalanceExpandableTable } from '@/components/leave/LeaveBalanceExpandableTable';
 import { LeaveAdjustmentModal } from '@/components/leave/LeaveAdjustmentModal';
+import { LeaveGrantModal } from '@/components/leave/LeaveGrantModal';
 import { formatDate } from '@/lib/utils';
 import { fetcher } from '@/lib/api';
-import { CalendarDays, Check, X } from 'lucide-react';
+import { CalendarDays, Check, X, Plus } from 'lucide-react';
 
 interface LeaveBalance {
   userId: string;
@@ -48,6 +49,7 @@ export default function LeaveManagementPage() {
   const [balanceDeptFilter, setBalanceDeptFilter] = useState('');
   const [adjustModalOpen, setAdjustModalOpen] = useState(false);
   const [adjustTarget, setAdjustTarget] = useState<{ userId: string; userName: string } | null>(null);
+  const [grantModalOpen, setGrantModalOpen] = useState(false);
 
   const statusFilter = activeTab === 'pending' ? 'PENDING' : undefined;
   const { requests, isLoading, mutate } = useLeaveRequests({
@@ -236,7 +238,12 @@ export default function LeaveManagementPage() {
 
   return (
     <div>
-      <PageHeader title="휴가 관리" subtitle="휴가 신청을 승인/반려하고 내역을 관리합니다." />
+      <PageHeader title="휴가 관리" subtitle="휴가 신청을 승인/반려하고 내역을 관리합니다.">
+        <Button onClick={() => setGrantModalOpen(true)}>
+          <Plus className="mr-1 h-4 w-4" />
+          휴가 부여
+        </Button>
+      </PageHeader>
 
       <Tabs
         tabs={tabsWithCount}
@@ -356,6 +363,13 @@ export default function LeaveManagementPage() {
           )}
         </>
       )}
+
+      {/* Grant Leave Modal */}
+      <LeaveGrantModal
+        open={grantModalOpen}
+        onClose={() => setGrantModalOpen(false)}
+        onSuccess={() => { mutate(); mutateBalances(); }}
+      />
 
       {/* Reject Modal */}
       <Modal
