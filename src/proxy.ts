@@ -46,11 +46,22 @@ function checkRateLimit(request: NextRequest): NextResponse | null {
   return null;
 }
 
+// --- Role-based routing helpers ---
+const EMPLOYEE_PATHS = ['/home', '/e/', '/leave', '/salary', '/my'];
+const ADMIN_PATHS = ['/dashboard', '/attendance', '/employees', '/payroll', '/reports', '/settings', '/tax'];
+
+function getRoleDefaultPath(role: string | undefined): string {
+  if (role === 'SYSTEM_ADMIN') return '/super-admin/dashboard';
+  if (role === 'EMPLOYEE') return '/home';
+  return '/dashboard';
+}
+
 // --- Auth Redirect ---
 const publicPaths = ['/login', '/signup', '/join', '/super-admin/login', '/change-password', '/api/auth', '/api/health', '/about', '/contact', '/terms', '/privacy'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const userRole = request.cookies.get('user_role')?.value;
 
   // Rate limit API routes
   if (pathname.startsWith('/api/')) {
@@ -58,11 +69,11 @@ export function proxy(request: NextRequest) {
     if (rateLimitResponse) return rateLimitResponse;
   }
 
-  // Landing page: `/` is public, but logged-in users go to dashboard
+  // Landing page: `/` is public, but logged-in users go to role-appropriate page
   if (pathname === '/') {
     const token = request.cookies.get('access_token')?.value;
     if (token) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(new URL(getRoleDefaultPath(userRole), request.url));
     }
     return NextResponse.next();
   }
@@ -72,7 +83,7 @@ export function proxy(request: NextRequest) {
 
   if (isPublicPath) {
     if (token && (pathname === '/login' || pathname === '/signup')) {
-      return NextResponse.redirect(new URL('/dashboard', request.url));
+      return NextResponse.redirect(new URL(getRoleDefaultPath(userRole), request.url));
     }
     return NextResponse.next();
   }
@@ -83,6 +94,14 @@ export function proxy(request: NextRequest) {
     const loginUrl = new URL(isSuperAdmin ? '/super-admin/login' : '/login', request.url);
     loginUrl.searchParams.set('from', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Role-path mismatch guard
+  if (userRole === 'EMPLOYEE' && ADMIN_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/home', request.url));
+  }
+  if (userRole && userRole !== 'EMPLOYEE' && EMPLOYEE_PATHS.some((p) => pathname.startsWith(p))) {
+    return NextResponse.redirect(new URL('/dashboard', request.url));
   }
 
   return NextResponse.next();

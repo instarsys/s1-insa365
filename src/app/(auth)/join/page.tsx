@@ -54,7 +54,7 @@ export default function JoinPage() {
     try {
       await apiPost('/api/auth/join', { inviteCode, email, password });
       await globalMutate('/api/auth/me');
-      router.push('/employee/home');
+      router.push('/home');
     } catch (err) {
       setError(err instanceof Error ? err.message : '합류에 실패했습니다.');
     } finally {

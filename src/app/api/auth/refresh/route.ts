@@ -46,6 +46,13 @@ export async function POST(request: NextRequest) {
       maxAge: 3600,
       path: '/',
     });
+    response.cookies.set('user_role', user.role, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 604800,
+      path: '/',
+    });
 
     return response;
   } catch {

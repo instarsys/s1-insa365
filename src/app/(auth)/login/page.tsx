@@ -29,7 +29,8 @@ export default function LoginPage() {
       if (result.user?.mustChangePassword) {
         router.push('/change-password');
       } else {
-        router.push('/dashboard');
+        const role = result.user?.role;
+        router.push(role === 'EMPLOYEE' ? '/home' : role === 'SYSTEM_ADMIN' ? '/super-admin/dashboard' : '/dashboard');
       }
     } catch (err) {
       setError(

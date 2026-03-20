@@ -19,6 +19,6 @@ setup('직원 로그인 후 인증 상태 저장', async ({ page }) => {
   await page.getByRole('textbox', { name: '이메일' }).fill(EMPLOYEE_EMAIL);
   await page.getByRole('textbox', { name: '비밀번호' }).fill(EMPLOYEE_PASSWORD);
   await page.getByRole('button', { name: '로그인' }).click();
-  await page.waitForURL('**/dashboard', { timeout: 15000 });
+  await page.waitForURL('**/home', { timeout: 15000 });
   await page.context().storageState({ path: STORAGE_STATE_PATH });
 });

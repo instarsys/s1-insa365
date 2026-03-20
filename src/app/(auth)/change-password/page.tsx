@@ -30,7 +30,8 @@ export default function ChangePasswordPage() {
     try {
       await apiPut('/api/auth/change-password', { newPassword });
       await globalMutate('/api/auth/me');
-      router.push('/dashboard');
+      const role = document.cookie.split('; ').find(r => r.startsWith('user_role='))?.split('=')[1];
+      router.push(role === 'EMPLOYEE' ? '/home' : role === 'SYSTEM_ADMIN' ? '/super-admin/dashboard' : '/dashboard');
     } catch {
       setError('비밀번호 변경에 실패했습니다. 다시 시도해주세요.');
     } finally {
