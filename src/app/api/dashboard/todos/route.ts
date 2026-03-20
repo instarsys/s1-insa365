@@ -23,7 +23,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
         title: '휴가 승인 대기',
         description: `${pendingLeaves}건의 휴가 신청이 승인을 기다리고 있습니다.`,
         count: pendingLeaves,
-        link: '/admin/attendance/leave',
+        link: '/attendance/leave',
         priority: 'HIGH',
       });
     }
@@ -43,7 +43,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
         title: '근태 확정 필요',
         description: `${unconfirmedCount}건의 미확정 근태 기록이 있습니다.`,
         count: unconfirmedCount,
-        link: '/admin/attendance/monthly',
+        link: '/attendance/monthly',
         priority: 'MEDIUM',
       });
     }
@@ -59,7 +59,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
         title: '급여 확정 필요',
         description: `${currentMonth}월 급여가 임시 상태입니다. 확인 후 확정해주세요.`,
         count: draftPayroll,
-        link: '/admin/payroll',
+        link: '/payroll',
         priority: 'HIGH',
       });
     }
@@ -76,7 +76,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
         title: '52시간 주의',
         description: `${overtimeEmployees.length}명이 주 48시간을 초과했습니다.`,
         count: overtimeEmployees.length,
-        link: '/admin/attendance/52hour',
+        link: '/attendance/52hour',
         priority: 'URGENT',
       });
     }
@@ -91,7 +91,7 @@ async function handler(_request: NextRequest, auth: AuthContext) {
       title: '읽지 않은 알림',
       description: `${unreadCount}개의 읽지 않은 알림이 있습니다.`,
       count: unreadCount,
-      link: auth.role === 'EMPLOYEE' ? '/e/home' : '/admin/dashboard',
+      link: auth.role === 'EMPLOYEE' ? '/e/home' : '/dashboard',
       priority: 'LOW',
     });
   }

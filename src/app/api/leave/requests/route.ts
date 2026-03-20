@@ -25,7 +25,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
   });
 
   return successResponse({
-    items: result.items,
+    items: result.items.map(item => ({
+      ...item,
+      userName: item.user?.name ?? '',
+      employeeNumber: item.user?.employeeNumber ?? '',
+      departmentName: item.user?.department?.name ?? '',
+    })),
     total: result.total,
     page: result.page,
     limit: result.limit,
