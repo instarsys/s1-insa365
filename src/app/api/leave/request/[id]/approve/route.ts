@@ -9,13 +9,23 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
-  const { leaveRequestRepo, leaveBalanceRepo, notificationRepo } = getContainer();
+  const { leaveRequestRepo, leaveBalanceRepo, notificationRepo, attendanceRepo } = getContainer();
 
   const leaveRequest = await leaveRequestRepo.findByIdWithConfig(auth.companyId, id);
 
   if (!leaveRequest) return notFoundResponse('휴가 신청');
   if (leaveRequest.status !== 'PENDING') {
     return errorResponse('대기 중인 신청만 승인할 수 있습니다.', 400);
+  }
+
+  // 근태 중복 검사
+  const existingAttendances = await attendanceRepo.findExistingByDateRange(
+    auth.companyId, leaveRequest.userId,
+    new Date(leaveRequest.startDate), new Date(leaveRequest.endDate),
+  );
+  if (existingAttendances.length > 0) {
+    const dates = existingAttendances.map((a: { date: Date }) => a.date.toISOString().slice(0, 10)).join(', ');
+    return errorResponse(`해당 기간에 근태 기록이 존재하여 휴가를 승인할 수 없습니다. 근태를 먼저 삭제해주세요. (근태 기록일: ${dates})`, 409);
   }
 
   const updated = await leaveRequestRepo.update(auth.companyId, id, {

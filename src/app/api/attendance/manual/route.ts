@@ -16,12 +16,18 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const [y, m, d] = date.split('-').map(Number);
     const dateObj = new Date(Date.UTC(y, m - 1, d));
 
-    const { attendanceRepo, employeeRepo, workPolicyRepo, auditLogRepo } = getContainer();
+    const { attendanceRepo, employeeRepo, workPolicyRepo, auditLogRepo, leaveRequestRepo } = getContainer();
 
     const existing = await attendanceRepo.findByDate(auth.companyId, userId, dateObj);
 
     if (existing?.isConfirmed) {
       return errorResponse('확정된 근태는 수정할 수 없습니다. 근태 확정을 먼저 취소해주세요.', 400);
+    }
+
+    // 승인된 휴가 중복 검사
+    const approvedLeaves = await leaveRequestRepo.findApprovedByPeriod(auth.companyId, userId, dateObj, dateObj);
+    if (approvedLeaves.length > 0) {
+      return errorResponse('해당 날짜에 승인된 휴가가 있어 근태를 입력할 수 없습니다. 휴가를 먼저 취소해주세요.', 409);
     }
 
     // checkIn+checkOut 둘 다 있으면 AttendanceClassifier로 자동 계산

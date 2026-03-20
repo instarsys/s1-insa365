@@ -26,6 +26,10 @@ interface WorkPolicyRepo {
   } | null>;
 }
 
+interface LeaveRequestRepo {
+  findApprovedByPeriod(companyId: string, userId: string, startDate: Date, endDate: Date): Promise<Array<{ startDate: Date; endDate: Date }>>;
+}
+
 export class CheckInAttendanceUseCase {
   constructor(
     private attendanceRepo: IAttendanceRepository,
@@ -33,6 +37,7 @@ export class CheckInAttendanceUseCase {
     private workPolicyRepo: WorkPolicyRepo,
     private workLocationRepo: IWorkLocationRepository,
     private companyRepo: ICompanyRepository,
+    private leaveRequestRepo: LeaveRequestRepo,
   ) {}
 
   async execute(
@@ -47,6 +52,12 @@ export class CheckInAttendanceUseCase {
     const existing = await this.attendanceRepo.findByDate(companyId, userId, today);
     if (existing?.checkInTime) {
       throw new Error('이미 출근 기록이 있습니다.');
+    }
+
+    // 승인된 휴가 중복 검사
+    const approvedLeaves = await this.leaveRequestRepo.findApprovedByPeriod(companyId, userId, today, today);
+    if (approvedLeaves.length > 0) {
+      throw new Error('해당 날짜에 승인된 휴가가 있어 출근 기록을 생성할 수 없습니다. 휴가를 먼저 취소해주세요.');
     }
 
     const now = new Date();

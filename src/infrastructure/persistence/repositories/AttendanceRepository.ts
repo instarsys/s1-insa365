@@ -602,6 +602,20 @@ export class AttendanceRepository {
     return result.count;
   }
 
+  /** 날짜 범위 내 근태 존재 여부 조회 (휴가↔근태 중복 방지용) */
+  async findExistingByDateRange(companyId: string, userId: string, startDate: Date, endDate: Date) {
+    return prisma.attendance.findMany({
+      where: {
+        companyId,
+        userId,
+        date: { gte: startDate, lte: endDate },
+        deletedAt: null,
+      },
+      select: { date: true },
+      orderBy: { date: 'asc' },
+    });
+  }
+
   /** 출퇴근 누락 조회: checkIn 있지만 checkOut 없는 기록 */
   async findMissingCheckouts(companyId: string, startDate: Date, endDate: Date) {
     return prisma.attendance.findMany({

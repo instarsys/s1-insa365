@@ -32,12 +32,17 @@ interface NotificationRepo {
   create(data: Record<string, unknown>): Promise<unknown>;
 }
 
+interface AttendanceRepo {
+  findExistingByDateRange(companyId: string, userId: string, startDate: Date, endDate: Date): Promise<Array<{ date: Date }>>;
+}
+
 export class GrantLeaveUseCase {
   constructor(
     private leaveRequestRepo: LeaveRequestRepo,
     private leaveBalanceRepo: LeaveBalanceRepo,
     private leaveTypeConfigRepo: LeaveTypeConfigRepo,
     private notificationRepo: NotificationRepo,
+    private attendanceRepo: AttendanceRepo,
   ) {}
 
   async execute(companyId: string, grantedBy: string, dto: GrantLeaveDto) {
@@ -47,10 +52,19 @@ export class GrantLeaveUseCase {
       throw new EntityNotFoundError('LeaveTypeConfig', dto.leaveTypeConfigId);
     }
 
-    // 2. code → LeaveType enum 매핑
+    // 2. 근태 중복 검사
+    const existingAttendances = await this.attendanceRepo.findExistingByDateRange(
+      companyId, dto.userId, new Date(dto.startDate), new Date(dto.endDate),
+    );
+    if (existingAttendances.length > 0) {
+      const dates = existingAttendances.map((a: { date: Date }) => a.date.toISOString().slice(0, 10)).join(', ');
+      throw new ValidationError(`해당 기간에 근태 기록이 존재하여 휴가를 부여할 수 없습니다. 근태를 먼저 삭제해주세요. (근태 기록일: ${dates})`);
+    }
+
+    // 3. code → LeaveType enum 매핑
     const leaveType = mapCodeToLeaveType(config.code);
 
-    // 3. deductsFromBalance이면 잔여일수 검증 (조회 결과 캐싱하여 5단계에서 재사용)
+    // 4. deductsFromBalance이면 잔여일수 검증 (조회 결과 캐싱하여 6단계에서 재사용)
     const year = new Date(dto.startDate).getFullYear();
     let cachedBalance: { id: string; remainingDays: number | { toNumber?: () => number } } | null = null;
     if (config.deductsFromBalance) {
@@ -67,7 +81,7 @@ export class GrantLeaveUseCase {
       }
     }
 
-    // 4. LeaveRequest 생성 (status='APPROVED', 즉시 승인)
+    // 5. LeaveRequest 생성 (status='APPROVED', 즉시 승인)
     const leaveRequest = await this.leaveRequestRepo.create(companyId, {
       userId: dto.userId,
       type: leaveType,
@@ -81,7 +95,7 @@ export class GrantLeaveUseCase {
       approvedAt: new Date(),
     });
 
-    // 5. balance 차감 (3단계 캐시 재사용)
+    // 6. balance 차감 (4단계 캐시 재사용)
     if (config.deductsFromBalance && cachedBalance) {
       await this.leaveBalanceRepo.update(companyId, cachedBalance.id, {
         usedDays: { increment: dto.days },
@@ -89,7 +103,7 @@ export class GrantLeaveUseCase {
       });
     }
 
-    // 6. 알림 생성
+    // 7. 알림 생성
     await this.notificationRepo.create({
       companyId,
       userId: dto.userId,

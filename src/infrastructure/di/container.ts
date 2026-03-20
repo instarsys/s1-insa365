@@ -388,6 +388,7 @@ function createContainer(): Container {
     workPolicyRepo as Any,
     workLocationRepo as Any,
     companyRepo as Any,
+    leaveRequestRepo as Any,
   );
   const checkOutAttendanceUseCase = new CheckOutAttendanceUseCase(
     attendanceRepo as Any,
@@ -422,6 +423,7 @@ function createContainer(): Container {
     leaveBalanceRepo as Any,
     leaveTypeConfigRepo as Any,
     notificationRepo as Any,
+    attendanceRepo as Any,
   );
 
   // Payroll

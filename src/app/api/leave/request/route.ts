@@ -11,7 +11,16 @@ async function handler(request: NextRequest, auth: AuthContext) {
     if (!validation.success) return validation.response;
     const { type, leaveTypeConfigId, startDate, endDate, days, reason } = validation.data;
 
-    const { leaveRequestRepo } = getContainer();
+    const { leaveRequestRepo, attendanceRepo } = getContainer();
+
+    // 근태 중복 검사
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    const existingAttendances = await attendanceRepo.findExistingByDateRange(auth.companyId, auth.userId, startDateObj, endDateObj);
+    if (existingAttendances.length > 0) {
+      const dates = existingAttendances.map((a: { date: Date }) => a.date.toISOString().slice(0, 10)).join(', ');
+      return errorResponse(`해당 기간에 근태 기록이 존재하여 휴가를 신청할 수 없습니다. (근태 기록일: ${dates})`, 409);
+    }
 
     const leaveRequest = await leaveRequestRepo.create(auth.companyId, {
       companyId: auth.companyId,
