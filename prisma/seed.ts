@@ -606,18 +606,40 @@ async function main() {
       isSystem: true,
     },
   });
-  console.log('Leave groups created: 2');
+  const legalLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId: company.id,
+      name: '법정휴가',
+      allowOveruse: true,
+      description: '출산, 육아, 가족돌봄 등 법적으로 보장되는 휴가 그룹',
+      sortOrder: 3,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  console.log('Leave groups created: 3');
 
-  // 8 Leave Type Configs (시프티 벤치마크 기반)
+  // 17 Leave Type Configs (시프티 벤치마크 기반 + 법정/특별 휴가)
   const leaveTypeConfigs = [
     { code: 'ABSENCE', name: '결근', groupId: null, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 1 },
     { code: 'CONDOLENCE', name: '경조', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 2 },
     { code: 'PUBLIC', name: '공가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 3 },
     { code: 'OTHER', name: '기타', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 4 },
-    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
+    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
     { code: 'SICK_PAID', name: '병가(유급)', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 6 },
     { code: 'HALF_DAY', name: '반차', groupId: annualLeaveGroup.id, timeOption: 'HALF_DAY' as const, paidHours: 4, deductionDays: 0.5, deductsFromBalance: true, sortOrder: 7 },
     { code: 'ANNUAL', name: '연차', groupId: annualLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: true, sortOrder: 8 },
+    // 법정휴가
+    { code: 'MATERNITY', name: '출산휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 9 },
+    { code: 'PATERNITY', name: '배우자출산휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 10 },
+    { code: 'CHILDCARE', name: '육아휴직', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 11 },
+    { code: 'FAMILY_CARE', name: '가족돌봄휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 12 },
+    { code: 'MENSTRUAL', name: '생리휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 13 },
+    // 기타 특별휴가
+    { code: 'COMPENSATORY', name: '대체휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 14 },
+    { code: 'REFRESH', name: '리프레시휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 15 },
+    { code: 'TRAINING', name: '교육훈련', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 16 },
+    { code: 'UNPAID', name: '무급휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 17 },
   ];
 
   const createdLeaveTypeConfigs: Record<string, string> = {};
@@ -1025,17 +1047,39 @@ async function seedLeaveData(companyId: string) {
       isSystem: true,
     },
   });
-  console.log('Leave groups created: 2');
+  const legalLeaveGroup = await prisma.leaveGroup.create({
+    data: {
+      companyId,
+      name: '법정휴가',
+      allowOveruse: true,
+      description: '출산, 육아, 가족돌봄 등 법적으로 보장되는 휴가 그룹',
+      sortOrder: 3,
+      isActive: true,
+      isSystem: true,
+    },
+  });
+  console.log('Leave groups created: 3');
 
   const leaveTypeConfigs = [
     { code: 'ABSENCE', name: '결근', groupId: null, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 1 },
     { code: 'CONDOLENCE', name: '경조', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 2 },
     { code: 'PUBLIC', name: '공가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 3 },
     { code: 'OTHER', name: '기타', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 4 },
-    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
+    { code: 'SICK', name: '병가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 5 },
     { code: 'SICK_PAID', name: '병가(유급)', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 6 },
     { code: 'HALF_DAY', name: '반차', groupId: annualLeaveGroup.id, timeOption: 'HALF_DAY' as const, paidHours: 4, deductionDays: 0.5, deductsFromBalance: true, sortOrder: 7 },
     { code: 'ANNUAL', name: '연차', groupId: annualLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: true, sortOrder: 8 },
+    // 법정휴가
+    { code: 'MATERNITY', name: '출산휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 9 },
+    { code: 'PATERNITY', name: '배우자출산휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 10 },
+    { code: 'CHILDCARE', name: '육아휴직', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 11 },
+    { code: 'FAMILY_CARE', name: '가족돌봄휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 12 },
+    { code: 'MENSTRUAL', name: '생리휴가', groupId: legalLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 13 },
+    // 기타 특별휴가
+    { code: 'COMPENSATORY', name: '대체휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 1, deductsFromBalance: false, sortOrder: 14 },
+    { code: 'REFRESH', name: '리프레시휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 15 },
+    { code: 'TRAINING', name: '교육훈련', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 8, deductionDays: 0, deductsFromBalance: false, sortOrder: 16 },
+    { code: 'UNPAID', name: '무급휴가', groupId: otherLeaveGroup.id, timeOption: 'FULL_DAY' as const, paidHours: 0, deductionDays: 1, deductsFromBalance: false, sortOrder: 17 },
   ];
 
   for (const ltc of leaveTypeConfigs) {
