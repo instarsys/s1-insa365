@@ -80,6 +80,14 @@ export default function AttendanceCalendarPage() {
   const handleCellClick = (userId: string, day: number, hasData: boolean, recordId?: string) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
+    // 승인된 휴가가 있는 날짜 → 모달 열지 않음
+    const leavesMap = (data as unknown as Record<string, unknown>)?.leaves as Record<string, Record<number, { type: string; typeName: string }>> | undefined;
+    const leaveInfo = leavesMap?.[userId]?.[day];
+    if (leaveInfo && !hasData) {
+      toast.info(`${dateStr}은 승인된 휴가(${leaveInfo.typeName})가 있는 날짜입니다.`);
+      return;
+    }
+
     if (hasData) {
       // Find the attendance record from items
       const emp = data?.items.find((e) => e.userId === userId);
