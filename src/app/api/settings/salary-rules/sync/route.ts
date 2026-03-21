@@ -33,11 +33,13 @@ async function handlePost(_request: NextRequest, auth: AuthContext) {
 
   let totalCreated = 0;
   let totalUpdated = 0;
+  let totalDeleted = 0;
 
   for (const user of activeUsers) {
     const result = await employeeSalaryItemRepo.upsertFromRules(auth.companyId, user.id, ruleData);
     totalCreated += result.created;
     totalUpdated += result.updated;
+    totalDeleted += result.deleted;
   }
 
   await auditLogRepo.create({
@@ -46,13 +48,14 @@ async function handlePost(_request: NextRequest, auth: AuthContext) {
     action: 'UPDATE',
     entityType: 'EmployeeSalaryItem',
     entityId: 'BULK_SYNC',
-    after: { totalEmployees: activeUsers.length, created: totalCreated, updated: totalUpdated },
+    after: { totalEmployees: activeUsers.length, created: totalCreated, updated: totalUpdated, deleted: totalDeleted },
   });
 
   return successResponse({
     totalEmployees: activeUsers.length,
     created: totalCreated,
     updated: totalUpdated,
+    deleted: totalDeleted,
   });
 }
 

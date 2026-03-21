@@ -1264,12 +1264,17 @@ function SalaryTab({
     setIsSyncing(true);
     setShowSyncConfirmModal(false);
     try {
-      const result = await syncSalaryItems(employeeId) as { created: number; updated?: number };
+      const result = await syncSalaryItems(employeeId) as { created: number; updated?: number; deleted?: number };
       await mutateSalaryItems();
-      if (result.created > 0 || (result.updated ?? 0) > 0) {
-        toast.success(`${result.created}개 추가, ${result.updated ?? 0}개 업데이트되었습니다.`);
+      const changes = [
+        result.created > 0 && `${result.created}개 추가`,
+        (result.updated ?? 0) > 0 && `${result.updated}개 업데이트`,
+        (result.deleted ?? 0) > 0 && `${result.deleted}개 제거`,
+      ].filter(Boolean);
+      if (changes.length > 0) {
+        toast.success(`${changes.join(', ')}되었습니다.`);
       } else {
-        toast.info('추가할 항목이 없습니다. 모든 급여 규칙이 이미 등록되어 있습니다.');
+        toast.info('변경 사항이 없습니다. 모든 급여 규칙이 이미 동기화되어 있습니다.');
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : '';
@@ -1998,6 +2003,7 @@ function SalaryTab({
           <ul className="list-disc pl-5 space-y-1">
             <li>항목명, 과세 설정 등이 급여규칙에 맞게 업데이트됩니다</li>
             <li>누락된 항목은 자동으로 추가됩니다</li>
+            <li>삭제된 규칙의 항목은 제거됩니다</li>
             <li>금액은 변경되지 않습니다</li>
           </ul>
         </div>

@@ -149,7 +149,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     action: 'UPDATE',
     entityType: 'EmployeeSalaryItem',
     entityId: id,
-    after: { mode: 'sync', created: result.created, updated: result.updated },
+    after: { mode: 'sync', created: result.created, updated: result.updated, deleted: result.deleted },
   });
 
   const updatedItems = await employeeSalaryItemRepo.findByUserOrdered(auth.companyId, id);

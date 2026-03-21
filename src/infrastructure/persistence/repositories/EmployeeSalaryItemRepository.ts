@@ -130,15 +130,17 @@ export class EmployeeSalaryItemRepository {
       isTaxExempt: boolean; taxExemptCode: string | null;
       sortOrder: number; formula: string | null;
     }>,
-  ): Promise<{ created: number; updated: number }> {
+  ): Promise<{ created: number; updated: number; deleted: number }> {
     return prisma.$transaction(async (tx) => {
       const existing = await tx.employeeSalaryItem.findMany({
         where: { companyId, userId, deletedAt: null },
       });
       const existingByCode = new Map(existing.map(item => [item.code, item]));
+      const ruleCodes = new Set(rules.map(r => r.code));
 
       let created = 0;
       let updated = 0;
+      let deleted = 0;
 
       for (const rule of rules) {
         const item = existingByCode.get(rule.code);
@@ -180,7 +182,18 @@ export class EmployeeSalaryItemRepository {
         }
       }
 
-      return { created, updated };
+      // 삭제된 규칙에 해당하는 항목 soft-delete
+      for (const item of existing) {
+        if (!ruleCodes.has(item.code)) {
+          await tx.employeeSalaryItem.update({
+            where: { id: item.id },
+            data: { deletedAt: new Date() },
+          });
+          deleted++;
+        }
+      }
+
+      return { created, updated, deleted };
     });
   }
 
