@@ -6,6 +6,7 @@ import {
   Modal, Button, Input, Select, Textarea, Checkbox, Spinner, useToast,
 } from '@/components/ui';
 import { useAttendanceMutations } from '@/hooks';
+import { useCompanyHolidays } from '@/hooks';
 import { fetcher } from '@/lib/api';
 import { STATUS_OPTIONS, formatTimeShort, findNearestLocation } from '@/lib/attendance-utils';
 import { Trash2 } from 'lucide-react';
@@ -48,9 +49,17 @@ export function AttendanceRecordModal({
   defaultUserId,
 }: AttendanceRecordModalProps) {
   const toast = useToast();
-  const { manualEntry, deleteAttendance } = useAttendanceMutations();
+  const { manualEntry, batchManualEntry, deleteAttendance } = useAttendanceMutations();
 
+  // Create mode: date range
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [excludeWeekends, setExcludeWeekends] = useState(true);
+  const [excludeHolidays, setExcludeHolidays] = useState(true);
+
+  // Edit mode: single date
   const [date, setDate] = useState('');
+
   const [userId, setUserId] = useState('');
   const [checkIn, setCheckIn] = useState('');
   const [checkOut, setCheckOut] = useState('');
@@ -75,6 +84,10 @@ export function AttendanceRecordModal({
   );
   const workLocations = locData?.items ?? [];
 
+  // Company holidays for preview count
+  const startYear = startDate ? Number(startDate.split('-')[0]) : new Date().getFullYear();
+  const { holidays: companyHolidays } = useCompanyHolidays(startYear);
+
   const employeeOptions = useMemo(() => {
     if (!empData?.items) return [];
     return empData.items.map((e) => ({
@@ -83,11 +96,45 @@ export function AttendanceRecordModal({
     }));
   }, [empData]);
 
+  // Preview count for batch create
+  const previewCount = useMemo(() => {
+    if (mode !== 'create' || !startDate || !endDate) return null;
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    if (start > end) return null;
+
+    const holidaySet = new Set(
+      companyHolidays.map((h: { date: string }) => new Date(h.date).toISOString().slice(0, 10)),
+    );
+
+    let total = 0;
+    let weekendCount = 0;
+    let holidayCount = 0;
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const day = d.getDay();
+      const dateStr = d.toISOString().slice(0, 10);
+      if (excludeWeekends && (day === 0 || day === 6)) {
+        weekendCount++;
+        continue;
+      }
+      if (excludeHolidays && holidaySet.has(dateStr)) {
+        holidayCount++;
+        continue;
+      }
+      total++;
+    }
+    return { total, weekendCount, holidayCount };
+  }, [mode, startDate, endDate, excludeWeekends, excludeHolidays, companyHolidays]);
+
+  const isBatchMode = mode === 'create' && startDate && endDate && startDate !== endDate;
+
   // Initialize form on open
   useEffect(() => {
     if (!open) return;
     if (mode === 'edit' && record) {
       setDate(record.date.split('T')[0]);
+      setStartDate('');
+      setEndDate('');
       setUserId(record.userId);
       setCheckIn(record.checkInTime ? formatTimeShort(record.checkInTime) : '');
       setCheckOut(record.checkOutTime ? formatTimeShort(record.checkOutTime) : '');
@@ -97,7 +144,10 @@ export function AttendanceRecordModal({
       setNote(record.note ?? '');
       setIsConfirmed(record.isConfirmed);
     } else {
-      setDate(defaultDate ?? new Date().toISOString().split('T')[0]);
+      const defaultD = defaultDate ?? new Date().toISOString().split('T')[0];
+      setStartDate(defaultD);
+      setEndDate(defaultD);
+      setDate('');
       setUserId(defaultUserId ?? '');
       setCheckIn('');
       setCheckOut('');
@@ -106,6 +156,8 @@ export function AttendanceRecordModal({
       setIsHoliday(false);
       setNote('');
       setIsConfirmed(false);
+      setExcludeWeekends(true);
+      setExcludeHolidays(true);
     }
   }, [open, mode, record, defaultDate, defaultUserId]);
 
@@ -114,32 +166,50 @@ export function AttendanceRecordModal({
       toast.error('직원을 선택해주세요.');
       return;
     }
-    if (!date) {
-      toast.error('날짜를 선택해주세요.');
-      return;
-    }
 
     setIsSaving(true);
     try {
-      // Build ISO datetime from date + time
-      const checkInTime = checkIn ? new Date(`${date}T${checkIn}:00`).toISOString() : undefined;
-      const checkOutTime = !isWorking && checkOut ? new Date(`${date}T${checkOut}:00`).toISOString() : undefined;
+      if (isBatchMode) {
+        // Batch create
+        const result = await batchManualEntry({
+          userId,
+          startDate,
+          endDate,
+          checkInTime: checkIn,
+          checkOutTime: !isWorking && checkOut ? checkOut : undefined,
+          status,
+          isHoliday,
+          note: note || undefined,
+          isConfirmed,
+          excludeWeekends,
+          excludeHolidays,
+        }) as { totalCreated: number; totalSkipped: number };
+        const msg = result.totalSkipped > 0
+          ? `${result.totalCreated}일 근태 기록이 추가되었습니다. (${result.totalSkipped}일 건너뜀)`
+          : `${result.totalCreated}일 근태 기록이 추가되었습니다.`;
+        toast.success(msg);
+      } else {
+        // Single create or edit
+        const singleDate = mode === 'edit' ? date : startDate;
+        const checkInTime = checkIn ? new Date(`${singleDate}T${checkIn}:00`).toISOString() : undefined;
+        const checkOutTime = !isWorking && checkOut ? new Date(`${singleDate}T${checkOut}:00`).toISOString() : undefined;
 
-      await manualEntry({
-        userId,
-        date,
-        checkInTime,
-        checkOutTime,
-        status,
-        isHoliday,
-        note: note || undefined,
-        isConfirmed,
-      });
-      toast.success(mode === 'edit' ? '근태 기록이 수정되었습니다.' : '근태 기록이 추가되었습니다.');
+        await manualEntry({
+          userId,
+          date: singleDate,
+          checkInTime,
+          checkOutTime,
+          status,
+          isHoliday,
+          note: note || undefined,
+          isConfirmed,
+        });
+        toast.success(mode === 'edit' ? '근태 기록이 수정되었습니다.' : '근태 기록이 추가되었습니다.');
+      }
       onSave();
       onClose();
-    } catch {
-      toast.error('저장에 실패했습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '저장에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -216,15 +286,26 @@ export function AttendanceRecordModal({
         )}
 
         {/* Date + Employee */}
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            label="날짜"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            disabled={mode === 'edit'}
-          />
-          {mode === 'create' ? (
+        {mode === 'create' ? (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="시작일"
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  if (!endDate || e.target.value > endDate) setEndDate(e.target.value);
+                }}
+              />
+              <Input
+                label="종료일"
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                min={startDate}
+              />
+            </div>
             <Select
               label="직원"
               options={employeeOptions.length > 0 ? employeeOptions : [{ value: '', label: '로딩 중...' }]}
@@ -232,10 +313,48 @@ export function AttendanceRecordModal({
               onChange={setUserId}
               placeholder="직원 선택"
             />
-          ) : (
+            {isBatchMode && (
+              <>
+                <div className="flex items-center gap-6">
+                  <Checkbox
+                    label="주말 제외 (토·일)"
+                    checked={excludeWeekends}
+                    onChange={setExcludeWeekends}
+                  />
+                  <Checkbox
+                    label="공휴일 제외"
+                    checked={excludeHolidays}
+                    onChange={setExcludeHolidays}
+                  />
+                </div>
+                {previewCount && (
+                  <p className="text-sm font-medium text-indigo-600">
+                    &rarr; {previewCount.total}일분 생성 예정
+                    {(previewCount.weekendCount > 0 || previewCount.holidayCount > 0) && (
+                      <span className="ml-1 font-normal text-gray-500">
+                        ({[
+                          previewCount.weekendCount > 0 && `주말 ${previewCount.weekendCount}일`,
+                          previewCount.holidayCount > 0 && `공휴일 ${previewCount.holidayCount}일`,
+                        ].filter(Boolean).join(', ')} 제외)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </>
+            )}
+          </>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="날짜"
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              disabled={mode === 'edit'}
+            />
             <Input label="직원" value={record?.userName || userId} disabled onChange={() => {}} />
-          )}
-        </div>
+          </div>
+        )}
 
         {/* 근무 정보 */}
         <div>

@@ -261,6 +261,7 @@ export function useAttendanceMutations() {
     confirmAttendance: (data: { year: number; month: number }) => apiPost('/api/attendance/confirm', data),
     cancelConfirmAttendance: (data: { year: number; month: number }) => apiPost('/api/attendance/cancel', data),
     manualEntry: (data: Record<string, unknown>) => apiPost('/api/attendance/manual', data),
+    batchManualEntry: (data: Record<string, unknown>) => apiPost('/api/attendance/manual/batch', data),
     deleteAttendance: (id: string) => apiDelete(`/api/attendance/${id}`),
   };
 }

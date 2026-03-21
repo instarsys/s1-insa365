@@ -81,6 +81,7 @@ import { ConfirmAttendanceUseCase } from '@/application/use-cases/attendance/Con
 import { Get52HourStatusUseCase } from '@/application/use-cases/attendance/Get52HourStatusUseCase';
 import { CheckInAttendanceUseCase } from '@/application/use-cases/attendance/CheckInAttendanceUseCase';
 import { CheckOutAttendanceUseCase } from '@/application/use-cases/attendance/CheckOutAttendanceUseCase';
+import { BatchManualAttendanceUseCase } from '@/application/use-cases/attendance/BatchManualAttendanceUseCase';
 import { GetGpsStatusUseCase } from '@/application/use-cases/attendance/GetGpsStatusUseCase';
 
 // Leave
@@ -203,6 +204,7 @@ export interface Container {
   get52HourStatusUseCase: Get52HourStatusUseCase;
   checkInAttendanceUseCase: CheckInAttendanceUseCase;
   checkOutAttendanceUseCase: CheckOutAttendanceUseCase;
+  batchManualAttendanceUseCase: BatchManualAttendanceUseCase;
   getGpsStatusUseCase: GetGpsStatusUseCase;
 
   // Leave Use Cases
@@ -397,6 +399,14 @@ function createContainer(): Container {
     workLocationRepo as Any,
     companyRepo as Any,
   );
+  const batchManualAttendanceUseCase = new BatchManualAttendanceUseCase(
+    attendanceRepo as Any,
+    leaveRequestRepo as Any,
+    companyHolidayRepo as Any,
+    workPolicyRepo as Any,
+    employeeRepo as Any,
+    auditLogRepo as Any,
+  );
   const getGpsStatusUseCase = new GetGpsStatusUseCase(
     employeeRepo as Any,
     workLocationRepo as Any,
@@ -560,6 +570,7 @@ function createContainer(): Container {
     get52HourStatusUseCase,
     checkInAttendanceUseCase,
     checkOutAttendanceUseCase,
+    batchManualAttendanceUseCase,
     getGpsStatusUseCase,
     // Leave
     createLeaveRequestUseCase,

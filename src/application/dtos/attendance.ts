@@ -75,6 +75,28 @@ export interface UpdateAttendanceDto {
   note?: string;
 }
 
+export interface BatchManualAttendanceDto {
+  userId: string;
+  startDate: string;
+  endDate: string;
+  checkInTime: string;
+  checkOutTime?: string;
+  status?: string;
+  isHoliday?: boolean;
+  note?: string;
+  isConfirmed?: boolean;
+  excludeWeekends: boolean;
+  excludeHolidays: boolean;
+}
+
+export interface BatchManualAttendanceResultDto {
+  totalRequested: number;
+  totalCreated: number;
+  totalSkipped: number;
+  created: { date: string }[];
+  skipped: { date: string; reason: string }[];
+}
+
 export interface GpsValidationResultDto {
   isWithinRange: boolean;
   nearestLocation: { id: string; name: string; distance: number } | null;
