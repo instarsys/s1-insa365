@@ -1,6 +1,6 @@
 import type { GrantLeaveDto } from '../../dtos/leave';
 import { EntityNotFoundError, ValidationError } from '@domain/errors';
-import type { LeaveType } from '@/generated/prisma/client';
+import type { LeaveType } from '@domain/entities/LeaveType';
 
 /** config code → LeaveType enum 매핑 */
 function mapCodeToLeaveType(code: string): LeaveType {
