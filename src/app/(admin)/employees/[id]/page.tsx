@@ -1491,7 +1491,9 @@ function SalaryTab({
             ) : (employee.salaryType as string) === 'HOURLY' ? (
               <InfoItem label="시급" value={formatKRW(Number(employee.hourlyRate ?? 0))} />
             ) : null}
-            <InfoItem label="통상시급 (자동)" value={formatKRW(ordinaryHourly)} />
+            {(employee.salaryType as string) !== 'HOURLY' && (
+              <InfoItem label="통상시급 (자동)" value={formatKRW(ordinaryHourly)} />
+            )}
             {isEditingBasic ? (
               <div>
                 <Input
@@ -1750,8 +1752,9 @@ function SalaryTab({
                     const isEditable = !isFormula && isEditingItems && item.isActive;
                     const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
                     const isBase = item.type === 'BASE';
+                    const isHourlyBase = isBase && (employee.salaryType as string) === 'HOURLY';
                     const canToggle = !isBase;
-                    const inactive = !item.isActive;
+                    const inactive = !item.isActive || isHourlyBase;
 
                     return (
                       <tr key={item.id} className={`${inactive ? 'bg-gray-50 opacity-50' : 'hover:bg-indigo-50/30'}`}>
@@ -1771,7 +1774,12 @@ function SalaryTab({
                           </td>
                         )}
                         <td className="px-4 py-3 text-gray-500">{item.code}</td>
-                        <td className="px-4 py-3 font-medium text-gray-800">{item.name}</td>
+                        <td className="px-4 py-3 font-medium text-gray-800">
+                          {item.name}
+                          {isHourlyBase && (
+                            <span className="ml-1.5 text-xs font-normal text-gray-400">(시급제는 시급으로 계산)</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3">
                           <Badge variant={item.paymentType === 'FORMULA' ? 'gray' : 'info'}>
                             {typeLabel}
