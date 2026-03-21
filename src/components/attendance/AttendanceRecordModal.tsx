@@ -167,6 +167,10 @@ export function AttendanceRecordModal({
       return;
     }
 
+    if (isBatchMode) {
+      if (!confirm('이미 근태 기록이 있는 날짜는 건너뜁니다.\n계속하시겠습니까?')) return;
+    }
+
     setIsSaving(true);
     try {
       if (isBatchMode) {
