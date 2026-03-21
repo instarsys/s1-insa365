@@ -22,6 +22,10 @@ export class SalaryRuleRepository {
   }
 
   async create(companyId: string, data: Prisma.SalaryRuleUncheckedCreateInput) {
+    // soft-deleted 동일 코드 레코드가 있으면 hard delete (unique 충돌 방지)
+    await prisma.salaryRule.deleteMany({
+      where: { companyId, code: data.code, deletedAt: { not: null } },
+    });
     return prisma.salaryRule.create({
       data: { ...data, companyId },
     });
