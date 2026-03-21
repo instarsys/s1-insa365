@@ -328,17 +328,20 @@ export function AttendanceRecordModal({
                   />
                 </div>
                 {previewCount && (
-                  <p className="text-sm font-medium text-indigo-600">
-                    &rarr; {previewCount.total}일분 생성 예정
-                    {(previewCount.weekendCount > 0 || previewCount.holidayCount > 0) && (
-                      <span className="ml-1 font-normal text-gray-500">
-                        ({[
-                          previewCount.weekendCount > 0 && `주말 ${previewCount.weekendCount}일`,
-                          previewCount.holidayCount > 0 && `공휴일 ${previewCount.holidayCount}일`,
-                        ].filter(Boolean).join(', ')} 제외)
-                      </span>
-                    )}
-                  </p>
+                  <>
+                    <p className="text-sm font-medium text-indigo-600">
+                      &rarr; {previewCount.total}일분 생성 예정
+                      {(previewCount.weekendCount > 0 || previewCount.holidayCount > 0) && (
+                        <span className="ml-1 font-normal text-gray-500">
+                          ({[
+                            previewCount.weekendCount > 0 && `주말 ${previewCount.weekendCount}일`,
+                            previewCount.holidayCount > 0 && `공휴일 ${previewCount.holidayCount}일`,
+                          ].filter(Boolean).join(', ')} 제외)
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-400">이미 근태가 있는 일자는 덮어쓰지 않습니다.</p>
+                  </>
                 )}
               </>
             )}

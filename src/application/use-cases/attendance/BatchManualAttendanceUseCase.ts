@@ -125,10 +125,8 @@ export class BatchManualAttendanceUseCase {
 
     // 6. 확정 근태 / 승인 휴가 검증 (배치 조회)
     const existingAttendances = await this.attendanceRepo.findExistingByDateRange(companyId, userId, start, end);
-    const confirmedDates = new Set(
-      existingAttendances
-        .filter((a) => a.isConfirmed)
-        .map((a) => a.date.toISOString().slice(0, 10)),
+    const existingDateSet = new Set(
+      existingAttendances.map((a) => a.date.toISOString().slice(0, 10)),
     );
 
     const approvedLeaves = await this.leaveRequestRepo.findApprovedByPeriod(companyId, userId, start, end);
@@ -142,8 +140,8 @@ export class BatchManualAttendanceUseCase {
     const validDates: Date[] = [];
     for (const d of filteredDates) {
       const dateStr = d.toISOString().slice(0, 10);
-      if (confirmedDates.has(dateStr)) {
-        skipped.push({ date: dateStr, reason: '확정된 근태 기록이 존재합니다' });
+      if (existingDateSet.has(dateStr)) {
+        skipped.push({ date: dateStr, reason: '이미 근태 기록이 존재합니다' });
         continue;
       }
       if (leaveDateSet.has(dateStr)) {
@@ -162,15 +160,6 @@ export class BatchManualAttendanceUseCase {
       data: Record<string, unknown>;
       segments: Array<{ startTime: Date; endTime: Date; type: string; minutes: number }>;
     }> = [];
-    const entriesToUpdate: Array<{
-      existingId: string;
-      data: Record<string, unknown>;
-      segments: Array<{ startTime: Date; endTime: Date; type: string; minutes: number }>;
-    }> = [];
-
-    const existingMap = new Map(
-      existingAttendances.map((a) => [a.date.toISOString().slice(0, 10), a]),
-    );
 
     for (const dateObj of validDates) {
       const dateStr = dateObj.toISOString().slice(0, 10);
@@ -233,15 +222,10 @@ export class BatchManualAttendanceUseCase {
         ...(isConfirmed !== undefined && { isConfirmed }),
       };
 
-      const existing = existingMap.get(dateStr);
-      if (existing && !existing.isConfirmed) {
-        entriesToUpdate.push({ existingId: (existing as unknown as { id: string }).id, data, segments: classifySegments });
-      } else {
-        entriesToCreate.push({
-          data: { userId, date: dateObj, ...data },
-          segments: classifySegments,
-        });
-      }
+      entriesToCreate.push({
+        data: { userId, date: dateObj, ...data },
+        segments: classifySegments,
+      });
     }
 
     // 8. 일괄 생성 (트랜잭션)
@@ -249,15 +233,7 @@ export class BatchManualAttendanceUseCase {
       await this.attendanceRepo.createManyWithSegments(companyId, entriesToCreate);
     }
 
-    // 9. 기존 미확정 근태 업데이트
-    for (const entry of entriesToUpdate) {
-      await this.attendanceRepo.update(companyId, entry.existingId, entry.data);
-      if (entry.segments.length > 0) {
-        await this.attendanceRepo.replaceSegments(companyId, entry.existingId, entry.segments);
-      }
-    }
-
-    // 10. 감사 로그
+    // 9. 감사 로그
     await this.auditLogRepo.create({
       userId: authUserId,
       companyId,
@@ -268,7 +244,7 @@ export class BatchManualAttendanceUseCase {
         type: 'BATCH',
         startDate: startStr,
         endDate: endStr,
-        totalCreated: entriesToCreate.length + entriesToUpdate.length,
+        totalCreated: entriesToCreate.length,
         totalSkipped: skipped.length,
       },
     });
