@@ -19,6 +19,72 @@
 
 ---
 
+## [2026-03-22] 회원가입 검증 + 배치 근태 추가 + 급여규칙 수정 + 휴가↔근태 연동
+
+### 배경 (왜)
+
+수동 테스트 과정에서 다수의 버그와 UX 개선 사항을 발견. 사업자번호 유효성 미검증, 근태 기록 한 번에 1일만 입력 가능, 급여규칙 추가 시 enum 불일치·sortOrder 누락, 승인된 휴가가 달력에 미표시 등.
+
+### 변경 내용 (무엇을) — 30개 커밋
+
+**1. 사업자번호 유효성 검증 + 회원가입 보호**
+- `BusinessNumber` 값 객체: 국세청 체크섬 알고리즘 + 자동 하이픈 포맷팅 (단위 테스트 15개)
+- 회원가입: Zod refine + DB unique 제약 (마이그레이션 `20260321120000`)
+- 설정 페이지: 상호/사업자번호 readOnly + 소셜 로그인 숨김
+- 운영 데이터 초기화 스크립트 (`scripts/clear-operational-data.ts`)
+
+**2. 클린 아키텍처 전체 감사 + 100% 준수 달성**
+- 121 API Route 감사: 100% DI 컨테이너 경유 확인
+- `GrantLeaveUseCase`의 Prisma 타입 의존 제거 → Domain `LeaveType` 분리
+
+**3. 출퇴근 기록 복수 날짜 일괄 추가**
+- `BatchManualAttendanceUseCase` + `POST /api/attendance/manual/batch`
+- 모달 UI: 시작일~종료일, 주말/공휴일 제외 체크, 프리뷰 카운트
+- 기존 기록 덮어쓰기 방지 + 저장 전 확인창
+- soft-delete + unique 충돌 수정 (단일/배치 양쪽)
+- 출근 09:00 / 퇴근 18:00 기본값
+
+**4. 급여규칙 버그 수정 6건**
+- PaymentCycle `YEARLY` → `ANNUAL` enum 불일치
+- soft-delete + unique 충돌 (삭제 후 동일 코드 재생성)
+- sortOrder API 미전달
+- A01 기본급 수당 탭 표시 + Lock 보호
+- 급여규칙 동기화 시 삭제된 규칙 항목 soft-delete
+- 시급제: 통상시급(자동) 숨김 + A01 안내
+
+**5. 휴가 관리 개선**
+- 휴가 목록 빈 필드 수정 (API 응답 평탄화)
+- 휴가 수정/삭제 기능 (`PUT/DELETE /api/leave/request/[id]`)
+- APPROVED 삭제 시 잔여일수 자동 복원
+- 승인 휴가 달력 표시 (API 오버레이 + 보라색 셀)
+- 근태 확정 시 LEAVE 레코드 자동 생성
+- 달력 휴가 셀 클릭 시 모달 방지 → 토스트
+
+### DB 마이그레이션
+
+- `20260321120000_add_unique_business_number` — companies.business_number UNIQUE 제약
+
+### 설계 결정
+
+1. **배치 근태 추가 → skip 전략**: 기존 기록이 있는 날짜는 덮어쓰지 않고 건너뜀. upsert보다 안전.
+2. **달력 휴가 표시 → API 오버레이**: Attendance 레코드 없이도 LeaveRequest로 즉시 표시. 확정 시 LEAVE 레코드 생성.
+3. **사업자번호 체크섬**: 국세청 가중치 알고리즘 직접 구현 (외부 의존성 없음, domain 레이어).
+4. **soft-delete + unique 충돌 패턴**: create 시 soft-deleted 동일 레코드를 hard delete 후 생성 (SalaryRule, Attendance 양쪽).
+
+### 교훈
+
+- **soft-delete + unique 제약은 항상 충돌 가능**: create 메서드에서 사전 hard delete 패턴을 기본으로 적용할 것
+- **API 응답 평탄화 누락이 반복됨**: 새 API 생성 시 프론트엔드 타입과 대조 필수 (이번이 3번째)
+- **catch 블록에서 에러 삼키지 않기**: `catch {}` → `catch (err) { console.error + err.message }` 패턴 필수
+
+### 검증
+
+- `npx tsc --noEmit` — 타입 에러 0
+- `npx vitest run` — 21파일, 399 tests 모두 통과
+- 브라우저 수동 테스트: 회원가입, 출퇴근 배치 추가, 급여규칙 CRUD, 휴가 부여/수정/삭제/달력 표시
+
+---
+
 ## [2026-03-21] 에러 메시지 한국어 전환 + 프론트엔드 에러 핸들링 개선
 
 ### 배경 (왜)

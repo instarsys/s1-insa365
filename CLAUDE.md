@@ -182,7 +182,7 @@ const excelService = new ExcelService();  // DI 컨테이너 우회
 
 ### DI 컨테이너 (`src/infrastructure/di/container.ts`)
 
-- **싱글톤 패턴**: 30개 Repository + 44개 Use Case + 6개 Infrastructure Service를 한 곳에서 관리
+- **싱글톤 패턴**: 31개 Repository + 46개 Use Case + 7개 Infrastructure Service를 한 곳에서 관리
 - **의존성 주입**: Use Case 생성 시 필요한 Repository/Service를 생성자로 주입
 - **새 Repository 추가 절차**:
   1. `src/infrastructure/persistence/repositories/XxxRepository.ts` 클래스 생성
@@ -421,7 +421,7 @@ Seed accounts:
 - API P95 < 500ms, batch payroll for 300 employees < 10s
 - Test coverage: 80%+ overall, 95%+ for payroll calculation logic
 - Security: AES-256-GCM for PII, HTTPS only, rate limiting (login: 5/min, API: 100/min)
-- **현재 테스트**: 단위 384개 (vitest) + E2E 612개 (Playwright) + 근태확정 E2E = **996개+**
+- **현재 테스트**: 단위 399개 (vitest) + E2E 612개 (Playwright) + 근태확정 E2E = **1011개+**
 
 ## API Caching Strategy (SWR)
 
@@ -510,7 +510,7 @@ Global tables (NO RLS): `companies`, `insurance_rates`, `tax_brackets`, `tax_exe
 
 ### Running Tests
 ```bash
-# 단위 테스트 (vitest — 341 tests, 17 files, ~1.5s)
+# 단위 테스트 (vitest — 399 tests, 21 files, ~1.5s)
 npx vitest run
 
 # E2E 전체 실행 (Playwright — 612 tests = UI 563 + 급여 통합 49)
