@@ -61,7 +61,7 @@ export default function LeaveManagementPage() {
 
   // 목록 수정/삭제
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ id: string; reason: string; startDate: string; endDate: string; days: number } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ id: string; userName: string; departmentName: string; leaveTypeName: string; reason: string; startDate: string; endDate: string; days: number } | null>(null);
   const [editReason, setEditReason] = useState('');
   const [editStartDate, setEditStartDate] = useState('');
   const [editEndDate, setEditEndDate] = useState('');
@@ -312,6 +312,9 @@ export default function LeaveManagementPage() {
             onEdit={(item) => {
               setEditTarget({
                 id: item.id,
+                userName: item.userName ?? '',
+                departmentName: (item as Record<string, unknown>).departmentName as string ?? '',
+                leaveTypeName: item.leaveTypeName ?? '',
                 reason: item.reason ?? '',
                 startDate: new Date(item.startDate).toISOString().slice(0, 10),
                 endDate: new Date(item.endDate).toISOString().slice(0, 10),
@@ -442,11 +445,30 @@ export default function LeaveManagementPage() {
         }
       >
         <div className="space-y-4">
+          {editTarget && (
+            <div className="grid grid-cols-3 gap-4 rounded-lg bg-gray-50 p-3 text-sm">
+              <div>
+                <p className="text-xs text-gray-500">직원</p>
+                <p className="font-medium text-gray-800">{editTarget.userName}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">부서</p>
+                <p className="font-medium text-gray-800">{editTarget.departmentName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">유형</p>
+                <p className="font-medium text-gray-800">{editTarget.leaveTypeName}</p>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <Input label="시작일" type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
             <Input label="종료일" type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
           </div>
-          <Input label="일수" type="number" value={String(editDays)} onChange={(e) => setEditDays(Number(e.target.value))} min={1} />
+          <div>
+            <Input label="일수" type="number" value={String(editDays)} onChange={(e) => setEditDays(Number(e.target.value))} min={1} />
+            <p className="mt-1 text-xs text-gray-500">해당 기간 중 실제 휴가로 적용할 근무일 수입니다. (예: 월~금 5일 중 반차 1일이면 0.5일)</p>
+          </div>
           <Textarea label="사유" value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} />
         </div>
       </Modal>
