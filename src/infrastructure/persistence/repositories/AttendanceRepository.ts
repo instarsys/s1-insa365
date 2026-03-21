@@ -63,6 +63,16 @@ export class AttendanceRepository {
   }
 
   async create(companyId: string, data: Prisma.AttendanceUncheckedCreateInput) {
+    // soft-deleted 동일 userId+date 레코드가 있으면 hard delete (unique 충돌 방지)
+    if (data.userId && data.date) {
+      const softDeleted = await prisma.attendance.findFirst({
+        where: { companyId, userId: data.userId as string, date: data.date as Date, deletedAt: { not: null } },
+      });
+      if (softDeleted) {
+        await prisma.attendanceSegment.deleteMany({ where: { attendanceId: softDeleted.id } });
+        await prisma.attendance.delete({ where: { id: softDeleted.id } });
+      }
+    }
     return prisma.attendance.create({
       data: { ...data, companyId },
       include: { segments: true },
