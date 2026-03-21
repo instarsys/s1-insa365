@@ -214,6 +214,7 @@ export default function AttendanceCalendarPage() {
             items={data.items}
             dailySummary={data.dailySummary}
             holidays={data.holidays ?? []}
+            leaves={(data as unknown as Record<string, unknown>).leaves as Record<string, Record<number, { type: string; typeName: string }>> ?? {}}
             showLeave={showLeave}
             colorMode={colorMode}
             onCellClick={handleCellClick}

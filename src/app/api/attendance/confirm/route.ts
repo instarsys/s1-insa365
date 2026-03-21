@@ -137,8 +137,17 @@ async function handler(request: NextRequest, auth: AuthContext) {
         // 이미 근태 기록 있으면 스킵
         if (attendanceDates.has(dateStr)) continue;
 
-        // 휴가 있으면 스킵
-        if (leaveDates.has(dateStr)) continue;
+        // 휴가 있으면 LEAVE 근태 레코드 자동 생성
+        if (leaveDates.has(dateStr)) {
+          await attendanceRepo.create(auth.companyId, {
+            companyId: auth.companyId,
+            userId: empId,
+            date: dateUTC,
+            status: 'LEAVE',
+            isHoliday: false,
+          });
+          continue;
+        }
 
         // 결근 자동 생성
         await attendanceRepo.create(auth.companyId, {

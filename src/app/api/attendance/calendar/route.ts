@@ -18,7 +18,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const startDate = new Date(Date.UTC(year, month - 1, 1));
   const endDate = new Date(Date.UTC(year, month - 1, daysInMonth, 23, 59, 59, 999));
 
-  const { userRepo, attendanceRepo, workPolicyRepo, companyHolidayRepo } = getContainer();
+  const { userRepo, attendanceRepo, workPolicyRepo, companyHolidayRepo, leaveRequestRepo } = getContainer();
 
   const { items: users, total: totalEmployees } = await userRepo.findForCalendar(
     auth.companyId,
@@ -96,6 +96,31 @@ async function handler(request: NextRequest, auth: AuthContext) {
     };
   });
 
+  // 승인 휴가 조회 (달력 오버레이용)
+  const leaves: Record<string, Record<number, { type: string; typeName: string }>> = {};
+  for (const user of users) {
+    const approvedLeaves = await leaveRequestRepo.findApprovedByPeriod(
+      auth.companyId, user.id, startDate, endDate,
+    );
+    if (approvedLeaves.length > 0) {
+      leaves[user.id] = {};
+      for (const leave of approvedLeaves) {
+        const leaveStart = new Date(leave.startDate);
+        const leaveEnd = new Date(leave.endDate);
+        for (let d = new Date(leaveStart); d <= leaveEnd; d = new Date(d.getTime() + 86400000)) {
+          const day = d.getDate();
+          if (day >= 1 && day <= daysInMonth) {
+            leaves[user.id][day] = {
+              type: (leave as Record<string, unknown>).type as string ?? 'OTHER',
+              typeName: ((leave as Record<string, unknown>).leaveTypeConfig as { name?: string })?.name
+                ?? (leave as Record<string, unknown>).type as string ?? '휴가',
+            };
+          }
+        }
+      }
+    }
+  }
+
   // Daily summary: count of employees who checked in per day
   const dailySummary: Record<number, number> = {};
   for (let d = 1; d <= daysInMonth; d++) {
@@ -115,6 +140,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     items,
     dailySummary,
     holidays,
+    leaves,
   });
 }
 

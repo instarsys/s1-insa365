@@ -21,11 +21,17 @@ interface CellData {
   earlyLeaveMinutes: number;
 }
 
+interface LeaveInfo {
+  type: string;
+  typeName: string;
+}
+
 interface AttendanceCalendarCellProps {
   year: number;
   month: number;
   day: number;
   data: CellData | null | undefined;
+  leaveInfo?: LeaveInfo | null;
   isWeekend: boolean;
   isToday: boolean;
   isEmployeeWorkDay?: boolean;
@@ -42,6 +48,7 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
   month,
   day,
   data,
+  leaveInfo,
   isWeekend,
   isToday,
   isEmployeeWorkDay = true,
@@ -63,7 +70,29 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
     // 2. 회사 휴일 → 연보라 배경 + "휴일"
     // 3. WorkPolicy 비근무일 (토/일 등) → 회색 "-"
     // 4. 근무일인데 빈 셀 (과거/오늘) → 빨간 배경 + "누락"
-    const isMissing = isPast && isEmployeeWorkDay && !isHoliday;
+    const hasLeave = !!leaveInfo;
+    const isMissing = isPast && isEmployeeWorkDay && !isHoliday && !hasLeave;
+
+    // 승인된 휴가가 있는 날 (근태 기록 없음)
+    if (hasLeave && isPast) {
+      return (
+        <td
+          className={cn(
+            'border-r border-b border-gray-100 text-center cursor-pointer transition-colors',
+            compact ? 'h-11 min-w-[34px] px-0.5 text-[10px]' : 'h-14 min-w-[44px] px-1 text-xs',
+            'bg-violet-50/60',
+            isToday && 'ring-1 ring-inset ring-amber-300',
+            'hover:bg-violet-100/50',
+          )}
+          onClick={onClick}
+        >
+          <div className="flex flex-col items-center leading-tight">
+            <span className="font-medium text-violet-500">휴가</span>
+            <span className={cn('text-violet-400', compact ? 'text-[8px]' : 'text-[10px]')}>({leaveInfo.typeName})</span>
+          </div>
+        </td>
+      );
+    }
 
     if (isHoliday && isPast) {
       return (

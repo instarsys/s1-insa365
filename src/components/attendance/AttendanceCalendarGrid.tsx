@@ -21,6 +21,7 @@ interface AttendanceCalendarGridProps {
   items: CalendarAttendanceItem[];
   dailySummary: Record<number, number>;
   holidays?: number[];
+  leaves?: Record<string, Record<number, { type: string; typeName: string }>>;
   showLeave?: boolean;
   colorMode?: 'status' | 'department';
   onCellClick: (userId: string, day: number, hasData: boolean, recordId?: string) => void;
@@ -34,6 +35,7 @@ export function AttendanceCalendarGrid({
   items,
   dailySummary,
   holidays = [],
+  leaves = {},
   showLeave = true,
   colorMode = 'status',
   onCellClick,
@@ -146,6 +148,7 @@ export function AttendanceCalendarGrid({
                   const att = employee.attendances[day];
                   const empWorkDay = isScheduledWorkDay(year, month, day, employee.workDayPattern ?? '1,2,3,4,5');
                   const isHolidayDay = holidays.includes(day);
+                  const leaveInfo = leaves[employee.userId]?.[day] ?? null;
                   return (
                     <AttendanceCalendarCell
                       key={day}
@@ -153,6 +156,7 @@ export function AttendanceCalendarGrid({
                       month={month}
                       day={day}
                       data={att}
+                      leaveInfo={leaveInfo}
                       isWeekend={checkWeekend(year, month, day)}
                       isToday={checkToday(year, month, day)}
                       isEmployeeWorkDay={empWorkDay}

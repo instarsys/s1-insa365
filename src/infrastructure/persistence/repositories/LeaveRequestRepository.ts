@@ -255,7 +255,7 @@ export class LeaveRequestRepository {
         startDate: true,
         endDate: true,
         type: true,
-        leaveTypeConfig: { select: { deductsFromBalance: true } },
+        leaveTypeConfig: { select: { name: true, deductsFromBalance: true } },
       },
     });
   }
