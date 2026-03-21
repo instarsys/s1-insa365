@@ -46,7 +46,7 @@ const PAYMENT_CYCLE_OPTIONS = [
   { value: 'MONTHLY', label: '월' },
   { value: 'BIMONTHLY', label: '격월' },
   { value: 'QUARTERLY', label: '분기' },
-  { value: 'YEARLY', label: '연' },
+  { value: 'ANNUAL', label: '연' },
 ];
 
 const TAX_EXEMPT_OPTIONS = [
