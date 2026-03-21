@@ -189,7 +189,7 @@ enum LeaveAccrualSource {
 model Company {
   id                       String           @id @default(uuid())
   name                     String
-  businessNumber           String           @map("business_number")
+  businessNumber           String           @unique @map("business_number")
   representativeName       String           @map("representative_name")
   address                  String?
   phone                    String?

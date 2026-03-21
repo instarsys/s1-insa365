@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card, CardBody, Input, Button, Stepper, Select, Checkbox } from '@/components/ui';
 import { useAuth } from '@/hooks';
-import { SocialLoginButtons } from '@/components/auth/SocialLoginButtons';
+import { validateBusinessNumber, formatBusinessNumber } from '@/domain/value-objects/BusinessNumber';
 
 const steps = [
   { label: '회사 정보' },
@@ -60,7 +60,12 @@ export default function SignupPage() {
   const validateStep1 = () => {
     const errors: Record<string, string> = {};
     if (!companyName.trim()) errors.companyName = '상호명을 입력해주세요.';
-    if (!businessNumber.trim()) errors.businessNumber = '사업자번호를 입력해주세요.';
+    if (!businessNumber.trim()) {
+      errors.businessNumber = '사업자번호를 입력해주세요.';
+    } else {
+      const result = validateBusinessNumber(businessNumber);
+      if (!result.valid) errors.businessNumber = result.error!;
+    }
     if (!representativeName.trim()) errors.representativeName = '대표자명을 입력해주세요.';
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
@@ -130,22 +135,7 @@ export default function SignupPage() {
           <p className="mt-2 text-sm text-gray-500">한국 중소기업 급여 자동화</p>
         </div>
 
-        {/* Social Login */}
-        <div className="mt-6">
-          <SocialLoginButtons />
-        </div>
-
-        {/* Divider */}
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
-          </div>
-          <div className="relative flex justify-center text-sm">
-            <span className="bg-white px-3 text-gray-400">또는 이메일로 가입</span>
-          </div>
-        </div>
-
-        <div className="mb-6">
+        <div className="mt-6 mb-6">
           <Stepper steps={steps} currentStep={step} />
         </div>
 
@@ -174,8 +164,9 @@ export default function SignupPage() {
                 label="사업자번호"
                 placeholder="000-00-00000"
                 value={businessNumber}
-                onChange={(e) => setBusinessNumber(e.target.value)}
+                onChange={(e) => setBusinessNumber(formatBusinessNumber(e.target.value))}
                 error={fieldErrors.businessNumber}
+                maxLength={12}
               />
               <Input
                 label="대표자명"

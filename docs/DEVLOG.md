@@ -19,6 +19,104 @@
 
 ---
 
+## [2026-03-21] 에러 메시지 한국어 전환 + 프론트엔드 에러 핸들링 개선
+
+### 배경 (왜)
+
+1. 휴가 승인 시 409 Conflict(근태↔휴가 중복 방지)가 발생하면 "승인에 실패했습니다."라는 하드코딩 메시지만 표시 — 사용자가 실패 원인을 알 수 없음
+2. 급여 실행 "계산하기" 클릭 시 이미 확정된 급여가 있으면 `handleCalculate`에 catch 블록이 없어 런타임 에러가 페이지에 그대로 노출됨
+3. UseCase의 ValidationError/EntityNotFoundError 메시지가 영어로 작성되어 있어 사용자에게 노출 시 혼란
+
+### 변경 내용 (무엇을)
+
+**1. 프론트엔드 catch 블록 5곳 에러 핸들링 개선**
+- `catch { toast.error('하드코딩 메시지') }` → `catch (err) { toast.error(err instanceof Error ? err.message : '폴백') }`
+- 수정 파일:
+  - `src/app/(admin)/attendance/leave/page.tsx` — handleApprove, handleReject
+  - `src/components/leave/LeaveAdjustmentModal.tsx` — handleSubmit
+  - `src/app/(admin)/attendance/leave/accruals/page.tsx` — handleGenerate
+  - `src/app/(admin)/payroll/run/page.tsx` — handleCalculate (catch 블록 신규 추가)
+
+**2. UseCase 영어 ValidationError 메시지 → 한국어 전환 (14개 UseCase, 20개 메시지)**
+- 급여: CalculatePayroll, ConfirmPayroll, CancelPayroll, SkipEmployeePayroll, UpdatePayrollItem, GetPayrollLedger
+- 근태: ConfirmAttendance, RecordAttendance
+- 휴가: ApproveLeaveRequest, RejectLeaveRequest
+- 직원: CreateEmployee
+
+**3. EntityNotFoundError 엔티티명 한국어 매핑**
+- `src/domain/errors/EntityNotFoundError.ts`에 nameMap 추가 (9개 엔티티)
+- `"Employee not found: xxx"` → `"직원을(를) 찾을 수 없습니다. (ID: xxx)"`
+
+### 수정 파일 (영향 범위)
+
+| 레이어 | 파일 | 변경 |
+|--------|------|------|
+| Domain | `src/domain/errors/EntityNotFoundError.ts` | 엔티티명 한국어 매핑 (9개) |
+| UseCase | `src/application/use-cases/payroll/*.ts` (6파일) | ValidationError 메시지 한국어 |
+| UseCase | `src/application/use-cases/attendance/*.ts` (2파일) | ValidationError 메시지 한국어 |
+| UseCase | `src/application/use-cases/leave/*.ts` (2파일) | ValidationError 메시지 한국어 |
+| UseCase | `src/application/use-cases/employees/CreateEmployeeUseCase.ts` | ValidationError 메시지 한국어 |
+| UI | `src/app/(admin)/attendance/leave/page.tsx` | catch 블록 에러 메시지 표시 |
+| UI | `src/app/(admin)/attendance/leave/accruals/page.tsx` | catch 블록 에러 메시지 표시 |
+| UI | `src/app/(admin)/payroll/run/page.tsx` | handleCalculate catch 블록 추가 |
+| UI | `src/components/leave/LeaveAdjustmentModal.tsx` | catch 블록 에러 메시지 표시 |
+
+### 검증
+
+- `tsc --noEmit`: ✓ 타입 에러 없음
+- `vitest run`: ✓ 20파일 384개 테스트 전부 통과
+
+### 교훈 / 주의사항
+
+1. **catch 블록에서 에러 메시지를 반드시 활용**: `catch { toast.error('하드코딩') }` 패턴 금지. `LeaveGrantModal`이 이미 올바른 패턴(`err instanceof Error ? err.message`)을 사용 중이었으나 나머지에 적용되지 않았음.
+2. **UseCase 에러 메시지는 한국어로 작성**: 사용자에게 직접 노출될 수 있으므로 API → 프론트엔드 토스트까지 전달되는 경로를 고려.
+3. **handleCalculate 등 비동기 함수에 catch 블록 필수**: catch 없으면 Next.js 에러 오버레이가 페이지를 덮어씀.
+
+---
+
+## [2026-03-21] 휴가 관리 직원 이름 누락 + 대시보드 todo 링크 404 수정
+
+### 배경 (왜)
+
+두 가지 별개 버그 발견:
+1. 휴가 관리 "대기" 탭에서 직원 이름이 빈 셀로 표시됨
+2. 대시보드 "휴가 승인 대기" 클릭 시 404 에러
+
+### 변경 내용 (무엇을)
+
+**1. 휴가 요청 API 응답 평탄화 (`/api/leave/requests`)**
+- Repository는 nested 구조 반환: `{ user: { name, employeeNumber, department: { name } } }`
+- 프론트엔드는 flat 필드 기대: `{ userName, employeeNumber, departmentName }`
+- API Route에서 `items.map()`으로 평탄화 추가
+
+**2. 대시보드 todos API 링크 경로 수정 (`/api/dashboard/todos`)**
+- `(admin)` 디렉토리는 Next.js route group으로 URL에 포함되지 않음
+- 5개 link 경로에서 `/admin` 접두사 제거:
+  - `/admin/attendance/leave` → `/attendance/leave`
+  - `/admin/attendance/monthly` → `/attendance/monthly`
+  - `/admin/payroll` → `/payroll`
+  - `/admin/attendance/52hour` → `/attendance/52hour`
+  - `/admin/dashboard` → `/dashboard`
+
+### 수정 파일 (영향 범위)
+
+| 레이어 | 파일 | 변경 |
+|--------|------|------|
+| API | `src/app/api/leave/requests/route.ts` | items 평탄화 (userName, employeeNumber, departmentName) |
+| API | `src/app/api/dashboard/todos/route.ts` | link 경로 5개에서 `/admin` 접두사 제거 |
+
+### 검증
+
+- `tsc --noEmit`: ✓ 타입 에러 없음
+- Playwright MCP: 대시보드 "휴가 승인 대기" 클릭 → `/attendance/leave` 정상 이동 + 직원 이름 "김영수" 표시 확인
+
+### 교훈 / 주의사항
+
+1. **Route group `(parenthesized)` 디렉토리는 URL에 미포함**: `src/app/(admin)/attendance/leave/` → URL은 `/attendance/leave`. API 응답의 link 경로에 route group 이름을 절대 넣지 말 것.
+2. **API 응답과 프론트엔드 기대 구조 일치 확인**: Repository가 nested 객체를 반환해도 프론트엔드 훅/타입이 flat 필드를 기대하면 API에서 평탄화해야 함. 새 API 작성 시 프론트엔드 타입(`useXxx.ts`)과 대조 필수.
+
+---
+
 ## [2026-03-19] 근태 확정 취소 + 급여 연쇄 취소 + 확정 근태 보호
 
 ### 배경 (왜)

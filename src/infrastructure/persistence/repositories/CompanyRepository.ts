@@ -27,6 +27,12 @@ export class CompanyRepository {
     });
   }
 
+  async findByBusinessNumber(businessNumber: string) {
+    return prisma.company.findFirst({
+      where: { businessNumber, deletedAt: null },
+    });
+  }
+
   async countAll() {
     return prisma.company.count({ where: { deletedAt: null } });
   }

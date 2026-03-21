@@ -14,11 +14,16 @@ export async function POST(request: NextRequest) {
     if (!validation.success) return validation.response;
     const { companyName, businessNumber, representativeName, employeeCountRange, name, email, password, termsAgreed, privacyAgreed, marketingAgreed } = validation.data;
 
-    const { userRepo, jwtService, passwordService } = getContainer();
+    const { userRepo, companyRepo, jwtService, passwordService } = getContainer();
 
     const existingUser = await userRepo.findByEmail(email);
     if (existingUser) {
       return errorResponse('이미 사용 중인 이메일입니다.', 409);
+    }
+
+    const existingCompany = await companyRepo.findByBusinessNumber(businessNumber);
+    if (existingCompany) {
+      return errorResponse('이미 등록된 사업자등록번호입니다.', 409);
     }
 
     const hashedPassword = await passwordService.hash(password);

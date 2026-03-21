@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-19 (근태 확정 취소 + 급여 연쇄 취소 + 확정 근태 보호)
+> 최종 업데이트: 2026-03-21 (에러 메시지 한국어 전환 + 프론트엔드 에러 핸들링 개선)
 
 ---
 
@@ -263,3 +263,11 @@
 | 2026-03-19 | ├ AttendanceRepository: 5개 메서드 UTC 날짜 범위 수정 (findMonthly/confirmByPeriod/findAllByMonth/findForCalendar×2) |
 | 2026-03-19 | ├ usePayroll 훅: PayrollSummary에 status 필드 추가 + mutate 반환 |
 | 2026-03-19 | └ e2e/attendance-confirm.spec.ts: 근태 확정/취소 E2E 테스트 추가 |
+| 2026-03-21 | **휴가 관리 직원 이름 누락 + 대시보드 todo 링크 404 수정** |
+| 2026-03-21 | ├ `/api/leave/requests` 응답 평탄화: `userName`, `employeeNumber`, `departmentName` 필드 추가 (nested user → flat) |
+| 2026-03-21 | └ `/api/dashboard/todos` link 경로 5개에서 `/admin` 접두사 제거 — `(admin)` route group은 URL에 미포함 |
+| 2026-03-21 | **에러 메시지 한국어 전환 + 프론트엔드 에러 핸들링 개선** |
+| 2026-03-21 | ├ 프론트엔드 catch 블록 5곳: 서버 에러 메시지를 토스트로 표시 (기존: 하드코딩 메시지만 표시) |
+| 2026-03-21 | ├ 급여 실행 `handleCalculate`에 catch 블록 추가 (기존: catch 없어 런타임 에러 페이지 노출) |
+| 2026-03-21 | ├ UseCase 영어 ValidationError 메시지 → 한국어 전환 (14개 UseCase, 20개 메시지) |
+| 2026-03-21 | └ `EntityNotFoundError` 엔티티명 한국어 매핑 (9개 엔티티: 직원/급여 계산/급여 규칙/휴가 신청 등) |

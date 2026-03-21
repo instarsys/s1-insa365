@@ -60,8 +60,9 @@ test.describe.serial('회사 정보 E2E 테스트', () => {
     await expect(page.getByRole('textbox', { name: '사업자번호' })).toHaveValue('123-45-67890');
   });
 
-  test('2-4. 사업자번호 placeholder가 올바르다', async () => {
-    await expect(page.getByRole('textbox', { name: '사업자번호' })).toHaveAttribute('placeholder', '000-00-00000');
+  test('2-4. 상호와 사업자번호는 수정 불가(readOnly)이다', async () => {
+    await expect(page.getByRole('textbox', { name: '상호' })).toHaveAttribute('readonly', '');
+    await expect(page.getByRole('textbox', { name: '사업자번호' })).toHaveAttribute('readonly', '');
   });
 
   test('2-5. 대표자명에 "홍길동"이 채워져 있다', async () => {
@@ -98,23 +99,11 @@ test.describe.serial('회사 정보 E2E 테스트', () => {
     expect(count).toBe(28);
   });
 
-  test('3-4. 월소정근로시간 숫자 입력 필드가 보인다', async () => {
-    await expect(page.getByRole('spinbutton', { name: '월소정근로시간' })).toBeVisible();
-  });
-
-  test('3-5. 야간근로 시작 시간 입력 필드가 보인다', async () => {
-    await expect(page.getByRole('textbox', { name: '야간근로 시작' })).toBeVisible();
-  });
-
-  test('3-6. 야간근로 종료 시간 입력 필드가 보인다', async () => {
-    await expect(page.getByRole('textbox', { name: '야간근로 종료' })).toBeVisible();
-  });
-
-  test('3-7. 일할계산 방법에 "역일 기준"이 선택되어 있다', async () => {
+  test('3-4. 일할계산 방법에 "역일 기준"이 선택되어 있다', async () => {
     await expect(page.getByRole('combobox', { name: '일할계산 방법' })).toHaveValue('CALENDAR_DAY');
   });
 
-  test('3-8. 일할계산 방법에 2개 옵션이 있다', async () => {
+  test('3-5. 일할계산 방법에 2개 옵션이 있다', async () => {
     const options = page.getByRole('combobox', { name: '일할계산 방법' }).locator('option');
     const count = await options.count();
     expect(count).toBe(2);

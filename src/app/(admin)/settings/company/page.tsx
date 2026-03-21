@@ -95,13 +95,14 @@ export default function CompanySettingsPage() {
             <Input
               label="상호"
               value={form.name}
-              onChange={(e) => updateField('name', e.target.value)}
+              readOnly
+              className="bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <Input
               label="사업자번호"
               value={form.businessNumber}
-              onChange={(e) => updateField('businessNumber', e.target.value)}
-              placeholder="000-00-00000"
+              readOnly
+              className="bg-gray-50 text-gray-500 cursor-not-allowed"
             />
             <Input
               label="대표자명"

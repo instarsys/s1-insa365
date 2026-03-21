@@ -109,6 +109,46 @@ export async function POST(req: NextRequest) {
 }
 ```
 
+### API 응답 평탄화 규칙
+
+프론트엔드가 `item.userName` 같은 평탄 필드를 기대하면, **API Route에서 DTO 변환** (nested → flat):
+```typescript
+// ✅ Repository가 nested 객체를 반환하더라도 API에서 평탄화
+items: result.items.map(item => ({
+  ...item,
+  userName: item.user?.name ?? '',
+  departmentName: item.user?.department?.name ?? '',
+})),
+```
+**교훈**: `item.user.name` (nested) vs `item.userName` (flat) 불일치로 빈 셀 버그 발생 (`e404f57`).
+
+### 프론트엔드 에러 핸들링 필수 패턴
+
+비동기 함수의 catch 블록에서 반드시 서버 에러 메시지를 토스트로 표시:
+```typescript
+// ✅ 올바른 패턴: 서버 에러 메시지 활용
+} catch (err) {
+  toast.error(err instanceof Error ? err.message : '처리에 실패했습니다.');
+}
+
+// ❌ 금지: 에러 메시지 무시하고 하드코딩
+} catch {
+  toast.error('처리에 실패했습니다.');
+}
+```
+**교훈**: 서버가 상세 에러 메시지("해당 기간에 근태 기록이 존재하여...")를 반환해도 프론트에서 무시하면 사용자가 실패 원인을 알 수 없음 (`b1236ab`).
+
+### UseCase 에러 메시지 한국어 필수
+
+UseCase의 `ValidationError`, `EntityNotFoundError` 메시지는 **반드시 한국어**로 작성. API → 프론트엔드 토스트까지 그대로 전달되므로 영어 메시지가 사용자에게 노출됨.
+```typescript
+// ✅ 올바른 패턴
+throw new ValidationError('해당 기간의 급여가 이미 확정되었습니다.');
+
+// ❌ 금지: 영어 메시지
+throw new ValidationError('Payroll for this period is already confirmed');
+```
+
 ### 절대 금지 패턴 (위반 시 즉시 수정)
 
 ```typescript
@@ -242,6 +282,8 @@ Super Admin Console (/super-admin/*): 별도 URL, 레이아웃, 로그인 (SYSTE
 
 EMPLOYEE (mobile PWA): 하단 탭바 — 홈(출퇴근+알림) / 근태(근무시간) / 휴가(신청+잔여) / 급여(명세서) / MY(프로필)
 ```
+**주의**: `(admin)` 디렉토리는 Next.js route group으로 URL에 포함되지 않음. API 응답의 link 경로에 `/admin` 접두사를 절대 넣지 말 것 (예: `/attendance/leave` ✅, `/admin/attendance/leave` ❌).
+
 See PRD 4.9 for admin menu tree, PRD 4.11 for employee mobile experience.
 
 ## Payroll Calculation Order
@@ -379,7 +421,7 @@ Seed accounts:
 - API P95 < 500ms, batch payroll for 300 employees < 10s
 - Test coverage: 80%+ overall, 95%+ for payroll calculation logic
 - Security: AES-256-GCM for PII, HTTPS only, rate limiting (login: 5/min, API: 100/min)
-- **현재 테스트**: 단위 373개 (vitest) + E2E 612개 (Playwright) + 근태확정 E2E = **985개+**
+- **현재 테스트**: 단위 384개 (vitest) + E2E 612개 (Playwright) + 근태확정 E2E = **996개+**
 
 ## API Caching Strategy (SWR)
 
