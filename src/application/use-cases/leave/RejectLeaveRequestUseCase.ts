@@ -12,7 +12,7 @@ export class RejectLeaveRequestUseCase {
     }
 
     if (request.status !== 'PENDING') {
-      throw new ValidationError('Leave request is not in pending status');
+      throw new ValidationError('대기 중인 신청만 반려할 수 있습니다.');
     }
 
     return this.leaveRequestRepo.updateStatus(requestId, 'REJECTED', rejectedBy, rejectReason);

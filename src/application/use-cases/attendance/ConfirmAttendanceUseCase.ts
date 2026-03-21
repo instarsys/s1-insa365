@@ -13,7 +13,7 @@ export class ConfirmAttendanceUseCase {
     // Check if already confirmed
     const alreadyConfirmed = await this.attendanceRepo.isMonthConfirmed(companyId, dto.year, dto.month);
     if (alreadyConfirmed) {
-      throw new ValidationError('Attendance for this month is already confirmed');
+      throw new ValidationError('해당 월의 근태가 이미 확정되었습니다.');
     }
 
     // Get monthly attendance summaries

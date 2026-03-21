@@ -15,7 +15,7 @@ export class CreateEmployeeUseCase {
     // Check for duplicate email
     const existingEmployee = await this.employeeRepo.findByEmail(companyId, dto.email);
     if (existingEmployee) {
-      throw new ValidationError('Employee with this email already exists', 'email');
+      throw new ValidationError('이미 사용 중인 이메일입니다.', 'email');
     }
 
     // Generate employee number

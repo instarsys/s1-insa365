@@ -13,7 +13,7 @@ export class RecordAttendanceUseCase {
 
     if (dto.type === 'CHECK_IN') {
       if (existing?.checkInTime) {
-        throw new ValidationError('Already checked in today');
+        throw new ValidationError('오늘 이미 출근 처리되었습니다.');
       }
       if (existing) {
         return this.attendanceRepo.update(existing.id, {
@@ -32,10 +32,10 @@ export class RecordAttendanceUseCase {
 
     // CHECK_OUT
     if (!existing?.checkInTime) {
-      throw new ValidationError('Must check in before checking out');
+      throw new ValidationError('출근 기록이 없어 퇴근 처리할 수 없습니다.');
     }
     if (existing.checkOutTime) {
-      throw new ValidationError('Already checked out today');
+      throw new ValidationError('오늘 이미 퇴근 처리되었습니다.');
     }
 
     return this.attendanceRepo.update(existing.id, {

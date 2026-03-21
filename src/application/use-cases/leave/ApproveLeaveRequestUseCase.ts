@@ -16,7 +16,7 @@ export class ApproveLeaveRequestUseCase {
     }
 
     if (request.status !== 'PENDING') {
-      throw new ValidationError('Leave request is not in pending status');
+      throw new ValidationError('대기 중인 신청만 승인할 수 있습니다.');
     }
 
     const updated = await this.leaveRequestRepo.updateStatus(requestId, 'APPROVED', approvedBy);

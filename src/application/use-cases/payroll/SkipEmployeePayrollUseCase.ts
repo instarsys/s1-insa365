@@ -12,7 +12,7 @@ export class SkipEmployeePayrollUseCase {
     }
 
     if (existing.status === 'CONFIRMED' || existing.status === 'PAID') {
-      throw new ValidationError('Cannot skip confirmed or paid payroll');
+      throw new ValidationError('확정 또는 지급 완료된 급여는 건너뛸 수 없습니다.');
     }
 
     const result = await this.salaryCalcRepo.update(companyId, existing.id, {

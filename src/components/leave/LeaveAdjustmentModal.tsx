@@ -56,8 +56,8 @@ export function LeaveAdjustmentModal({ open, onClose, userId, userName, year, on
       toast.success(adjustType === 'add' ? `${numDays}일이 추가되었습니다.` : `${numDays}일이 차감되었습니다.`);
       onSuccess();
       handleClose();
-    } catch {
-      toast.error('보정에 실패했습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '보정에 실패했습니다.');
     } finally {
       setIsSubmitting(false);
     }

@@ -17,7 +17,7 @@ export class UpdatePayrollItemUseCase {
     }
 
     if (result.status === 'CONFIRMED' || result.status === 'PAID') {
-      throw new ValidationError('Cannot update confirmed or paid payroll');
+      throw new ValidationError('확정 또는 지급 완료된 급여는 수정할 수 없습니다.');
     }
 
     return result;

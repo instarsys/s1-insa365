@@ -337,6 +337,9 @@ export default function PayrollRunPage() {
     try {
       await mutations.calculate({ year, month });
       await mutateSpreadsheet();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '급여 계산 중 오류가 발생했습니다.';
+      toast.error(message);
     } finally {
       setCalculating(false);
     }

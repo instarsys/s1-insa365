@@ -49,7 +49,7 @@ export class CalculatePayrollUseCase {
     if (existing.length > 0) {
       const hasConfirmed = existing.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
       if (hasConfirmed) {
-        throw new ValidationError('Payroll for this period is already confirmed');
+        throw new ValidationError('해당 기간의 급여가 이미 확정되었습니다. 확정 취소 후 다시 계산해주세요.');
       }
     }
 
@@ -60,7 +60,7 @@ export class CalculatePayrollUseCase {
     // Load company settings
     const company = await this.companyRepo.findById(companyId);
     if (!company) {
-      throw new ValidationError('Company not found');
+      throw new ValidationError('회사 정보를 찾을 수 없습니다.');
     }
 
     // Load all WorkPolicies + default for per-employee settings

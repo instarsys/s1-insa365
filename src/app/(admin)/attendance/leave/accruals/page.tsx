@@ -42,8 +42,8 @@ export default function LeaveAccrualsPage() {
       const result = await generate({ year });
       toast.success(`발생 처리 완료: ${result.generated}건 생성, ${result.skipped}건 스킵`);
       await mutate();
-    } catch {
-      toast.error('발생 처리에 실패했습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '발생 처리에 실패했습니다.');
     } finally {
       setGenerating(false);
     }

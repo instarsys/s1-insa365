@@ -11,12 +11,12 @@ export class ConfirmPayrollUseCase {
   async execute(companyId: string, year: number, month: number, confirmedBy: string): Promise<void> {
     const calculations = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
     if (calculations.length === 0) {
-      throw new ValidationError('No payroll calculations found for this period');
+      throw new ValidationError('해당 기간의 급여 계산 데이터가 없습니다. 먼저 급여를 계산해주세요.');
     }
 
     const hasConfirmed = calculations.some((c) => c.status === 'CONFIRMED' || c.status === 'PAID');
     if (hasConfirmed) {
-      throw new ValidationError('Payroll is already confirmed');
+      throw new ValidationError('해당 기간의 급여가 이미 확정되었습니다.');
     }
 
     // Update all DRAFT calculations to CONFIRMED

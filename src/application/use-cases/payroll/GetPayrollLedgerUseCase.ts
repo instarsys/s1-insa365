@@ -12,7 +12,7 @@ export class GetPayrollLedgerUseCase {
   async execute(companyId: string, year: number, month: number): Promise<PayrollLedgerDto> {
     const company = await this.companyRepo.findById(companyId);
     if (!company) {
-      throw new ValidationError('Company not found');
+      throw new ValidationError('회사 정보를 찾을 수 없습니다.');
     }
 
     const rows = await this.salaryCalcRepo.getLedger(companyId, year, month);

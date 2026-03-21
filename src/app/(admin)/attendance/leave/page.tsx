@@ -116,8 +116,8 @@ export default function LeaveManagementPage() {
       await approve(id);
       toast.success('휴가가 승인되었습니다.');
       await mutate();
-    } catch {
-      toast.error('승인에 실패했습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '승인에 실패했습니다.');
     } finally {
       setIsProcessing(false);
     }
@@ -141,8 +141,8 @@ export default function LeaveManagementPage() {
       toast.success('휴가가 반려되었습니다.');
       await mutate();
       setRejectModalOpen(false);
-    } catch {
-      toast.error('반려에 실패했습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '반려에 실패했습니다.');
     } finally {
       setIsProcessing(false);
     }
