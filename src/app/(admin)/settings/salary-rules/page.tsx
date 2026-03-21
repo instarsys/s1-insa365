@@ -25,7 +25,7 @@ interface SalaryRule {
   id: string;
   code: string;
   name: string;
-  type: 'ALLOWANCE' | 'DEDUCTION';
+  type: 'BASE' | 'ALLOWANCE' | 'DEDUCTION';
   paymentType: string;
   paymentCycle: string;
   defaultAmount: number;
@@ -98,7 +98,9 @@ export default function SalaryRulesPage() {
     }
   }
 
-  const filteredRules = rules.filter((r) => r.type === activeTab);
+  const filteredRules = rules.filter((r) =>
+    r.type === activeTab || (activeTab === 'ALLOWANCE' && r.type === 'BASE'),
+  );
 
   function openCreate() {
     setEditing(null);
@@ -202,8 +204,8 @@ export default function SalaryRulesPage() {
       key: 'paymentType',
       label: '구분',
       render: (row: RuleRow) => (
-        <Badge variant={row.paymentType === 'FORMULA' ? 'info' : 'gray'}>
-          {row.paymentType === 'FORMULA' ? '산식' : '정액'}
+        <Badge variant={row.type === 'BASE' ? 'warning' : row.paymentType === 'FORMULA' ? 'info' : 'gray'}>
+          {row.type === 'BASE' ? '기본급' : row.paymentType === 'FORMULA' ? '산식' : '정액'}
         </Badge>
       ),
     },
@@ -240,7 +242,7 @@ export default function SalaryRulesPage() {
       key: 'actions',
       label: '',
       render: (row: RuleRow) => {
-        const locked = row.isSystemManaged as boolean;
+        const locked = (row.isSystemManaged as boolean) || row.type === 'BASE';
         if (locked) {
           return (
             <span className="text-xs text-gray-300" title="시스템 관리 항목">
@@ -285,7 +287,7 @@ export default function SalaryRulesPage() {
 
       <Tabs
         tabs={[
-          { key: 'ALLOWANCE', label: '수당', count: rules.filter((r) => r.type === 'ALLOWANCE').length },
+          { key: 'ALLOWANCE', label: '수당', count: rules.filter((r) => r.type === 'ALLOWANCE' || r.type === 'BASE').length },
           { key: 'DEDUCTION', label: '공제', count: rules.filter((r) => r.type === 'DEDUCTION').length },
         ]}
         activeKey={activeTab}
