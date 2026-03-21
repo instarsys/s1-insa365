@@ -18,7 +18,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   }
 
   const body = await request.json();
-  const { code, name, type, paymentType, paymentCycle, defaultAmount, isOrdinaryWage, isTaxExempt, taxExemptCode, formula, description } = body;
+  const { code, name, type, paymentType, paymentCycle, defaultAmount, isOrdinaryWage, isTaxExempt, taxExemptCode, formula, description, sortOrder } = body;
 
   if (!code || !name || !type) {
     return errorResponse('코드, 이름, 유형은 필수입니다.', 400);
@@ -51,6 +51,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     taxExemptCode: taxExemptCode ?? null,
     formula: formula ?? null,
     description: description ?? null,
+    sortOrder: sortOrder ?? 0,
     isSystemManaged: false,
   });
 
