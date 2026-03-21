@@ -139,8 +139,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
     });
 
     return createdResponse(attendance);
-  } catch {
-    return errorResponse('근태 수동 입력 중 오류가 발생했습니다.', 500);
+  } catch (err) {
+    console.error('근태 수동 입력 오류:', err);
+    return errorResponse(
+      err instanceof Error ? err.message : '근태 수동 입력 중 오류가 발생했습니다.',
+      500,
+    );
   }
 }
 
