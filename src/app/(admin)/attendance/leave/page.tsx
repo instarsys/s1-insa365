@@ -62,7 +62,7 @@ export default function LeaveManagementPage() {
 
   // 3뷰 데이터
   const historyView = activeTab === 'byType' ? 'type' : activeTab === 'byList' ? 'list' : activeTab === 'byMonth' ? 'monthly' : null;
-  const { data: historyData, isLoading: historyLoading } = useLeaveHistory(
+  const { data: historyData, isLoading: historyLoading, mutate: mutateHistory } = useLeaveHistory(
     historyView ? { view: historyView, year: historyYear, departmentId: deptFilter || undefined } : undefined,
   );
 
@@ -368,7 +368,7 @@ export default function LeaveManagementPage() {
       <LeaveGrantModal
         open={grantModalOpen}
         onClose={() => setGrantModalOpen(false)}
-        onSuccess={() => { mutate(); mutateBalances(); }}
+        onSuccess={() => { mutate(); mutateBalances(); mutateHistory(); setActiveTab('byList'); }}
       />
 
       {/* Reject Modal */}

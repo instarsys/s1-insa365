@@ -82,7 +82,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
   // Default: list view
   const requests = await leaveRequestRepo.findByYearForListView(auth.companyId, year, filters);
 
-  return successResponse({ view: 'list', year, items: requests });
+  const items = requests.map((item: Record<string, unknown>) => {
+    const user = item.user as { name?: string; employeeNumber?: string; department?: { name?: string } } | null;
+    const config = item.leaveTypeConfig as { name?: string; code?: string } | null;
+    return {
+      ...item,
+      userName: user?.name ?? '',
+      employeeNumber: user?.employeeNumber ?? '',
+      departmentName: user?.department?.name ?? '',
+      leaveTypeName: config?.name ?? '',
+    };
+  });
+
+  return successResponse({ view: 'list', year, items });
 }
 
 export const GET = withAuth(handler) as (request: NextRequest) => Promise<NextResponse>;
