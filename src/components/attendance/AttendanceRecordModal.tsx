@@ -149,8 +149,8 @@ export function AttendanceRecordModal({
       setEndDate(defaultD);
       setDate('');
       setUserId(defaultUserId ?? '');
-      setCheckIn('');
-      setCheckOut('');
+      setCheckIn('09:00');
+      setCheckOut('18:00');
       setIsWorking(false);
       setStatus('ON_TIME');
       setIsHoliday(false);
