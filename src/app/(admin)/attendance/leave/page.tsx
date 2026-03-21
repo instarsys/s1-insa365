@@ -4,7 +4,7 @@ import { useState, useMemo, type ReactNode } from 'react';
 import useSWR from 'swr';
 import { PageHeader } from '@/components/layout';
 import {
-  Button, Table, Badge, Tabs, Modal, Select, Textarea, Spinner, EmptyState, useToast,
+  Button, Table, Badge, Tabs, Modal, Select, Textarea, Input, Spinner, EmptyState, useToast,
 } from '@/components/ui';
 import { useLeaveRequests, useLeaveBalances, useLeaveMutations, useLeaveHistory } from '@/hooks';
 import { LeaveHistoryTypeView } from '@/components/leave/LeaveHistoryTypeView';
@@ -57,7 +57,15 @@ export default function LeaveManagementPage() {
     type: typeFilter || undefined,
     departmentId: deptFilter || undefined,
   });
-  const { approve, reject } = useLeaveMutations();
+  const { approve, reject, updateRequest, deleteRequest } = useLeaveMutations();
+
+  // 목록 수정/삭제
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ id: string; reason: string; startDate: string; endDate: string; days: number } | null>(null);
+  const [editReason, setEditReason] = useState('');
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
+  const [editDays, setEditDays] = useState(1);
   const { balances: leaveBalancesList, isLoading: balancesLoading, mutate: mutateBalances } = useLeaveBalances();
 
   // 3뷰 데이터
@@ -299,7 +307,34 @@ export default function LeaveManagementPage() {
         historyLoading ? (
           <Spinner text="내역을 불러오는 중..." className="py-20" />
         ) : (
-          <LeaveHistoryListView items={(historyData as { items?: Record<string, unknown>[] })?.items as never[] ?? []} />
+          <LeaveHistoryListView
+            items={(historyData as { items?: Record<string, unknown>[] })?.items as never[] ?? []}
+            onEdit={(item) => {
+              setEditTarget({
+                id: item.id,
+                reason: item.reason ?? '',
+                startDate: new Date(item.startDate).toISOString().slice(0, 10),
+                endDate: new Date(item.endDate).toISOString().slice(0, 10),
+                days: item.days,
+              });
+              setEditReason(item.reason ?? '');
+              setEditStartDate(new Date(item.startDate).toISOString().slice(0, 10));
+              setEditEndDate(new Date(item.endDate).toISOString().slice(0, 10));
+              setEditDays(item.days);
+              setEditModalOpen(true);
+            }}
+            onDelete={async (id) => {
+              if (!confirm('이 휴가를 삭제하시겠습니까? 승인된 휴가는 잔여일수가 복원됩니다.')) return;
+              try {
+                await deleteRequest(id);
+                toast.success('휴가가 삭제되었습니다.');
+                mutateHistory();
+                mutateBalances();
+              } catch (err) {
+                toast.error(err instanceof Error ? err.message : '삭제에 실패했습니다.');
+              }
+            }}
+          />
         )
       )}
 
@@ -370,6 +405,51 @@ export default function LeaveManagementPage() {
         onClose={() => setGrantModalOpen(false)}
         onSuccess={() => { mutate(); mutateBalances(); mutateHistory(); setActiveTab('byList'); }}
       />
+
+      {/* Edit Leave Modal */}
+      <Modal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title="휴가 수정"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setEditModalOpen(false)}>취소</Button>
+            <Button
+              disabled={isProcessing}
+              onClick={async () => {
+                if (!editTarget) return;
+                setIsProcessing(true);
+                try {
+                  await updateRequest(editTarget.id, {
+                    reason: editReason,
+                    startDate: editStartDate,
+                    endDate: editEndDate,
+                    days: editDays,
+                  });
+                  toast.success('휴가가 수정되었습니다.');
+                  setEditModalOpen(false);
+                  mutateHistory();
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : '수정에 실패했습니다.');
+                } finally {
+                  setIsProcessing(false);
+                }
+              }}
+            >
+              {isProcessing ? '저장 중...' : '저장'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="시작일" type="date" value={editStartDate} onChange={(e) => setEditStartDate(e.target.value)} />
+            <Input label="종료일" type="date" value={editEndDate} onChange={(e) => setEditEndDate(e.target.value)} />
+          </div>
+          <Input label="일수" type="number" value={String(editDays)} onChange={(e) => setEditDays(Number(e.target.value))} min={1} />
+          <Textarea label="사유" value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} />
+        </div>
+      </Modal>
 
       {/* Reject Modal */}
       <Modal

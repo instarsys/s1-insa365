@@ -2,6 +2,7 @@
 
 import { Table, Badge } from '@/components/ui';
 import { formatDate } from '@/lib/utils';
+import { Pencil, Trash2 } from 'lucide-react';
 
 interface LeaveHistoryItem {
   id: string;
@@ -20,6 +21,8 @@ interface LeaveHistoryItem {
 
 interface LeaveHistoryListViewProps {
   items: LeaveHistoryItem[];
+  onEdit?: (item: LeaveHistoryItem) => void;
+  onDelete?: (id: string) => void;
 }
 
 function getStatusBadge(status: string) {
@@ -31,7 +34,7 @@ function getStatusBadge(status: string) {
   }
 }
 
-export function LeaveHistoryListView({ items }: LeaveHistoryListViewProps) {
+export function LeaveHistoryListView({ items, onEdit, onDelete }: LeaveHistoryListViewProps) {
   const columns = [
     { key: 'createdAt', label: '신청일', sortable: true, render: (row: Record<string, unknown>) => formatDate(row.createdAt as string) },
     { key: 'userName', label: '직원', sortable: true },
@@ -49,6 +52,32 @@ export function LeaveHistoryListView({ items }: LeaveHistoryListViewProps) {
     { key: 'days', label: '일수', render: (row: Record<string, unknown>) => `${row.days}일` },
     { key: 'reason', label: '사유', render: (row: Record<string, unknown>) => (row.reason as string) || '-' },
     { key: 'status', label: '상태', render: (row: Record<string, unknown>) => getStatusBadge(row.status as string) },
+    ...(onEdit || onDelete ? [{
+      key: 'actions',
+      label: '',
+      render: (row: Record<string, unknown>) => (
+        <div className="flex gap-1">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(row as unknown as LeaveHistoryItem); }}
+              className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              title="수정"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          )}
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(row.id as string); }}
+              className="rounded p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+              title="삭제"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      ),
+    }] : []),
   ];
 
   return (

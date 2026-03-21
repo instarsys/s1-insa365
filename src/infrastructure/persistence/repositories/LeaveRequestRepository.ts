@@ -64,6 +64,19 @@ export class LeaveRequestRepository {
     });
   }
 
+  async softDelete(companyId: string, id: string) {
+    const existing = await prisma.leaveRequest.findFirst({
+      where: { id, companyId, deletedAt: null },
+      include: { leaveTypeConfig: { select: { deductsFromBalance: true } } },
+    });
+    if (!existing) return null;
+    await prisma.leaveRequest.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
+    return existing;
+  }
+
   async countPending(companyId: string) {
     return prisma.leaveRequest.count({
       where: { companyId, status: 'PENDING', deletedAt: null },

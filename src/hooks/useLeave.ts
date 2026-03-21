@@ -167,6 +167,9 @@ export function useLeaveMutations() {
       userId: string; leaveTypeConfigId: string;
       startDate: string; endDate: string; days: number; reason?: string;
     }) => apiPost('/api/leave/grant', data),
+    updateRequest: (id: string, data: Record<string, unknown>) =>
+      apiPut(`/api/leave/request/${id}`, data),
+    deleteRequest: (id: string) => apiDelete(`/api/leave/request/${id}`),
   };
 }
 
