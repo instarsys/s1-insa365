@@ -621,7 +621,7 @@ export class AttendanceRepository {
         date: { gte: startDate, lte: endDate },
         deletedAt: null,
       },
-      select: { date: true },
+      select: { id: true, date: true, isConfirmed: true },
       orderBy: { date: 'asc' },
     });
   }
