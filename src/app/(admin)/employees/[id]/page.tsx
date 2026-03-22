@@ -532,7 +532,7 @@ export default function EmployeeDetailPage() {
                     required
                   />
                 ) : (
-                  <InfoItem label="주민등록번호" value={displayRrn} />
+                  <InfoItem label="주민등록번호" value={displayRrn} required />
                 )}
                 {isEditingPersonnel ? (
                   <Select
