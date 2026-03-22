@@ -50,13 +50,13 @@ export class GetAttendanceReviewUseCase {
     };
 
     for (const snap of snapshots) {
-      summary.totalAbsentDays += snap.absentDays;
-      summary.totalLateDays += snap.lateDays;
-      summary.totalEarlyLeaveDays += snap.earlyLeaveDays;
-      summary.totalLeaveDays += snap.leaveDays;
-      summary.totalOvertimeHours += Math.round((snap.totalOvertimeMinutes / 60) * 10) / 10;
-      summary.totalNightHours += Math.round((snap.totalNightMinutes / 60) * 10) / 10;
-      summary.totalHolidayHours += Math.round((snap.totalHolidayMinutes / 60) * 10) / 10;
+      summary.totalAbsentDays += Number(snap.absentDays);
+      summary.totalLateDays += Number(snap.lateDays);
+      summary.totalEarlyLeaveDays += Number(snap.earlyLeaveDays);
+      summary.totalLeaveDays += Number(snap.leaveDays);
+      summary.totalOvertimeHours += Math.round((Number(snap.totalOvertimeMinutes) / 60) * 10) / 10;
+      summary.totalNightHours += Math.round((Number(snap.totalNightMinutes) / 60) * 10) / 10;
+      summary.totalHolidayHours += Math.round((Number(snap.totalHolidayMinutes) / 60) * 10) / 10;
     }
 
     // 소수점 1자리 반올림

@@ -21,10 +21,10 @@ export class GetPayrollDetailUseCase {
     const calc = await this.salaryCalcRepo.findByIdWithDetails(companyId, calculationId);
     if (!calc) return null;
 
-    // 2. 근태 스냅샷 조회
+    // 2. 근태 스냅샷 조회 (Prisma raw 객체는 userId, DTO는 employeeId)
     const attendanceSnap = await this.salaryAttendanceRepo.findByEmployeeAndPeriod(
       companyId,
-      calc.employeeId,
+      calc.userId ?? calc.employeeId,
       calc.year,
       calc.month,
     );
@@ -247,21 +247,21 @@ export class GetPayrollDetailUseCase {
     // 5. 근태 정보 매핑
     const attendance = attendanceSnap
       ? {
-          workDays: attendanceSnap.workDays,
-          actualWorkDays: attendanceSnap.actualWorkDays,
-          absentDays: attendanceSnap.absentDays,
-          lateDays: attendanceSnap.lateDays,
-          earlyLeaveDays: attendanceSnap.earlyLeaveDays,
-          leaveDays: attendanceSnap.leaveDays,
-          overtimeMinutes: attendanceSnap.totalOvertimeMinutes,
-          nightMinutes: attendanceSnap.totalNightMinutes,
-          nightOvertimeMinutes: attendanceSnap.totalNightOvertimeMinutes,
-          holidayMinutes: attendanceSnap.totalHolidayMinutes,
-          holidayOvertimeMinutes: attendanceSnap.totalHolidayOvertimeMinutes,
-          holidayNightMinutes: attendanceSnap.totalHolidayNightMinutes,
-          holidayNightOvertimeMinutes: attendanceSnap.totalHolidayNightOvertimeMinutes,
-          lateMinutes: attendanceSnap.totalLateMinutes,
-          earlyLeaveMinutes: attendanceSnap.totalEarlyLeaveMinutes,
+          workDays: Number(attendanceSnap.workDays),
+          actualWorkDays: Number(attendanceSnap.actualWorkDays),
+          absentDays: Number(attendanceSnap.absentDays),
+          lateDays: Number(attendanceSnap.lateDays),
+          earlyLeaveDays: Number(attendanceSnap.earlyLeaveDays),
+          leaveDays: Number(attendanceSnap.leaveDays),
+          overtimeMinutes: Number(attendanceSnap.totalOvertimeMinutes),
+          nightMinutes: Number(attendanceSnap.totalNightMinutes),
+          nightOvertimeMinutes: Number(attendanceSnap.totalNightOvertimeMinutes),
+          holidayMinutes: Number(attendanceSnap.totalHolidayMinutes),
+          holidayOvertimeMinutes: Number(attendanceSnap.totalHolidayOvertimeMinutes),
+          holidayNightMinutes: Number(attendanceSnap.totalHolidayNightMinutes),
+          holidayNightOvertimeMinutes: Number(attendanceSnap.totalHolidayNightOvertimeMinutes),
+          lateMinutes: Number(attendanceSnap.totalLateMinutes),
+          earlyLeaveMinutes: Number(attendanceSnap.totalEarlyLeaveMinutes),
         }
       : null;
 
