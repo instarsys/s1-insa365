@@ -82,7 +82,6 @@ export default function EmployeeDetailPage() {
   const initialTab = DETAIL_TABS.some(t => t.key === tabParam) ? tabParam! : 'basic';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [isEditingPersonnel, setIsEditingPersonnel] = useState(false);
-  const [isEditingContact, setIsEditingContact] = useState(false);
   const [isEditingPayrollBase, setIsEditingPayrollBase] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResignModal, setShowResignModal] = useState(false);
@@ -193,20 +192,22 @@ export default function EmployeeDetailPage() {
   // 섹션별 편집 시작/취소/저장 함수
   const startEditPersonnel = () => { populateEditForm(); setIsEditingPersonnel(true); };
   const cancelEditPersonnel = () => { setIsEditingPersonnel(false); };
-  const startEditContact = () => { populateEditForm(); setIsEditingContact(true); };
-  const cancelEditContact = () => { setIsEditingContact(false); };
   const startEditPayrollBase = () => { populateEditForm(); setIsEditingPayrollBase(true); };
   const cancelEditPayrollBase = () => { setIsEditingPayrollBase(false); };
 
-  const saveSectionEdit = async (section: 'personnel' | 'contact' | 'payrollBase') => {
+  const saveSectionEdit = async (section: 'personnel' | 'payrollBase') => {
     setIsSaving(true);
     try {
       let payload: Record<string, unknown> = {};
       if (section === 'personnel') {
+        if (!editForm.email || !editForm.phone) { toast.error('이메일과 연락처는 필수입니다.'); setIsSaving(false); return; }
         if (!editForm.workPolicyId) { toast.error('근무정책을 선택해주세요.'); setIsSaving(false); return; }
         if (!editForm.rrn) { toast.error('주민등록번호는 필수입니다.'); setIsSaving(false); return; }
         payload = {
           name: editForm.name,
+          email: editForm.email,
+          phone: editForm.phone,
+          address: editForm.address || null,
           departmentId: editForm.departmentId || null,
           positionId: editForm.positionId || null,
           workPolicyId: editForm.workPolicyId || null,
@@ -217,13 +218,6 @@ export default function EmployeeDetailPage() {
           payrollGroupId: editForm.payrollGroupId || null,
           attendanceExempt: editForm.attendanceExempt,
           rrn: editForm.rrn,
-        };
-      } else if (section === 'contact') {
-        if (!editForm.email || !editForm.phone) { toast.error('이메일과 연락처는 필수입니다.'); setIsSaving(false); return; }
-        payload = {
-          email: editForm.email,
-          phone: editForm.phone,
-          address: editForm.address || null,
         };
       } else {
         payload = {
@@ -236,7 +230,6 @@ export default function EmployeeDetailPage() {
       await updateEmployee(id, payload);
       toast.success('저장되었습니다.');
       if (section === 'personnel') setIsEditingPersonnel(false);
-      else if (section === 'contact') setIsEditingContact(false);
       else setIsEditingPayrollBase(false);
       await mutate();
     } catch (err) {
@@ -410,7 +403,7 @@ export default function EmployeeDetailPage() {
               imageUrl={emp.profileImageUrl as string | undefined}
               size="lg"
             />
-            {(isEditingPersonnel || isEditingContact || isEditingPayrollBase) && (
+            {(isEditingPersonnel || isEditingPayrollBase) && (
               <>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -551,7 +544,41 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="입사구분" value={hireTypeLabel} />
                 )}
-                {/* Row 2: 부서, 직급, 입사일 */}
+                {/* Row 2: 이메일, 연락처, 주소 */}
+                {isEditingPersonnel ? (
+                  <Input
+                    label="이메일"
+                    required
+                    type="email"
+                    value={editForm.email}
+                    onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
+                  />
+                ) : (
+                  <InfoItem label="이메일" value={emp.email as string} required />
+                )}
+                {isEditingPersonnel ? (
+                  <PhoneInput
+                    label="연락처"
+                    required
+                    value={editForm.phone}
+                    onChange={(digits) => setEditForm((f) => ({ ...f, phone: digits }))}
+                    placeholder="010-1234-5678"
+                  />
+                ) : (
+                  <InfoItem label="연락처" value={formatPhoneNumber((emp.phone as string) || '')} required />
+                )}
+                {isEditingPersonnel ? (
+                  <Input
+                    label="주소"
+                    value={editForm.address}
+                    onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                    placeholder="주소 입력"
+                    maxLength={200}
+                  />
+                ) : (
+                  <InfoItem label="주소" value={(emp.address as string) || '-'} />
+                )}
+                {/* Row 3: 부서, 직급, 입사일 */}
                 {isEditingPersonnel ? (
                   <Select
                     label="부서"
@@ -685,7 +712,8 @@ export default function EmployeeDetailPage() {
                     value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
                   />
                 )}
-                <div className="sm:col-span-1 lg:col-span-2">
+                {/* Row 6: 근태면제 안내문구 */}
+                <div className="sm:col-span-2 lg:col-span-3">
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <div className="flex items-start gap-2">
                       <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -700,73 +728,7 @@ export default function EmployeeDetailPage() {
             </CardBody>
           </Card>
 
-          {/* Section 2: 연락처 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Phone className="h-4 w-4 text-gray-400" />
-                연락처
-              </CardTitle>
-              {!isEditingContact ? (
-                <Button variant="ghost" size="sm" onClick={startEditContact}>
-                  <Pencil className="h-4 w-4" />
-                  편집
-                </Button>
-              ) : (
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" onClick={cancelEditContact} disabled={isSaving}>
-                    <X className="h-4 w-4" />
-                    취소
-                  </Button>
-                  <Button size="sm" onClick={() => saveSectionEdit('contact')} disabled={isSaving}>
-                    <Check className="h-4 w-4" />
-                    {isSaving ? '저장 중...' : '저장'}
-                  </Button>
-                </div>
-              )}
-            </CardHeader>
-            <CardBody>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {isEditingContact ? (
-                  <Input
-                    label="이메일"
-                    required
-                    type="email"
-                    value={editForm.email}
-                    onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
-                  />
-                ) : (
-                  <InfoItem label="이메일" value={emp.email as string} required />
-                )}
-                {isEditingContact ? (
-                  <PhoneInput
-                    label="연락처"
-                    required
-                    value={editForm.phone}
-                    onChange={(digits) => setEditForm((f) => ({ ...f, phone: digits }))}
-                    placeholder="010-1234-5678"
-                  />
-                ) : (
-                  <InfoItem label="연락처" value={formatPhoneNumber((emp.phone as string) || '')} required />
-                )}
-                <div className="sm:col-span-2 lg:col-span-1">
-                  {isEditingContact ? (
-                    <Input
-                      label="주소"
-                      value={editForm.address}
-                      onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
-                      placeholder="주소 입력"
-                      maxLength={200}
-                    />
-                  ) : (
-                    <InfoItem label="주소" value={(emp.address as string) || '-'} />
-                  )}
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Section 3: 급여 기초 정보 (주민번호/세대주/부양가족 + 계좌) */}
+          {/* Section 2: 급여 기초 정보 (세대주/부양가족 + 계좌) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
