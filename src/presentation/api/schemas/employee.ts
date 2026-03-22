@@ -4,13 +4,21 @@ export const HIRE_TYPES = ['NEW', 'EXPERIENCED', 'REHIRE', 'CONTRACT_CONVERT', '
 
 export const SALARY_TYPES = ['MONTHLY', 'HOURLY'] as const;
 
+// 공통 필드 검증 규칙 (생성/수정 스키마에서 동일하게 사용)
+const phoneField = z.preprocess(
+  (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
+  z.string().min(8, '연락처는 최소 8자리입니다.').max(11, '연락처는 최대 11자리입니다.'),
+);
+
+const rrnField = z.string().regex(
+  /^\d{6}-?\d{7}$/,
+  '주민등록번호 형식이 올바르지 않습니다. (예: 870601-1234567)',
+);
+
 export const createEmployeeSchema = z.object({
   name: z.string().min(1, '이름을 입력해주세요.').max(50),
   email: z.string().email('올바른 이메일 형식이 아닙니다.'),
-  phone: z.preprocess(
-    (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
-    z.string().min(1, '연락처를 입력해주세요.').max(11),
-  ),
+  phone: phoneField,
   role: z.enum(['COMPANY_ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   departmentId: z.string().uuid().optional().nullable(),
   positionId: z.string().uuid().optional().nullable(),
@@ -18,7 +26,7 @@ export const createEmployeeSchema = z.object({
   workLocationId: z.string().uuid().optional().nullable(),
   joinDate: z.string().optional().nullable(),
   dependents: z.number().int().min(0).max(20).optional(),
-  rrn: z.string().min(13, '주민등록번호는 13자 이상이어야 합니다.').max(14, '주민등록번호는 14자 이하여야 합니다.'),
+  rrn: rrnField,
   bankAccount: z.string().max(50).optional().nullable(),
   bankName: z.string().max(50).optional().nullable(),
   address: z.string().max(200).optional().nullable(),
@@ -37,10 +45,7 @@ export const createEmployeeSchema = z.object({
 export const updateEmployeeSchema = z.object({
   name: z.string().min(1).max(50).optional(),
   email: z.string().email().optional(),
-  phone: z.preprocess(
-    (val) => typeof val === 'string' ? val.replace(/\D/g, '') : val,
-    z.string().min(1, '연락처를 입력해주세요.').max(11),
-  ).optional(),
+  phone: phoneField.optional(),
   role: z.enum(['COMPANY_ADMIN', 'MANAGER', 'EMPLOYEE']).optional(),
   employeeStatus: z.enum(['ACTIVE', 'ON_LEAVE', 'RESIGNED', 'TERMINATED']).optional(),
   departmentId: z.string().uuid().optional().nullable(),
@@ -54,7 +59,7 @@ export const updateEmployeeSchema = z.object({
   leaveEndDate: z.string().optional().nullable(),
   leaveReason: z.string().max(200).optional().nullable(),
   dependents: z.number().int().min(0).max(20).optional(),
-  rrn: z.string().max(20).optional().nullable(),
+  rrn: rrnField.optional().nullable(),
   bankAccount: z.string().max(50).optional().nullable(),
   bankName: z.string().max(50).optional().nullable(),
   address: z.string().max(200).optional().nullable(),
