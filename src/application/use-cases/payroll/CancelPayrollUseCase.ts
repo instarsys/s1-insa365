@@ -16,6 +16,7 @@ export class CancelPayrollUseCase {
     month: number,
     cancelledBy: string,
     payrollGroupId?: string,
+    force = false,
   ): Promise<{ cancelledCount: number }> {
     const allCalculations = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
     const calculations = payrollGroupId
@@ -32,15 +33,17 @@ export class CancelPayrollUseCase {
       throw new ValidationError('지급 완료된 급여는 취소할 수 없습니다.');
     }
 
-    // 24시간 취소 제한
-    const firstConfirmed = confirmed[0];
-    if (firstConfirmed.confirmedAt) {
-      const confirmedTime = typeof firstConfirmed.confirmedAt === 'string'
-        ? new Date(firstConfirmed.confirmedAt).getTime()
-        : new Date(firstConfirmed.confirmedAt).getTime();
-      const hoursSinceConfirm = (Date.now() - confirmedTime) / (1000 * 60 * 60);
-      if (hoursSinceConfirm > 24) {
-        throw new ValidationError('확정 후 24시간이 지나 취소할 수 없습니다.');
+    // 24시간 취소 제한 (force=true 시 건너뜀 — 이력 삭제용)
+    if (!force) {
+      const firstConfirmed = confirmed[0];
+      if (firstConfirmed.confirmedAt) {
+        const confirmedTime = typeof firstConfirmed.confirmedAt === 'string'
+          ? new Date(firstConfirmed.confirmedAt).getTime()
+          : new Date(firstConfirmed.confirmedAt).getTime();
+        const hoursSinceConfirm = (Date.now() - confirmedTime) / (1000 * 60 * 60);
+        if (hoursSinceConfirm > 24) {
+          throw new ValidationError('확정 후 24시간이 지나 취소할 수 없습니다.');
+        }
       }
     }
 

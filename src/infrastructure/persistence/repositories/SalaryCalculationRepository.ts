@@ -174,7 +174,7 @@ export class SalaryCalculationRepository {
   async getHistory(companyId: string, page = 1, limit = 12, payrollGroupId?: string) {
     // Group by year/month using raw aggregation
     const allRecords = await prisma.salaryCalculation.findMany({
-      where: { companyId, deletedAt: null, ...(payrollGroupId && { payrollGroupId }) },
+      where: { companyId, deletedAt: null, status: { in: ['CONFIRMED', 'PAID'] }, ...(payrollGroupId && { payrollGroupId }) },
       select: {
         year: true, month: true, status: true,
         totalPay: true, totalDeduction: true, netPay: true,

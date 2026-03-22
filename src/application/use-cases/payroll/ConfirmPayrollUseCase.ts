@@ -5,6 +5,7 @@ import type { ILeaveRequestRepository } from '../../ports/ILeaveRequestRepositor
 import type { IPayrollMonthlyRepository } from '../../ports/IPayrollMonthlyRepository';
 import type { INotificationRepository } from '../../ports/INotificationRepository';
 import type { IAuditLogRepository } from '../../ports/IAuditLogRepository';
+import { GetPayrollDetailUseCase } from './GetPayrollDetailUseCase';
 import { ValidationError } from '@domain/errors';
 
 export class ConfirmPayrollUseCase {
@@ -16,6 +17,7 @@ export class ConfirmPayrollUseCase {
     private payrollMonthlyRepo: IPayrollMonthlyRepository,
     private notificationRepo: INotificationRepository,
     private auditLogRepo: IAuditLogRepository,
+    private getPayrollDetailUseCase: GetPayrollDetailUseCase,
   ) {}
 
   async execute(
@@ -73,8 +75,34 @@ export class ConfirmPayrollUseCase {
       await this.salaryCalcRepo.updateStatus(companyId, year, month, 'CONFIRMED', confirmedBy);
     }
 
-    // PayrollMonthly 레코드 생성
+    // PayrollMonthly 레코드 생성 (불변 스냅샷 포함)
     for (const calc of draftItems) {
+      // GetPayrollDetailUseCase로 상세 항목 빌드
+      const calcId = calc.id ?? (calc as unknown as Record<string, string>).calculationId;
+      let payItemsSnapshot: unknown = null;
+      let deductionItemsSnapshot: unknown = null;
+      let attendanceSnapshot: unknown = null;
+      let snapshotMetadata: unknown = null;
+
+      if (calcId) {
+        const detail = await this.getPayrollDetailUseCase.execute(companyId, calcId);
+        if (detail) {
+          payItemsSnapshot = detail.payItems;
+          deductionItemsSnapshot = detail.deductionItems;
+          attendanceSnapshot = detail.attendance;
+          snapshotMetadata = {
+            ordinaryWageMonthly: detail.ordinaryWageMonthly,
+            ordinaryWageHourly: detail.ordinaryWageHourly,
+            totalNonTaxable: detail.totalNonTaxable,
+            taxableIncome: detail.taxableIncome,
+            prorationApplied: detail.prorationApplied,
+            prorationRatio: detail.prorationRatio,
+            minimumWageWarning: detail.minimumWageWarning,
+            salaryType: detail.salaryType,
+          };
+        }
+      }
+
       await this.payrollMonthlyRepo.upsert(companyId, calc.userId, year, month, {
         companyId,
         userId: calc.userId,
@@ -90,6 +118,15 @@ export class ConfirmPayrollUseCase {
         incomeTax: calc.incomeTax,
         localIncomeTax: calc.localIncomeTax,
         netPay: calc.netPay,
+        payrollGroupId: payrollGroupId ?? calc.payrollGroupId ?? null,
+        employeeName: calc.employeeName ?? null,
+        employeeNumber: calc.employeeNumber ?? null,
+        departmentName: calc.departmentName ?? null,
+        salaryType: (snapshotMetadata as Record<string, unknown> | null)?.salaryType as string ?? null,
+        payItemsSnapshot,
+        deductionItemsSnapshot,
+        attendanceSnapshot,
+        snapshotMetadata,
       });
 
       // 직원 알림

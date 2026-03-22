@@ -14,6 +14,15 @@ export interface PayrollMonthlyDto {
   incomeTax: number;
   localIncomeTax: number;
   netPay: number;
+  payrollGroupId?: string | null;
+  employeeName?: string | null;
+  employeeNumber?: string | null;
+  departmentName?: string | null;
+  salaryType?: string | null;
+  payItemsSnapshot?: unknown;
+  deductionItemsSnapshot?: unknown;
+  attendanceSnapshot?: unknown;
+  snapshotMetadata?: unknown;
 }
 
 export interface CreatePayrollMonthlyData {
@@ -31,11 +40,21 @@ export interface CreatePayrollMonthlyData {
   incomeTax: number;
   localIncomeTax: number;
   netPay: number;
+  payrollGroupId?: string | null;
+  employeeName?: string | null;
+  employeeNumber?: string | null;
+  departmentName?: string | null;
+  salaryType?: string | null;
+  payItemsSnapshot?: unknown;
+  deductionItemsSnapshot?: unknown;
+  attendanceSnapshot?: unknown;
+  snapshotMetadata?: unknown;
 }
 
 export interface IPayrollMonthlyRepository {
   findByEmployeeAndPeriod(companyId: string, userId: string, year: number, month: number): Promise<PayrollMonthlyDto | null>;
   findByEmployeeAndYear(companyId: string, userId: string, year: number): Promise<PayrollMonthlyDto[]>;
+  findByPeriodAndGroup(companyId: string, year: number, month: number, payrollGroupId?: string): Promise<PayrollMonthlyDto[]>;
   create(data: CreatePayrollMonthlyData): Promise<PayrollMonthlyDto>;
   createMany(data: CreatePayrollMonthlyData[]): Promise<number>;
   deleteByPeriod(companyId: string, year: number, month: number): Promise<void>;

@@ -186,13 +186,13 @@ export function usePayrollHistory(page?: number) {
   const params = new URLSearchParams();
   if (page) params.set('page', String(page));
 
-  const { data, error, isLoading } = useSWR<PayrollHistory>(
+  const { data, error, isLoading, mutate } = useSWR<PayrollHistory>(
     `/api/payroll/history?${params}`,
     fetcher,
     { revalidateOnFocus: true },
   );
 
-  return { history: data?.items ?? [], isLoading, error };
+  return { history: data?.items ?? [], isLoading, error, mutate };
 }
 
 export function usePayrollMutations() {
@@ -200,7 +200,7 @@ export function usePayrollMutations() {
     calculate: (data: { year: number; month: number; payrollGroupId?: string; employeeIds?: string[] }) => apiPost('/api/payroll/calculate', data),
     updateItem: (id: string, data: Record<string, unknown>) => apiPut(`/api/payroll/${id}`, data),
     confirm: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/payroll/confirm', data),
-    cancel: (data: { year: number; month: number; payrollGroupId: string }) => apiPost('/api/payroll/cancel', data),
+    cancel: (data: { year: number; month: number; payrollGroupId?: string; force?: boolean }) => apiPost('/api/payroll/cancel', data),
     skipEmployee: (id: string, data: { reason: string }) => apiPost(`/api/payroll/${id}/skip`, data),
   };
 }

@@ -775,6 +775,17 @@ model PayrollMonthly {
   netPay             Decimal  @default(0) @map("net_pay") @db.Decimal(15, 0)
   payrollGroupId     String?  @map("payroll_group_id")
   payrollGroup       PayrollGroup? @relation(fields: [payrollGroupId], references: [id])
+
+  // 불변 스냅샷 (확정 시 생성, 급여대장/명세서의 단일 소스)
+  employeeName           String?  @map("employee_name")
+  employeeNumber         String?  @map("employee_number")
+  departmentName         String?  @map("department_name")
+  salaryType             String?  @map("salary_type")
+  payItemsSnapshot       Json?    @map("pay_items_snapshot")
+  deductionItemsSnapshot Json?    @map("deduction_items_snapshot")
+  attendanceSnapshot     Json?    @map("attendance_snapshot")
+  snapshotMetadata       Json?    @map("snapshot_metadata")
+
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 

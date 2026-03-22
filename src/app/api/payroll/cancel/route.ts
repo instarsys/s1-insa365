@@ -12,10 +12,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(cancelPayrollSchema, body);
     if (!validation.success) return validation.response;
-    const { year, month, payrollGroupId } = validation.data;
+    const { year, month, payrollGroupId, force } = validation.data;
 
     const { cancelPayrollUseCase } = getContainer();
-    const result = await cancelPayrollUseCase.execute(auth.companyId, year, month, auth.userId, payrollGroupId);
+    const result = await cancelPayrollUseCase.execute(auth.companyId, year, month, auth.userId, payrollGroupId, force);
 
     return successResponse(result);
   } catch (err) {

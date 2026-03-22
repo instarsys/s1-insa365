@@ -472,15 +472,7 @@ function createContainer(): Container {
   const getPayrollSpreadsheetUseCase = new GetPayrollSpreadsheetUseCase(salaryCalcRepo as Any);
   const updatePayrollItemUseCase = new UpdatePayrollItemUseCase(salaryCalcRepo as Any);
   const getPayrollSummaryUseCase = new GetPayrollSummaryUseCase(salaryCalcRepo as Any);
-  const confirmPayrollUseCase = new ConfirmPayrollUseCase(
-    salaryCalcRepo as Any,
-    salaryAttendanceRepo as Any,
-    employeeRepo as Any,
-    leaveRequestRepo as Any,
-    payrollMonthlyRepo as Any,
-    notificationRepo as Any,
-    auditLogRepo as Any,
-  );
+  // confirmPayrollUseCase는 getPayrollDetailUseCase 뒤에 생성 (의존성)
   const cancelPayrollUseCase = new CancelPayrollUseCase(
     salaryCalcRepo as Any,
     payrollMonthlyRepo as Any,
@@ -501,6 +493,16 @@ function createContainer(): Container {
     salaryCalcRepo as Any,
     salaryAttendanceRepo as Any,
     employeeSalaryItemRepo as Any,
+  );
+  const confirmPayrollUseCase = new ConfirmPayrollUseCase(
+    salaryCalcRepo as Any,
+    salaryAttendanceRepo as Any,
+    employeeRepo as Any,
+    leaveRequestRepo as Any,
+    payrollMonthlyRepo as Any,
+    notificationRepo as Any,
+    auditLogRepo as Any,
+    getPayrollDetailUseCase,
   );
 
   // Upload
