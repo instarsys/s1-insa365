@@ -17,6 +17,7 @@ export interface PayrollResultDto {
   departmentName: string | null;
   year: number;
   month: number;
+  payrollGroupId: string | null;
   status: string;
   confirmedAt: string | null;
 
@@ -74,6 +75,7 @@ export interface PayrollSpreadsheetRowDto {
   nightPay: number;
   holidayPay: number;
   variableAllowances: number;
+  attendanceDeductions: number;
   totalPay: number;
   nationalPension: number;
   healthInsurance: number;

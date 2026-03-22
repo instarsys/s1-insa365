@@ -1,13 +1,13 @@
 export { loginSchema, signupSchema } from './auth';
 export { createEmployeeSchema, updateEmployeeSchema } from './employee';
-export { calculatePayrollSchema, confirmPayrollSchema } from './payroll';
+export { calculatePayrollSchema, confirmPayrollSchema, cancelPayrollSchema } from './payroll';
 export { checkInSchema, confirmAttendanceSchema } from './attendance';
 export { createLeaveRequestSchema, createLeaveGroupSchema, createLeaveTypeConfigSchema, createLeaveAccrualRuleSchema, generateAccrualsSchema, manualAdjustmentSchema, grantLeaveSchema } from './leave';
 export { createInsuranceRateSchema } from './system';
 
 export type { LoginInput, SignupInput } from './auth';
 export type { CreateEmployeeInput, UpdateEmployeeInput } from './employee';
-export type { CalculatePayrollInput, ConfirmPayrollInput } from './payroll';
+export type { CalculatePayrollInput, ConfirmPayrollInput, CancelPayrollInput } from './payroll';
 export type { CheckInInput, ConfirmAttendanceInput } from './attendance';
 export type { CreateLeaveRequestInput, CreateLeaveGroupInput, CreateLeaveTypeConfigInput, CreateLeaveAccrualRuleInput, GenerateAccrualsInput, ManualAdjustmentInput, GrantLeaveInput } from './leave';
 export type { CreateInsuranceRateInput } from './system';

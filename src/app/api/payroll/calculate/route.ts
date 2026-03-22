@@ -11,10 +11,10 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(calculatePayrollSchema, body);
     if (!validation.success) return validation.response;
-    const { year, month, payrollGroupId } = validation.data;
+    const { year, month, payrollGroupId, employeeIds } = validation.data;
 
     const { calculatePayrollUseCase, auditLogRepo } = getContainer();
-    const results = await calculatePayrollUseCase.execute(auth.companyId, year, month, payrollGroupId);
+    const results = await calculatePayrollUseCase.execute(auth.companyId, year, month, payrollGroupId, employeeIds);
 
     await auditLogRepo.create({
       userId: auth.userId,

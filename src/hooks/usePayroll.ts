@@ -9,8 +9,20 @@ interface PayrollSpreadsheetRow {
   employeeNumber: string;
   departmentName?: string;
   basePay: number;
+  fixedAllowances: number;
+  overtimePay: number;
+  nightPay: number;
+  holidayPay: number;
+  variableAllowances: number;
+  attendanceDeductions: number;
   items: { code: string; name: string; amount: number; type: string }[];
   totalPay: number;
+  nationalPension: number;
+  healthInsurance: number;
+  longTermCare: number;
+  employmentInsurance: number;
+  incomeTax: number;
+  localIncomeTax: number;
   totalDeduction: number;
   netPay: number;
   status: string;
@@ -185,10 +197,10 @@ export function usePayrollHistory(page?: number) {
 
 export function usePayrollMutations() {
   return {
-    calculate: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/payroll/calculate', data),
+    calculate: (data: { year: number; month: number; payrollGroupId?: string; employeeIds?: string[] }) => apiPost('/api/payroll/calculate', data),
     updateItem: (id: string, data: Record<string, unknown>) => apiPut(`/api/payroll/${id}`, data),
     confirm: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/payroll/confirm', data),
-    cancel: (data: { year: number; month: number }) => apiPost('/api/payroll/cancel', data),
+    cancel: (data: { year: number; month: number; payrollGroupId: string }) => apiPost('/api/payroll/cancel', data),
     skipEmployee: (id: string, data: { reason: string }) => apiPost(`/api/payroll/${id}/skip`, data),
   };
 }

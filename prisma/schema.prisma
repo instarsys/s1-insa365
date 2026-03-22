@@ -647,6 +647,8 @@ model SalaryCalculation {
   confirmedAt           DateTime?    @map("confirmed_at")
   confirmedBy           String?      @map("confirmed_by")
   calculatedAt          DateTime     @default(now()) @map("calculated_at")
+  payrollGroupId        String?      @map("payroll_group_id")
+  payrollGroup          PayrollGroup? @relation(fields: [payrollGroupId], references: [id])
   createdAt             DateTime     @default(now()) @map("created_at")
   updatedAt             DateTime     @updatedAt @map("updated_at")
   deletedAt             DateTime?    @map("deleted_at")
@@ -654,6 +656,7 @@ model SalaryCalculation {
   @@unique([companyId, userId, year, month])
   @@index([companyId, year, month])
   @@index([companyId, status])
+  @@index([companyId, payrollGroupId, year, month])
   @@map("salary_calculations")
 }
 
@@ -770,11 +773,14 @@ model PayrollMonthly {
   incomeTax          Decimal  @default(0) @map("income_tax") @db.Decimal(15, 0)
   localIncomeTax     Decimal  @default(0) @map("local_income_tax") @db.Decimal(15, 0)
   netPay             Decimal  @default(0) @map("net_pay") @db.Decimal(15, 0)
+  payrollGroupId     String?  @map("payroll_group_id")
+  payrollGroup       PayrollGroup? @relation(fields: [payrollGroupId], references: [id])
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   @@unique([companyId, userId, year, month])
   @@index([companyId, year, month])
+  @@index([companyId, payrollGroupId, year, month])
   @@map("payroll_monthlies")
 }
 
@@ -1193,6 +1199,8 @@ model PayrollGroup {
 
   users                User[]
   payrollGroupManagers PayrollGroupManager[]
+  salaryCalculations   SalaryCalculation[]
+  payrollMonthlies     PayrollMonthly[]
 
   @@unique([companyId, name])
   @@index([companyId])

@@ -43,7 +43,7 @@ export class CalculatePayrollUseCase {
     private workPolicyRepo: IWorkPolicyRepository,
   ) {}
 
-  async execute(companyId: string, year: number, month: number, payrollGroupId?: string): Promise<PayrollResultDto[]> {
+  async execute(companyId: string, year: number, month: number, payrollGroupId?: string, selectedEmployeeIds?: string[]): Promise<PayrollResultDto[]> {
     // Check if payroll already exists for this period
     const existing = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
 
@@ -71,7 +71,11 @@ export class CalculatePayrollUseCase {
       page: 1,
       limit: 10000,
     };
-    const targetUserIds = employees.items.map((e) => e.id);
+    // 선택된 직원이 있으면 해당 직원만 필터링
+    const filteredItems = selectedEmployeeIds && selectedEmployeeIds.length > 0
+      ? employees.items.filter((e) => selectedEmployeeIds.includes(e.id))
+      : employees.items;
+    const targetUserIds = filteredItems.map((e) => e.id);
 
     if (existing.length > 0) {
       // payrollGroupId가 있으면 해당 그룹 직원의 확정 여부만 확인
@@ -130,7 +134,7 @@ export class CalculatePayrollUseCase {
 
     const calculations: CreateSalaryCalculationData[] = [];
 
-    for (const emp of employees.items) {
+    for (const emp of filteredItems) {
       // 근태 미확정 직원 처리
       if (!attendanceMap.has(emp.id)) {
         if (emp.attendanceExempt) {
@@ -143,6 +147,7 @@ export class CalculatePayrollUseCase {
             userId: emp.id,
             year,
             month,
+            payrollGroupId,
             status: 'SKIPPED',
             ordinaryWageMonthly: 0,
             ordinaryWageHourly: 0,
@@ -271,6 +276,7 @@ export class CalculatePayrollUseCase {
           userId: emp.id,
           year,
           month,
+          payrollGroupId,
           status: result.status,
           ordinaryWageMonthly: result.ordinaryWageMonthly,
           ordinaryWageHourly: result.ordinaryWageHourly,
@@ -311,6 +317,7 @@ export class CalculatePayrollUseCase {
           userId: emp.id,
           year,
           month,
+          payrollGroupId,
           status: 'FAILED',
           ordinaryWageMonthly: 0,
           ordinaryWageHourly: 0,

@@ -69,12 +69,14 @@ describe('GrossPayCalculator', () => {
       expect(result.totalPay).toBe(3_500_000);
     });
 
-    it('should subtract deductions', () => {
+    it('should not include SalaryItem deductions in attendanceDeductions (handled in Phase 4)', () => {
       const items: SalaryItemProps[] = [BASE_SALARY, DEDUCTION_ITEM];
       const result = GrossPayCalculator.calculate(items, ZERO_ATTENDANCE, 14_354, 1.0);
 
-      expect(result.attendanceDeductions).toBe(100_000);
-      expect(result.totalPay).toBe(2_900_000);
+      // SalaryItem DEDUCTION은 Phase 4(DeductionCalculator)에서 처리
+      // attendanceDeductions는 순수 근태 공제(결근/지각/조퇴)만 포함
+      expect(result.attendanceDeductions).toBe(0);
+      expect(result.totalPay).toBe(3_000_000);
     });
   });
 
@@ -125,13 +127,13 @@ describe('GrossPayCalculator', () => {
       const expectedOT = Math.floor(hourlyWage * 1.5 * 120 / 60);
       const expectedNight = Math.floor(hourlyWage * 0.5 * 60 / 60);
 
+      // SalaryItem DEDUCTION은 Phase 4에서 처리되므로 totalPay에서 차감하지 않음
       expect(result.totalPay).toBe(
         3_000_000 +   // base
         200_000 +     // fixed allowance
         expectedOT +  // overtime
         expectedNight + // night
-        500_000 -     // variable allowance
-        100_000       // deduction
+        500_000       // variable allowance
       );
     });
   });

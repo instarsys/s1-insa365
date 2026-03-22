@@ -41,6 +41,7 @@ interface SalaryRule {
 const PAYMENT_TYPE_OPTIONS = [
   { value: 'FIXED', label: '정액' },
   { value: 'FORMULA', label: '산식' },
+  { value: 'VARIABLE', label: '변동' },
 ];
 
 const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
@@ -219,8 +220,8 @@ export default function SalaryRulesPage() {
       key: 'paymentType',
       label: '구분',
       render: (row: RuleRow) => (
-        <Badge variant={row.type === 'BASE' ? 'warning' : row.paymentType === 'FORMULA' ? 'info' : 'gray'}>
-          {row.type === 'BASE' ? '기본급' : row.paymentType === 'FORMULA' ? '산식' : '정액'}
+        <Badge variant={row.type === 'BASE' ? 'warning' : row.paymentType === 'FORMULA' ? 'info' : row.paymentType === 'VARIABLE' ? 'success' : 'gray'}>
+          {row.type === 'BASE' ? '기본급' : row.paymentType === 'FORMULA' ? '산식' : row.paymentType === 'VARIABLE' ? '변동' : '정액'}
         </Badge>
       ),
     },
@@ -333,7 +334,7 @@ export default function SalaryRulesPage() {
             />
           ) : (
             <Table
-              columns={columns}
+              columns={activeTab === 'DEDUCTION' ? columns.filter(c => c.key !== 'isOrdinaryWage' && c.key !== 'isTaxExempt') : columns}
               data={filteredRules as unknown as RuleRow[]}
               onRowClick={(row) => openEdit(row as unknown as SalaryRule)}
             />
@@ -468,26 +469,30 @@ export default function SalaryRulesPage() {
               )}
             </div>
           )}
-          <Checkbox
-            label="통상임금 포함"
-            checked={formOrdinaryWage}
-            onChange={setFormOrdinaryWage}
-            disabled={!!editing?.isSystemManaged}
-          />
-          <Checkbox
-            label="비과세 여부"
-            checked={formTaxExempt}
-            onChange={setFormTaxExempt}
-            disabled={!!editing?.isSystemManaged}
-          />
-          {formTaxExempt && (
-            <Select
-              label="비과세 코드"
-              options={TAX_EXEMPT_OPTIONS}
-              value={formTaxExemptCode}
-              onChange={setFormTaxExemptCode}
-              disabled={!!editing?.isSystemManaged}
-            />
+          {activeTab !== 'DEDUCTION' && (
+            <>
+              <Checkbox
+                label="통상임금 포함"
+                checked={formOrdinaryWage}
+                onChange={setFormOrdinaryWage}
+                disabled={!!editing?.isSystemManaged}
+              />
+              <Checkbox
+                label="비과세 여부"
+                checked={formTaxExempt}
+                onChange={setFormTaxExempt}
+                disabled={!!editing?.isSystemManaged}
+              />
+              {formTaxExempt && (
+                <Select
+                  label="비과세 코드"
+                  options={TAX_EXEMPT_OPTIONS}
+                  value={formTaxExemptCode}
+                  onChange={setFormTaxExemptCode}
+                  disabled={!!editing?.isSystemManaged}
+                />
+              )}
+            </>
           )}
           <Input
             label="정렬 순서"

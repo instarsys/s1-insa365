@@ -6,6 +6,7 @@ export interface CreateSalaryCalculationData {
   userId: string;
   year: number;
   month: number;
+  payrollGroupId?: string;
   status: string;
   ordinaryWageMonthly: number;
   ordinaryWageHourly: number;
@@ -65,5 +66,5 @@ export interface ISalaryCalculationRepository {
     status: string;
   } | null>;
   findByIdWithDetails(companyId: string, id: string, userId?: string): Promise<PayrollResultDto | null>;
-  revertConfirmedToDraft(companyId: string, year: number, month: number): Promise<number>;
+  revertConfirmedToDraft(companyId: string, year: number, month: number, userIds?: string[]): Promise<number>;
 }

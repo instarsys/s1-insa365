@@ -6,6 +6,7 @@ import { successResponse, parseSearchParams } from '@/presentation/api/helpers';
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { page, limit, userId } = parseSearchParams(url);
+  const payrollGroupId = url.searchParams.get('payrollGroupId') || undefined;
 
   // EMPLOYEE sees own history only
   const targetUserId = auth.role === 'EMPLOYEE' ? auth.userId : (userId ?? undefined);
@@ -44,8 +45,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return successResponse({ items: mapped, total: result.total, page: result.page, limit: result.limit, totalPages: Math.ceil(result.total / result.limit) });
   }
 
-  // Company-level history (grouped by year/month)
-  const result = await salaryCalcRepo.getHistory(auth.companyId, page, limit);
+  // Company-level history (grouped by year/month, optionally filtered by payrollGroupId)
+  const result = await salaryCalcRepo.getHistory(auth.companyId, page, limit, payrollGroupId);
 
   return successResponse({ items: result.items, total: result.total, page: result.page, limit: result.limit, totalPages: Math.ceil(result.total / result.limit) });
 }

@@ -1766,7 +1766,7 @@ function SalaryTab({
                   {payItems.map((item) => {
                     const isFormula = item.paymentType === 'FORMULA';
                     const isEditable = !isFormula && isEditingItems && item.isActive;
-                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    const typeLabel = item.paymentType === 'FIXED' ? '정액' : item.paymentType === 'FORMULA' ? '산식' : '변동';
                     const isBase = item.type === 'BASE';
                     const isHourlyBase = isBase && (employee.salaryType as string) === 'HOURLY';
                     const canToggle = !isBase;
@@ -1905,6 +1905,7 @@ function SalaryTab({
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">금액</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">지급월</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -1936,12 +1937,13 @@ function SalaryTab({
                           (자동)
                         </span>
                       </td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-400">매월</td>
                     </tr>
                   )}
 
                   {/* 펼치면 D01~D06 상세행 표시 */}
                   {showSystemDeductions && systemDeductionItems.map((item) => {
-                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    const typeLabel = item.paymentType === 'FIXED' ? '정액' : item.paymentType === 'FORMULA' ? '산식' : '변동';
                     return (
                       <tr key={item.id} className="bg-gray-50/50 hover:bg-indigo-50/30">
                         {isEditingItems && (
@@ -1965,6 +1967,7 @@ function SalaryTab({
                             (자동)
                           </span>
                         </td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-400">매월</td>
                       </tr>
                     );
                   })}
@@ -1973,7 +1976,7 @@ function SalaryTab({
                   {customDeductionItems.map((item) => {
                     const isFormula = item.paymentType === 'FORMULA';
                     const isEditable = !isFormula && isEditingItems && item.isActive;
-                    const typeLabel = item.paymentType === 'FIXED' ? '고정' : item.paymentType === 'FORMULA' ? '산식' : '변동';
+                    const typeLabel = item.paymentType === 'FIXED' ? '정액' : item.paymentType === 'FORMULA' ? '산식' : '변동';
                     const inactive = !item.isActive;
 
                     return (
@@ -2011,6 +2014,40 @@ function SalaryTab({
                             </span>
                           ) : (
                             formatKRW(Number(item.amount))
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {inactive ? (
+                            <span className="text-gray-400">-</span>
+                          ) : isEditingItems ? (
+                            <div className="flex flex-wrap justify-center gap-0.5">
+                              {[1,2,3,4,5,6,7,8,9,10,11,12].map((m) => {
+                                const months = editPaymentMonths[item.id] ?? [];
+                                const sel = months.includes(m);
+                                return (
+                                  <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => setEditPaymentMonths((prev) => {
+                                      const cur = prev[item.id] ?? [];
+                                      const next = cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m];
+                                      return { ...prev, [item.id]: next };
+                                    })}
+                                    className={`w-5 h-5 rounded text-[10px] font-medium leading-none ${
+                                      sel ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {m}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-600">
+                              {item.paymentMonths
+                                ? String(item.paymentMonths).split(',').map(Number).sort((a,b) => a-b).map(m => `${m}월`).join(', ')
+                                : '매월'}
+                            </span>
                           )}
                         </td>
                       </tr>

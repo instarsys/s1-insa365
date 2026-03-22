@@ -183,10 +183,9 @@ export class GrossPayCalculator {
       .filter((item) => item.isAllowance() && item.isVariable())
       .reduce((sum, item) => sum + item.amount, 0);
 
-    // 5. Attendance deductions: DEDUCTION items (negative adjustments)
-    let attendanceDeductions = items
-      .filter((item) => item.isDeduction())
-      .reduce((sum, item) => sum + item.amount, 0);
+    // 5. Attendance deductions: 순수 근태 공제만 (결근/무급휴가/지각/조퇴)
+    // SalaryItem DEDUCTION(노조비 등)은 Phase 4(DeductionCalculator)에서 처리
+    let attendanceDeductions = 0;
 
     // 5-1. 월급제 결근 공제: basePay × absentDays / workDays
     if (

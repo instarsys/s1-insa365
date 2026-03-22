@@ -15,8 +15,12 @@ export class CancelPayrollUseCase {
     year: number,
     month: number,
     cancelledBy: string,
+    payrollGroupId?: string,
   ): Promise<{ cancelledCount: number }> {
-    const calculations = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
+    const allCalculations = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
+    const calculations = payrollGroupId
+      ? allCalculations.filter((c) => c.payrollGroupId === payrollGroupId)
+      : allCalculations;
 
     const confirmed = calculations.filter((c) => c.status === 'CONFIRMED');
     if (confirmed.length === 0) {
@@ -40,11 +44,12 @@ export class CancelPayrollUseCase {
       }
     }
 
-    // CONFIRMED → DRAFT 전환
-    await this.salaryCalcRepo.revertConfirmedToDraft(companyId, year, month);
+    // CONFIRMED → DRAFT 전환 (그룹별로 해당 직원만)
+    const confirmedUserIds = confirmed.map((c) => c.userId ?? c.employeeId);
+    await this.salaryCalcRepo.revertConfirmedToDraft(companyId, year, month, confirmedUserIds);
 
-    // PayrollMonthly 삭제
-    await this.payrollMonthlyRepo.deleteByPeriod(companyId, year, month);
+    // PayrollMonthly 삭제 (해당 직원만)
+    await this.payrollMonthlyRepo.deleteByPeriodAndUserIds(companyId, year, month, confirmedUserIds);
 
     // 감사 로그
     await this.auditLogRepo.create({

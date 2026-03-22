@@ -309,7 +309,7 @@ function AttendanceConfirmBar({ year, month, payrollGroupId, onConfirmed }: { ye
       setCancelling(true);
       try {
         // 1단계: 급여 취소
-        await cancelPayroll({ year, month });
+        await cancelPayroll({ year, month, payrollGroupId: payrollGroupId ?? '' });
         // 2단계: 근태 취소
         await cancelConfirmAttendance({ year, month, payrollGroupId });
         onConfirmed();

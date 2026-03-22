@@ -3,17 +3,19 @@ import { getContainer } from '@/infrastructure/di/container';
 
 import { withRole } from '@/presentation/middleware/withRole';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
-import { successResponse, errorResponse } from '@/presentation/api/helpers';
+import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
+import { cancelPayrollSchema } from '@/presentation/api/schemas';
 import { ValidationError } from '@domain/errors';
 
 async function handler(request: NextRequest, auth: AuthContext) {
   try {
-    const { year, month } = await request.json();
-
-    if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
+    const body = await request.json();
+    const validation = validateBody(cancelPayrollSchema, body);
+    if (!validation.success) return validation.response;
+    const { year, month, payrollGroupId } = validation.data;
 
     const { cancelPayrollUseCase } = getContainer();
-    const result = await cancelPayrollUseCase.execute(auth.companyId, year, month, auth.userId);
+    const result = await cancelPayrollUseCase.execute(auth.companyId, year, month, auth.userId, payrollGroupId);
 
     return successResponse(result);
   } catch (err) {

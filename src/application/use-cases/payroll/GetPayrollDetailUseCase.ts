@@ -174,8 +174,31 @@ export class GetPayrollDetailUseCase {
       });
     }
 
-    // 변동수당 합계 (0보다 클 때만 표시)
-    if (Number(calc.variableAllowances) > 0) {
+    // 변동수당 — 개별 항목 표시
+    if (Number(calc.variableAllowances) > 0 && this.employeeSalaryItemRepo) {
+      const allItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, calc.userId ?? calc.employeeId);
+      const variableItems = allItems.filter(
+        (si) => si.type === 'ALLOWANCE' && si.paymentType === 'VARIABLE' && Number(si.amount) > 0,
+      );
+      if (variableItems.length > 0) {
+        const isDraft = calc.status === 'DRAFT';
+        for (const si of variableItems) {
+          payItems.push({
+            label: String(si.name),
+            amount: Number(si.amount),
+            description: String(si.name),
+            editable: isDraft,
+            itemCode: String(si.code),
+          });
+        }
+      } else {
+        payItems.push({
+          label: '변동수당',
+          amount: Number(calc.variableAllowances),
+          description: '변동수당 합계',
+        });
+      }
+    } else if (Number(calc.variableAllowances) > 0) {
       payItems.push({
         label: '변동수당',
         amount: Number(calc.variableAllowances),
@@ -183,21 +206,93 @@ export class GetPayrollDetailUseCase {
       });
     }
 
-    // 근태공제 (음수로 표시)
-    if (Number(calc.attendanceDeductions) > 0) {
-      const absentDays = attendanceSnap?.absentDays ?? 0;
+    // 근태공제 (개별 항목으로 분리 표시)
+    if (Number(calc.attendanceDeductions) > 0 && attendanceSnap) {
+      const basePay = Number(calc.basePay);
+      const workDays = Number(attendanceSnap.workDays);
+      const absentDays = Number(attendanceSnap.absentDays);
+      const unpaidLeaveDays = Number(attendanceSnap.unpaidLeaveDays ?? 0);
+      const lateMinutes = Number(attendanceSnap.totalLateMinutes);
+      const earlyLeaveMinutes = Number(attendanceSnap.totalEarlyLeaveMinutes);
+      let calculatedSum = 0;
+
+      // 결근 공제
+      if (absentDays > 0 && workDays > 0) {
+        const dailyPay = Math.floor(basePay / workDays);
+        const amount = dailyPay * absentDays;
+        calculatedSum += amount;
+        payItems.push({
+          label: '결근공제',
+          amount: -amount,
+          description: `일당 ${fmtKRW(dailyPay)} × ${absentDays}일`,
+        });
+      }
+
+      // 무급휴가 공제
+      if (unpaidLeaveDays > 0 && workDays > 0) {
+        const dailyPay = Math.floor(basePay / workDays);
+        const amount = dailyPay * unpaidLeaveDays;
+        calculatedSum += amount;
+        payItems.push({
+          label: '무급휴가공제',
+          amount: -amount,
+          description: `일당 ${fmtKRW(dailyPay)} × ${unpaidLeaveDays}일`,
+        });
+      }
+
+      // 지각 공제
+      if (lateMinutes > 0) {
+        const amount = Math.floor(ordinaryHourly * lateMinutes / 60);
+        calculatedSum += amount;
+        payItems.push({
+          label: '지각공제',
+          amount: -amount,
+          description: `시급 ${fmtKRW(ordinaryHourly)} × ${minutesToHours(lateMinutes)}h`,
+        });
+      }
+
+      // 조퇴 공제
+      if (earlyLeaveMinutes > 0) {
+        const amount = Math.floor(ordinaryHourly * earlyLeaveMinutes / 60);
+        calculatedSum += amount;
+        payItems.push({
+          label: '조퇴공제',
+          amount: -amount,
+          description: `시급 ${fmtKRW(ordinaryHourly)} × ${minutesToHours(earlyLeaveMinutes)}h`,
+        });
+      }
+
+      // SalaryItem DEDUCTION 금액은 deductionItems 섹션에서 개별 표시되므로 여기서는 제외
+    } else if (Number(calc.attendanceDeductions) > 0) {
+      // attendanceSnap이 없는 경우 기존 방식 fallback
       payItems.push({
         label: '근태공제',
         amount: -Number(calc.attendanceDeductions),
-        description: absentDays > 0
-          ? `결근 ${absentDays}일 등 공제`
-          : '근태 관련 공제',
+        description: '근태 관련 공제',
       });
     }
 
-    // 4. 공제 항목 breakdown 생성
+    // 4. 공제 항목 breakdown 생성 (순서: 소득세 → 지방소득세 → 국민연금 → 건강보험 → 장기요양 → 고용보험 → 임의공제)
     const taxableIncome = Number(calc.taxableIncome);
     const deductionItems: DeductionBreakdownItem[] = [];
+
+    if (Number(calc.incomeTax) > 0) {
+      deductionItems.push({
+        label: '소득세',
+        amount: Number(calc.incomeTax),
+        description: '간이세액표 조회',
+      });
+    }
+
+    if (Number(calc.localIncomeTax) > 0) {
+      deductionItems.push({
+        label: '지방소득세',
+        amount: Number(calc.localIncomeTax),
+        base: Number(calc.incomeTax),
+        rate: 0.1,
+        description: `${fmtKRW(Number(calc.incomeTax))} × 10%`,
+      });
+    }
 
     if (Number(calc.nationalPension) > 0) {
       deductionItems.push({
@@ -237,24 +332,6 @@ export class GetPayrollDetailUseCase {
         base: taxableIncome,
         rate: 0.009,
         description: `${fmtKRW(taxableIncome)} × 0.9% (1원미만 절사)`,
-      });
-    }
-
-    if (Number(calc.incomeTax) > 0) {
-      deductionItems.push({
-        label: '소득세',
-        amount: Number(calc.incomeTax),
-        description: '간이세액표 조회',
-      });
-    }
-
-    if (Number(calc.localIncomeTax) > 0) {
-      deductionItems.push({
-        label: '지방소득세',
-        amount: Number(calc.localIncomeTax),
-        base: Number(calc.incomeTax),
-        rate: 0.1,
-        description: `${fmtKRW(Number(calc.incomeTax))} × 10%`,
       });
     }
 

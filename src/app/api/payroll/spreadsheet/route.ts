@@ -6,12 +6,16 @@ import { successResponse, errorResponse, parseSearchParams } from '@/presentatio
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { year, month } = parseSearchParams(url);
+  const payrollGroupId = url.searchParams.get('payrollGroupId') || undefined;
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
   const { salaryCalcRepo } = getContainer();
 
-  const calculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
+  const allCalculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
+  const calculations = payrollGroupId
+    ? allCalculations.filter((c) => c.payrollGroupId === payrollGroupId)
+    : allCalculations;
 
   const items = calculations.map((calc) => {
     // SalaryCalculation 필드에서 항목별 items 배열 생성
@@ -53,6 +57,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
       employmentInsurance: Number(calc.employmentInsurance),
       incomeTax: Number(calc.incomeTax),
       localIncomeTax: Number(calc.localIncomeTax),
+      attendanceDeductions: Number(calc.attendanceDeductions),
       calculationId: calc.id,
     };
   });

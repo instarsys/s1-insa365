@@ -7,13 +7,17 @@ import { successResponse, errorResponse, parseSearchParams } from '@/presentatio
 async function handler(request: NextRequest, auth: AuthContext) {
   const url = new URL(request.url);
   const { year, month } = parseSearchParams(url);
+  const payrollGroupId = url.searchParams.get('payrollGroupId') || undefined;
 
   if (!year || !month) return errorResponse('연도와 월을 지정해주세요.', 400);
 
   const { salaryCalcRepo } = getContainer();
 
-  const calculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
-  const confirmedCalcs = calculations.filter((c) => c.status === 'CONFIRMED' || c.status === 'PAID');
+  const allCalculations = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
+  const filtered = payrollGroupId
+    ? allCalculations.filter((c) => c.payrollGroupId === payrollGroupId)
+    : allCalculations;
+  const confirmedCalcs = filtered.filter((c) => c.status === 'CONFIRMED' || c.status === 'PAID');
 
   // 페이지가 기대하는 employees 형식으로 변환
   const employees = confirmedCalcs.map((c) => {

@@ -38,6 +38,12 @@ export class PayrollMonthlyRepository {
     });
   }
 
+  async deleteByPeriodAndUserIds(companyId: string, year: number, month: number, userIds: string[]) {
+    await prisma.payrollMonthly.deleteMany({
+      where: { companyId, year, month, userId: { in: userIds } },
+    });
+  }
+
   async upsert(companyId: string, userId: string, year: number, month: number, data: Prisma.PayrollMonthlyUncheckedCreateInput) {
     return prisma.payrollMonthly.upsert({
       where: {

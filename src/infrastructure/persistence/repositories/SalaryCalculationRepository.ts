@@ -171,10 +171,10 @@ export class SalaryCalculationRepository {
   }
 
   /** 급여 이력 조회 (기간별 그룹, 페이지네이션) */
-  async getHistory(companyId: string, page = 1, limit = 12) {
+  async getHistory(companyId: string, page = 1, limit = 12, payrollGroupId?: string) {
     // Group by year/month using raw aggregation
     const allRecords = await prisma.salaryCalculation.findMany({
-      where: { companyId, deletedAt: null },
+      where: { companyId, deletedAt: null, ...(payrollGroupId && { payrollGroupId }) },
       select: {
         year: true, month: true, status: true,
         totalPay: true, totalDeduction: true, netPay: true,
@@ -312,9 +312,12 @@ export class SalaryCalculationRepository {
     return Number(result._sum.totalPay ?? 0);
   }
 
-  async revertConfirmedToDraft(companyId: string, year: number, month: number) {
+  async revertConfirmedToDraft(companyId: string, year: number, month: number, userIds?: string[]) {
     const result = await prisma.salaryCalculation.updateMany({
-      where: { companyId, year, month, status: 'CONFIRMED', deletedAt: null },
+      where: {
+        companyId, year, month, status: 'CONFIRMED', deletedAt: null,
+        ...(userIds && userIds.length > 0 && { userId: { in: userIds } }),
+      },
       data: { status: 'DRAFT', confirmedAt: null, confirmedBy: null },
     });
     return result.count;
