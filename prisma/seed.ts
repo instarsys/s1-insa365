@@ -43,6 +43,8 @@ async function main() {
     // 회사가 이미 존재하면 추가 시드만 실행
     await seedLeaveData(company.id);
     await seedCompanyHolidays(company.id);
+    await seedDefaultPayrollGroup(company.id);
+    await seedRolePermissions(company.id);
     return;
   }
   // 5 Departments
@@ -940,6 +942,12 @@ async function main() {
     console.log('Subscription already exists:', existingSub.plan);
   }
 
+  // 급여 그룹 시드
+  await seedDefaultPayrollGroup(company.id);
+
+  // 권한 시드
+  await seedRolePermissions(company.id);
+
   // 공휴일 시드
   await seedCompanyHolidays(company.id);
 
@@ -950,6 +958,45 @@ async function main() {
   console.log('Employee login: kim.ys@test-company.com / test1234! (and 4 others)');
   const hourlyCount = employees.filter(e => e.salaryType === 'HOURLY').length;
   console.log('Total employees:', employees.length + 2, `(${employees.length} employees [${hourlyCount} hourly] + 1 admin + 1 manager)`);
+}
+
+async function seedDefaultPayrollGroup(companyId: string) {
+  const existing = await prisma.payrollGroup.findFirst({ where: { companyId, isDefault: true } });
+  if (existing) {
+    console.log('Default payroll group already exists:', existing.name);
+    return;
+  }
+  const group = await prisma.payrollGroup.create({
+    data: { companyId, name: '기본 그룹', code: 'G01', payDay: 25, isDefault: true, sortOrder: 0 },
+  });
+  await prisma.user.updateMany({
+    where: { companyId, deletedAt: null },
+    data: { payrollGroupId: group.id },
+  });
+  console.log('Default payroll group created and all employees assigned');
+}
+
+async function seedRolePermissions(companyId: string) {
+  const existing = await prisma.rolePermission.findFirst({ where: { companyId } });
+  if (existing) {
+    console.log('Role permissions already exist, skipping.');
+    return;
+  }
+  const defaults: Record<string, Record<string, boolean>> = {
+    ATTENDANCE_MGMT: { CONFIRM: true, CANCEL: false, EDIT: false },
+    LEAVE_MGMT: { APPROVE: true, GRANT: false },
+    PAYROLL_MGMT: { VIEW: true, CALCULATE: true, CONFIRM: true },
+    EMPLOYEE_MGMT: { VIEW_SENSITIVE: false },
+    GROUP_MGMT: { VIEW_ALL: false, EDIT: false },
+  };
+  const records: { companyId: string; role: 'MANAGER'; category: string; permission: string; enabled: boolean }[] = [];
+  for (const [category, perms] of Object.entries(defaults)) {
+    for (const [permission, enabled] of Object.entries(perms)) {
+      records.push({ companyId, role: 'MANAGER', category, permission, enabled });
+    }
+  }
+  await prisma.rolePermission.createMany({ data: records });
+  console.log('Default role permissions created:', records.length, 'entries');
 }
 
 async function seedCompanyHolidays(companyId: string) {

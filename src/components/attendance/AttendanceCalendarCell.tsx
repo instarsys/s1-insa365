@@ -86,9 +86,14 @@ const AttendanceCalendarCell = memo(function AttendanceCalendarCell({
           )}
           onClick={onClick}
         >
-          <div className="flex flex-col items-center leading-tight">
+          <div className="flex flex-col items-center leading-tight w-full overflow-hidden">
             <span className="font-medium text-violet-500">휴가</span>
-            <span className={cn('text-violet-400', compact ? 'text-[8px]' : 'text-[10px]')}>({leaveInfo.typeName})</span>
+            <span
+              className={cn('text-violet-400 max-w-full truncate', compact ? 'text-[8px]' : 'text-[10px]')}
+              title={leaveInfo.typeName}
+            >
+              ({leaveInfo.typeName})
+            </span>
           </div>
         </td>
       );

@@ -4,6 +4,7 @@ import type { Prisma } from '@/generated/prisma/client';
 export interface EmployeeFilters {
   search?: string;
   departmentId?: string;
+  payrollGroupId?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -30,6 +31,7 @@ export class EmployeeRepository {
       ];
     }
     if (filters.departmentId) where.departmentId = filters.departmentId;
+    if (filters.payrollGroupId) where.payrollGroupId = filters.payrollGroupId;
     if (filters.status) where.employeeStatus = filters.status as Prisma.EnumEmployeeStatusFilter['equals'];
 
     const [items, total] = await Promise.all([

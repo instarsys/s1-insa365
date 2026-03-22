@@ -3,6 +3,7 @@ import { getContainer } from '@/infrastructure/di/container';
 import { createdResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { signupSchema } from '@/presentation/api/schemas';
 import { rateLimit, getClientIp } from '@/presentation/middleware/rateLimit';
+import { DEFAULT_MANAGER_PERMISSIONS } from '@domain/value-objects/Permission';
 
 export async function POST(request: NextRequest) {
   const rateLimited = rateLimit(`signup:${getClientIp(request.headers)}`, 3, 60_000);
@@ -165,6 +166,31 @@ export async function POST(request: NextRequest) {
           marketingAgreed: marketingAgreed ?? false,
         },
       });
+
+      // Seed default payroll group + assign admin
+      const defaultGroup = await tx.payrollGroup.create({
+        data: {
+          companyId: company.id,
+          name: '기본 그룹',
+          code: 'G01',
+          payDay: 25,
+          isDefault: true,
+          sortOrder: 0,
+        },
+      });
+      await tx.user.update({
+        where: { id: user.id },
+        data: { payrollGroupId: defaultGroup.id },
+      });
+
+      // Seed default MANAGER role permissions
+      const permRecords: { companyId: string; role: 'MANAGER'; category: string; permission: string; enabled: boolean }[] = [];
+      for (const [category, perms] of Object.entries(DEFAULT_MANAGER_PERMISSIONS)) {
+        for (const [permission, enabled] of Object.entries(perms)) {
+          permRecords.push({ companyId: company.id, role: 'MANAGER', category, permission, enabled });
+        }
+      }
+      await tx.rolePermission.createMany({ data: permRecords });
 
       return { company, user };
     });

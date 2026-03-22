@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { withRole } from '@/presentation/middleware/withRole';
+import { withPermission } from '@/presentation/middleware/withPermission';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { createdResponse, errorResponse } from '@/presentation/api/helpers';
 import { grantLeaveSchema } from '@/presentation/api/schemas/leave';
@@ -35,4 +35,4 @@ async function handler(request: NextRequest, auth: AuthContext) {
   }
 }
 
-export const POST = withRole('MANAGER', handler);
+export const POST = withPermission('LEAVE_MGMT', 'GRANT', handler);

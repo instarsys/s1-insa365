@@ -17,6 +17,7 @@ import { formatDate, formatKRW } from '@/lib/utils';
 import { formatPhoneNumber, stripPhoneNumber } from '@/lib/phone';
 import { fetcher, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, KOREAN_BANKS, SALARY_TYPE_OPTIONS, INSURANCE_MODE } from '@/lib/constants';
+import { usePayrollGroups } from '@/hooks/usePayrollGroups';
 import {
   ChevronLeft, ChevronRight, ChevronDown, Pencil, X, Check,
   Briefcase, Phone, Mail, Calendar, Building2, MapPin, FileText,
@@ -54,6 +55,7 @@ interface EditFormState {
   bankName: string;
   bankAccount: string;
   rrn: string;
+  payrollGroupId: string;
   attendanceExempt: boolean;
 }
 
@@ -63,6 +65,7 @@ const emptyEditForm: EditFormState = {
   joinDate: '', resignDate: '', resignReason: '',
   address: '', isHouseholder: false, dependents: '1',
   hireType: '', bankName: '', bankAccount: '', rrn: '',
+  payrollGroupId: '',
   attendanceExempt: false,
 };
 
@@ -126,6 +129,13 @@ export default function EmployeeDetailPage() {
     })),
   ], [wpData]);
 
+  // PayrollGroup list for select dropdown
+  const { groups: payrollGroups } = usePayrollGroups();
+  const payrollGroupOptions = useMemo(() => [
+    { value: '', label: '선택 안함' },
+    ...payrollGroups.map((g) => ({ value: g.id, label: g.isDefault ? `${g.name} (기본)` : g.name })),
+  ], [payrollGroups]);
+
   const hireTypeOptions = useMemo(() => [
     { value: '', label: '선택' },
     ...HIRE_TYPE_OPTIONS.map((h) => ({ value: h.value, label: h.label })),
@@ -173,6 +183,7 @@ export default function EmployeeDetailPage() {
       bankName: (emp.bankName as string) ?? '',
       bankAccount: (emp.bankAccount as string) ?? '',
       rrn: (emp.rrn as string) ?? '',
+      payrollGroupId: (emp.payrollGroupId as string) ?? '',
       attendanceExempt: (emp.attendanceExempt as boolean) ?? false,
     });
     setIsEditing(true);
@@ -210,6 +221,7 @@ export default function EmployeeDetailPage() {
         dependents: parseInt(editForm.dependents) || 1,
         hireType: editForm.hireType || null,
         bankName: editForm.bankName || null,
+        payrollGroupId: editForm.payrollGroupId || null,
         attendanceExempt: editForm.attendanceExempt,
       };
       if (editForm.bankAccount) {
@@ -544,6 +556,19 @@ export default function EmployeeDetailPage() {
                   />
                 ) : (
                   <InfoItem label="직급" value={pos?.name ?? '-'} />
+                )}
+                {isEditing ? (
+                  <Select
+                    label="급여 그룹"
+                    options={payrollGroupOptions}
+                    value={editForm.payrollGroupId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, payrollGroupId: v }))}
+                  />
+                ) : (
+                  <InfoItem
+                    label="급여 그룹"
+                    value={payrollGroups.find((g) => g.id === (emp.payrollGroupId as string))?.name ?? '-'}
+                  />
                 )}
                 {isEditing ? (
                   <DatePicker

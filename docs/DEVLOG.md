@@ -19,6 +19,144 @@
 
 ---
 
+## [2026-03-22] 그룹 기반 관리 + 세부 권한 시스템 — Phase 1 기반 구축
+
+### 배경 (왜)
+
+직원이 많거나 부서/지점별 급여일·관리자가 다른 경우, 현재 "회사 전체 일괄" 방식의 근태 확정/급여 실행은 다음 문제를 일으킨다:
+1. 한 부서의 근태 미확정이 전체 급여 실행을 블록
+2. 그룹별 다른 급여일/관리자 설정 불가
+3. MANAGER 역할에 근태 확정/휴가 승인/급여 관련 권한 없음
+
+시프티(경쟁사)의 지점 기반 권한 시스템을 참고하여 설계. 사용자 결정: PayrollGroup 별도 모델 + 시프티 스타일 세부 권한 토글 + 그룹 관리자 급여 확정 가능.
+
+### 전체 계획 (3 Phase)
+
+**Phase 1 (이번 작업)**: PayrollGroup 모델 + CRUD API + DI + 시드
+**Phase 2 (완료)**: 근태확정/급여실행에 payrollGroupId 필터 + 그룹관리 설정 UI
+**Phase 3-1 (완료)**: RolePermission 모델 + withPermission 미들웨어 + 권한 설정 UI + 핵심 API 12개 적용
+**Phase 3-2 (다음)**: Role enum 확장 (GENERAL_MANAGER, GROUP_MANAGER) + 전체 API 전환
+
+상세 설계서: `.claude/plans/frolicking-hatching-finch.md`
+
+### 변경 내용 (무엇을) — Phase 1 + Phase 2
+
+**1. DB 스키마 (Prisma)**
+- `PayrollGroup` 모델 신규 (name, code, payDay, isDefault, isActive, sortOrder)
+- `PayrollGroupManager` 모델 신규 (그룹↔관리자 다대다)
+- `User.payrollGroupId` nullable FK 추가
+- `Company.payrollGroups` relation 추가
+- RLS 정책 2개 추가 (payroll_groups, payroll_group_managers)
+- TENANT_MODELS에 PayrollGroup, PayrollGroupManager 추가
+
+**2. Clean Architecture 레이어**
+- Repository: `PayrollGroupRepository` (findAll, findById, create, update, softDelete, manager 관리, member 관리)
+- UseCase: `CrudPayrollGroupUseCase` (CRUD + 멤버 배정 + 관리자 배정)
+- DI 컨테이너: payrollGroupRepo + crudPayrollGroupUseCase 등록
+
+**3. API Routes (3개)**
+- `GET/POST /api/settings/payroll-groups` — 그룹 목록/생성
+- `GET/PUT/DELETE /api/settings/payroll-groups/[id]` — 단건 조회/수정/삭제
+- `GET/POST /api/settings/payroll-groups/[id]/members` — 멤버 조회/배정/해제/관리자 추가/제거
+
+**4. SWR 훅**
+- `usePayrollGroups()`, `usePayrollGroupMembers(groupId)`, `usePayrollGroupMutations()`
+
+**5. 시드 데이터**
+- `seedDefaultPayrollGroup()`: 기본 그룹 자동 생성 + 전 직원 배정
+- 기존 회사에도 시드 실행 시 기본 그룹 생성
+
+**14. Zod 스키마 변경** (attendance.ts, payroll.ts)
+- confirmAttendanceSchema, calculatePayrollSchema, confirmPayrollSchema에 payrollGroupId 추가
+
+**15. Port 인터페이스 변경** (ISalaryCalculationRepository.ts)
+- deleteByPeriodAndUserIds, updateStatusByUserIds 메서드 선언 추가
+
+**16. 달력 셀 휴가 오버플로우 방지** (AttendanceCalendarCell.tsx)
+- 긴 휴가 유형명에 truncate + title 툴팁 추가
+
+**17. RolePermission 모델 + 마이그레이션** (schema.prisma)
+- 역할별 세부 권한 설정 DB 모델 (companyId, role, category, permission, enabled)
+- RLS 정책 + TENANT_MODELS 추가
+
+**18. Domain: Permission 상수** (src/domain/value-objects/Permission.ts)
+- 5개 카테고리 × 11개 세부 권한 + MANAGER 기본 권한 상수
+
+**19. withPermission 미들웨어** (src/presentation/middleware/withPermission.ts)
+- COMPANY_ADMIN/SYSTEM_ADMIN → 항상 통과, MANAGER → DB 권한 확인, EMPLOYEE → 거부
+- withRole과 동일 시그니처로 교체 용이
+
+**20. 핵심 API 8개 withPermission 전환**
+- 근태: confirm/cancel/manual/batch → ATTENDANCE_MGMT
+- 휴가: approve/reject/grant → LEAVE_MGMT
+- 설정: payroll-groups GET → GROUP_MGMT
+
+**21. 권한 설정 API + UI**
+- GET/PUT /api/settings/permissions — 역할별 권한 조회/저장
+- /settings/permissions 페이지 — 시프티 스타일 카테고리별 체크박스 토글
+- 사이드바 설정 하위에 '권한 설정' 메뉴 추가
+
+**22. 시드: 기본 역할 권한** (seed.ts)
+- seedRolePermissions(): MANAGER 역할 11개 기본 권한 자동 생성
+
+### 수정 파일 (영향 범위)
+
+| 파일 | 변경 |
+|------|------|
+| `prisma/schema.prisma` | PayrollGroup + PayrollGroupManager 모델 + User.payrollGroupId |
+| `prisma/seed.ts` | seedDefaultPayrollGroup 함수 + 호출 |
+| `src/infrastructure/persistence/prisma/tenant-extension.ts` | TENANT_MODELS 2개 추가 |
+| `src/infrastructure/persistence/repositories/PayrollGroupRepository.ts` | 신규 |
+| `src/application/use-cases/settings/CrudPayrollGroupUseCase.ts` | 신규 |
+| `src/infrastructure/di/container.ts` | payrollGroupRepo + crudPayrollGroupUseCase 등록 |
+| `src/app/api/settings/payroll-groups/route.ts` | 신규 |
+| `src/app/api/settings/payroll-groups/[id]/route.ts` | 신규 |
+| `src/app/api/settings/payroll-groups/[id]/members/route.ts` | 신규 |
+| `src/hooks/usePayrollGroups.ts` | 신규 |
+| `src/app/api/attendance/confirm/route.ts` | payrollGroupId 필터 추가 |
+| `src/app/api/payroll/calculate/route.ts` | payrollGroupId 전달 |
+| `src/app/api/payroll/confirm/route.ts` | 그룹 범위 검사 + updateStatusByUserIds |
+| `src/application/use-cases/payroll/CalculatePayrollUseCase.ts` | payrollGroupId 매개변수 + 그룹 필터 |
+| `src/application/ports/ISalaryCalculationRepository.ts` | 새 메서드 선언 |
+| `src/presentation/api/schemas/attendance.ts` | payrollGroupId 스키마 |
+| `src/presentation/api/schemas/payroll.ts` | payrollGroupId 스키마 |
+| `src/hooks/usePayroll.ts` | payrollGroupId 파라미터 추가 |
+| `src/hooks/useAttendance.ts` | payrollGroupId 파라미터 추가 |
+| `src/app/(admin)/payroll/run/page.tsx` | 그룹 Select + 필터 연동 |
+| `src/app/(admin)/attendance/calendar/page.tsx` | 그룹 Select + 확정바 연동 |
+| `src/app/(admin)/settings/payroll-groups/page.tsx` | 신규 — 그룹 관리 UI |
+| `src/components/layout/AdminSidebar.tsx` | 메뉴 추가 |
+| `src/components/attendance/AttendanceCalendarCell.tsx` | 휴가명 truncate |
+
+### DB 마이그레이션
+
+- `20260322013910_add_payroll_group` — payroll_groups + payroll_group_managers 테이블 + users.payroll_group_id FK
+- RLS: `tenant_isolation_payroll_groups`, `tenant_isolation_payroll_group_managers` (text cast)
+
+### 설계 결정
+
+1. **PayrollGroup ≠ Department**: 부서는 조직도용, 급여그룹은 급여 운영 단위. "부서 기반 자동 그룹 생성" 편의 기능은 Phase 3에서 제공
+2. **직원 1명 = 그룹 1개**: 급여는 중복 지급 불가. 시프티의 multi-select와 달리 1:N 관계
+3. **PayrollGroupManager 다대다**: 한 관리자가 여러 그룹을, 한 그룹에 여러 관리자 가능
+4. **isDefault 그룹**: 회사 가입 시 자동 생성, 삭제 불가. 그룹 미배정 방지
+5. **payrollGroupId nullable**: 기존 데이터 100% 하위 호환. null이면 기존 동작 유지
+
+### 검증
+
+- `npx tsc --noEmit` — 타입 에러 0
+- `npx vitest run` — 21파일 399 테스트 전체 통과
+- `npx prisma db seed` — 기본 그룹 생성 + 전 직원 배정 확인
+- RLS 정책 생성 확인 (psql)
+
+### 교훈 / 주의사항
+
+- **RLS text cast**: company_id가 TEXT 타입이라 `::uuid` 캐스트 실패. `company_id::text = current_setting(...)` 패턴 사용
+- **시드 early return**: `seed.ts`에서 회사 존재 시 early return하므로, 새 시드 함수는 early return 분기에도 추가해야 함
+- **Phase 2에서 Role enum 변경 시**: GENERAL_MANAGER, GROUP_MANAGER 추가 → 기존 MANAGER 마이그레이션 필요. withRole 미들웨어도 수정 필요
+- **Phase 3에서 급여 API 변경 시**: `deleteByPeriod`를 `deleteByPeriodAndUserIds`로 변경이 가장 중요 (다른 그룹 결과 보존)
+
+---
+
 ## [2026-03-22] 회원가입 검증 + 배치 근태 추가 + 급여규칙 수정 + 휴가↔근태 연동
 
 ### 배경 (왜)

@@ -15,6 +15,7 @@ import { fetcher } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
 import { Plus, Users, Download } from 'lucide-react';
 import { useEmployeeImport } from '@/hooks/useEmployeeImport';
+import { usePayrollGroups } from '@/hooks/usePayrollGroups';
 
 type PanelMode = 'create' | null;
 
@@ -60,6 +61,7 @@ interface EmployeeForm {
   insuranceMode: string;
   workPolicyId: string;
   workLocationId: string;
+  payrollGroupId: string;
   attendanceExempt: boolean;
 }
 
@@ -81,6 +83,7 @@ const emptyForm: EmployeeForm = {
   insuranceMode: 'AUTO',
   workPolicyId: '',
   workLocationId: '',
+  payrollGroupId: '',
   attendanceExempt: false,
 };
 
@@ -97,6 +100,7 @@ export default function EmployeeListPage() {
   const { data: posData } = useSWR<{ items: PositionItem[] }>('/api/positions', fetcher);
   const { data: wpData } = useSWR<{ items: { id: string; name: string; isDefault: boolean }[] }>('/api/settings/work-policy', fetcher);
   const { data: wlData } = useSWR<{ items: { id: string; name: string }[] }>('/api/work-locations', fetcher);
+  const { groups: payrollGroups } = usePayrollGroups();
 
   const departmentFilterOptions = useMemo(() => [
     { value: '', label: '전체 부서' },
@@ -130,6 +134,11 @@ export default function EmployeeListPage() {
     (wlData?.items ?? []).map((wl) => ({ value: wl.id, label: wl.name })),
     [wlData]
   );
+
+  const payrollGroupOptions = useMemo(() => [
+    { value: '', label: '선택 안함' },
+    ...payrollGroups.map((g) => ({ value: g.id, label: g.isDefault ? `${g.name} (기본)` : g.name })),
+  ], [payrollGroups]);
 
   // statusTab '' = ACTIVE
   const statusFilter = statusTab || 'ACTIVE';
@@ -203,6 +212,7 @@ export default function EmployeeListPage() {
         insuranceMode: form.insuranceMode,
         workPolicyId: form.workPolicyId || undefined,
         workLocationId: form.workLocationId || undefined,
+        payrollGroupId: form.payrollGroupId || null,
         attendanceExempt: form.attendanceExempt,
       };
 
@@ -456,6 +466,12 @@ export default function EmployeeListPage() {
               placeholder="근무지 선택"
             />
           </div>
+          <Select
+            label="급여 그룹"
+            options={payrollGroupOptions}
+            value={form.payrollGroupId}
+            onChange={(v) => setForm((f) => ({ ...f, payrollGroupId: v }))}
+          />
 
           <hr className="border-gray-200" />
 

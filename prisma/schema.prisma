@@ -228,6 +228,8 @@ model Company {
   employeeInvitations EmployeeInvitation[]
   subscription       Subscription?
   companyHolidays    CompanyHoliday[]
+  payrollGroups      PayrollGroup[]
+  rolePermissions    RolePermission[]
 
   @@map("companies")
 }
@@ -281,19 +283,22 @@ model User {
   mustChangePassword      Boolean        @default(false) @map("must_change_password")
   profileImageUrl         String?        @map("profile_image_url")
   refreshToken            String?        @map("refresh_token")
+  payrollGroupId          String?        @map("payroll_group_id")
+  payrollGroup            PayrollGroup?  @relation(fields: [payrollGroupId], references: [id])
   createdAt               DateTime       @default(now()) @map("created_at")
   updatedAt               DateTime       @updatedAt @map("updated_at")
   deletedAt               DateTime?      @map("deleted_at")
 
-  employeeSalaryItems EmployeeSalaryItem[]
-  attendances         Attendance[]
-  salaryCalculations  SalaryCalculation[]
-  leaveRequests       LeaveRequest[]
-  leaveBalances       LeaveBalance[]
-  notifications       Notification[]
-  payrollMonthlies    PayrollMonthly[]
-  leaveAccrualRecords LeaveAccrualRecord[]
-  termsAgreements     TermsAgreement[]
+  employeeSalaryItems  EmployeeSalaryItem[]
+  attendances          Attendance[]
+  salaryCalculations   SalaryCalculation[]
+  leaveRequests        LeaveRequest[]
+  leaveBalances        LeaveBalance[]
+  notifications        Notification[]
+  payrollMonthlies     PayrollMonthly[]
+  leaveAccrualRecords  LeaveAccrualRecord[]
+  termsAgreements      TermsAgreement[]
+  payrollGroupManagers PayrollGroupManager[]
 
   @@unique([companyId, email])
   @@unique([companyId, employeeNumber])
@@ -1161,4 +1166,70 @@ model Payment {
 
   @@index([subscriptionId])
   @@map("payments")
+}
+
+// ──────────────────────────────────────────────
+// PayrollGroup (급여 그룹)
+// ──────────────────────────────────────────────
+
+model PayrollGroup {
+  id          String    @id @default(uuid())
+  companyId   String    @map("company_id")
+  company     Company   @relation(fields: [companyId], references: [id])
+  name        String
+  code        String?
+  payDay      Int       @default(25) @map("pay_day")
+  description String?
+  sortOrder   Int       @default(0)  @map("sort_order")
+  isDefault   Boolean   @default(false) @map("is_default")
+  isActive    Boolean   @default(true)  @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  users                User[]
+  payrollGroupManagers PayrollGroupManager[]
+
+  @@unique([companyId, name])
+  @@index([companyId])
+  @@map("payroll_groups")
+}
+
+// ──────────────────────────────────────────────
+// PayrollGroupManager (그룹 관리자 — 다대다)
+// ──────────────────────────────────────────────
+
+model PayrollGroupManager {
+  id              String       @id @default(uuid())
+  companyId       String       @map("company_id")
+  payrollGroupId  String       @map("payroll_group_id")
+  payrollGroup    PayrollGroup @relation(fields: [payrollGroupId], references: [id])
+  userId          String       @map("user_id")
+  user            User         @relation(fields: [userId], references: [id])
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  @@unique([payrollGroupId, userId])
+  @@index([companyId])
+  @@index([userId])
+  @@map("payroll_group_managers")
+}
+
+// ──────────────────────────────────────────────
+// RolePermission (역할별 세부 권한 설정)
+// ──────────────────────────────────────────────
+
+model RolePermission {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  company     Company  @relation(fields: [companyId], references: [id])
+  role        Role
+  category    String
+  permission  String
+  enabled     Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, role, category, permission])
+  @@index([companyId, role])
+  @@map("role_permissions")
 }

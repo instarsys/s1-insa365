@@ -9,6 +9,7 @@ import { AttendanceCalendarGrid } from '@/components/attendance/AttendanceCalend
 import { AttendanceRecordModal } from '@/components/attendance/AttendanceRecordModal';
 import { useCalendarAttendance, useAttendanceMutations } from '@/hooks';
 import { usePayrollAttendanceReview, usePayrollSummary, usePayrollMutations } from '@/hooks';
+import { usePayrollGroups } from '@/hooks/usePayrollGroups';
 import { fetcher } from '@/lib/api';
 import { Checkbox } from '@/components/ui';
 import { CalendarDays, ChevronLeft, ChevronRight, List, Maximize2, Minimize2, Plus, CheckCircle2 } from 'lucide-react';
@@ -27,8 +28,10 @@ export default function AttendanceCalendarPage() {
   const [showLeave, setShowLeave] = useState(true);
   const [colorMode, setColorMode] = useState<'status' | 'department'>('status');
   const [compactView, setCompactView] = useState(false);
+  const [payrollGroupId, setPayrollGroupId] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
+  const { groups: payrollGroups } = usePayrollGroups();
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -186,6 +189,9 @@ export default function AttendanceCalendarPage() {
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <Select options={departmentOptions} value={departmentId} onChange={(v) => { setDepartmentId(v); setPage(1); }} wrapperClassName="w-40" />
+        {payrollGroups.length > 0 && (
+          <Select options={[{ value: '', label: '전체 그룹' }, ...payrollGroups.map(g => ({ value: g.id, label: g.name }))]} value={payrollGroupId} onChange={(v) => { setPayrollGroupId(v); setPage(1); }} wrapperClassName="w-36" />
+        )}
         <Select options={employeeStatusOptions} value={employeeStatus} onChange={(v) => { setEmployeeStatus(v); setPage(1); }} wrapperClassName="w-32" />
         <Select options={limitOptions} value={String(limit)} onChange={(v) => { setLimit(Number(v)); setPage(1); }} wrapperClassName="w-24" />
         <div className="ml-auto flex items-center gap-4">
@@ -203,7 +209,7 @@ export default function AttendanceCalendarPage() {
       </div>
 
       {/* 일괄 확정 바 */}
-      <AttendanceConfirmBar year={year} month={month} onConfirmed={() => { mutate(); mutateReview(); }} />
+      <AttendanceConfirmBar year={year} month={month} payrollGroupId={payrollGroupId || undefined} onConfirmed={() => { mutate(); mutateReview(); }} />
 
       {/* Calendar Grid */}
       {isLoading ? (
@@ -261,13 +267,13 @@ export default function AttendanceCalendarPage() {
 }
 
 // ─── Attendance Confirm Bar ──────────────────────────────────
-function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; month: number; onConfirmed: () => void }) {
+function AttendanceConfirmBar({ year, month, payrollGroupId, onConfirmed }: { year: number; month: number; payrollGroupId?: string; onConfirmed: () => void }) {
   const toast = useToast();
   const [confirming, setConfirming] = useState(false);
   const [cancelling, setCancelling] = useState(false);
-  const { review, isLoading, mutate: mutateReview } = usePayrollAttendanceReview(year, month);
+  const { review, isLoading, mutate: mutateReview } = usePayrollAttendanceReview(year, month, payrollGroupId);
   const { confirmAttendance, cancelConfirmAttendance } = useAttendanceMutations();
-  const { summary: payrollSummary, mutate: mutatePayroll } = usePayrollSummary(year, month);
+  const { summary: payrollSummary, mutate: mutatePayroll } = usePayrollSummary(year, month, payrollGroupId);
   const { cancel: cancelPayroll } = usePayrollMutations();
   const isPayrollConfirmed = payrollSummary?.status === 'CONFIRMED';
   const isPayrollPaid = payrollSummary?.status === 'PAID';
@@ -280,7 +286,7 @@ function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; mont
   async function handleBulkConfirm() {
     setConfirming(true);
     try {
-      await confirmAttendance({ year, month });
+      await confirmAttendance({ year, month, payrollGroupId });
       onConfirmed();
       mutateReview();
       toast.success(`${year}년 ${month}월 근태가 일괄 확정되었습니다.`);
@@ -305,7 +311,7 @@ function AttendanceConfirmBar({ year, month, onConfirmed }: { year: number; mont
         // 1단계: 급여 취소
         await cancelPayroll({ year, month });
         // 2단계: 근태 취소
-        await cancelConfirmAttendance({ year, month });
+        await cancelConfirmAttendance({ year, month, payrollGroupId });
         onConfirmed();
         mutateReview();
         mutatePayroll();

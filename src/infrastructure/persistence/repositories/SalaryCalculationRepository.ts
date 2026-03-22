@@ -79,6 +79,26 @@ export class SalaryCalculationRepository {
     });
   }
 
+  /** 특정 직원들의 미확정 급여계산만 삭제 (그룹별 재계산 시 다른 그룹 보존) */
+  async deleteByPeriodAndUserIds(companyId: string, year: number, month: number, userIds: string[]) {
+    await prisma.salaryCalculation.deleteMany({
+      where: { companyId, year, month, userId: { in: userIds }, status: { notIn: ['CONFIRMED', 'PAID'] } },
+    });
+  }
+
+  /** 특정 직원들의 급여 상태만 변경 (그룹별 확정) */
+  async updateStatusByUserIds(companyId: string, year: number, month: number, userIds: string[], status: string, confirmedBy?: string) {
+    const data: Prisma.SalaryCalculationUpdateManyMutationInput = { status: status as SalaryStatus };
+    if (status === 'CONFIRMED' && confirmedBy) {
+      data.confirmedAt = new Date();
+      data.confirmedBy = confirmedBy;
+    }
+    await prisma.salaryCalculation.updateMany({
+      where: { companyId, year, month, userId: { in: userIds }, deletedAt: null, status: 'DRAFT' },
+      data,
+    });
+  }
+
   /** 스프레드시트 데이터 조회 */
   async getSpreadsheet(companyId: string, year: number, month: number) {
     const records = await prisma.salaryCalculation.findMany({

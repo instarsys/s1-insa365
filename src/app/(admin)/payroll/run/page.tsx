@@ -28,6 +28,7 @@ import { StatCard } from '@/components/ui/StatCard';
 import { Table } from '@/components/ui/Table';
 import { useToast } from '@/components/ui';
 import { usePayrollSpreadsheet, usePayrollSummary, usePayrollMutations, usePayrollAttendanceReview, usePayrollDetail } from '@/hooks';
+import { usePayrollGroups } from '@/hooks/usePayrollGroups';
 import { formatKRW } from '@/lib/utils';
 import Link from 'next/link';
 
@@ -240,13 +241,16 @@ export default function PayrollRunPage() {
   const [confirming, setConfirming] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [payrollGroupId, setPayrollGroupId] = useState('');
 
   const toast = useToast();
   const [expandedCalcId, setExpandedCalcId] = useState<string | null>(null);
+  const { groups } = usePayrollGroups();
 
-  const { rows, isLoading: spreadsheetLoading, mutate: mutateSpreadsheet } = usePayrollSpreadsheet(year, month);
-  const { summary, isLoading: summaryLoading } = usePayrollSummary(year, month);
-  const { review, isLoading: reviewLoading } = usePayrollAttendanceReview(year, month);
+  const groupIdParam = payrollGroupId || undefined;
+  const { rows, isLoading: spreadsheetLoading, mutate: mutateSpreadsheet } = usePayrollSpreadsheet(year, month, groupIdParam);
+  const { summary, isLoading: summaryLoading } = usePayrollSummary(year, month, groupIdParam);
+  const { review, isLoading: reviewLoading } = usePayrollAttendanceReview(year, month, groupIdParam);
   const { detail, isLoading: detailLoading } = usePayrollDetail(expandedCalcId);
   const mutations = usePayrollMutations();
 
@@ -335,7 +339,7 @@ export default function PayrollRunPage() {
   async function handleCalculate() {
     setCalculating(true);
     try {
-      await mutations.calculate({ year, month });
+      await mutations.calculate({ year, month, payrollGroupId: groupIdParam });
       await mutateSpreadsheet();
     } catch (err) {
       const message = err instanceof Error ? err.message : '급여 계산 중 오류가 발생했습니다.';
@@ -348,7 +352,7 @@ export default function PayrollRunPage() {
   async function handleConfirm() {
     setConfirming(true);
     try {
-      await mutations.confirm({ year, month });
+      await mutations.confirm({ year, month, payrollGroupId: groupIdParam });
       setShowConfirmModal(false);
       setConfirmed(true);
     } catch (err) {
@@ -392,6 +396,15 @@ export default function PayrollRunPage() {
                   onChange={(v) => setMonth(Number(v))}
                   wrapperClassName="w-24"
                 />
+                {groups.length > 0 && (
+                  <Select
+                    label="급여 그룹"
+                    options={[{ value: '', label: '전체' }, ...groups.map(g => ({ value: g.id, label: g.name }))]}
+                    value={payrollGroupId}
+                    onChange={(v) => setPayrollGroupId(v)}
+                    wrapperClassName="w-36"
+                  />
+                )}
                 <Button onClick={handleCalculate} disabled={calculating}>
                   {calculating ? (
                     <Spinner size="sm" />

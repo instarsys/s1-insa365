@@ -146,9 +146,11 @@ interface PayrollHistory {
   items: PayrollHistoryItem[];
 }
 
-export function usePayrollSpreadsheet(year: number, month: number) {
+export function usePayrollSpreadsheet(year: number, month: number, payrollGroupId?: string) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) });
+  if (payrollGroupId) params.set('payrollGroupId', payrollGroupId);
   const { data, error, isLoading, mutate } = useSWR<{ items: PayrollSpreadsheetRow[] }>(
-    `/api/payroll/spreadsheet?year=${year}&month=${month}`,
+    `/api/payroll/spreadsheet?${params}`,
     fetcher,
     { revalidateOnFocus: false },
   );
@@ -156,9 +158,11 @@ export function usePayrollSpreadsheet(year: number, month: number) {
   return { rows: data?.items ?? [], isLoading, error, mutate };
 }
 
-export function usePayrollSummary(year: number, month: number) {
+export function usePayrollSummary(year: number, month: number, payrollGroupId?: string) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) });
+  if (payrollGroupId) params.set('payrollGroupId', payrollGroupId);
   const { data, error, isLoading, mutate } = useSWR<PayrollSummary>(
-    `/api/payroll/summary?year=${year}&month=${month}`,
+    `/api/payroll/summary?${params}`,
     fetcher,
     { revalidateOnFocus: false },
   );
@@ -181,17 +185,19 @@ export function usePayrollHistory(page?: number) {
 
 export function usePayrollMutations() {
   return {
-    calculate: (data: { year: number; month: number }) => apiPost('/api/payroll/calculate', data),
+    calculate: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/payroll/calculate', data),
     updateItem: (id: string, data: Record<string, unknown>) => apiPut(`/api/payroll/${id}`, data),
-    confirm: (data: { year: number; month: number }) => apiPost('/api/payroll/confirm', data),
+    confirm: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/payroll/confirm', data),
     cancel: (data: { year: number; month: number }) => apiPost('/api/payroll/cancel', data),
     skipEmployee: (id: string, data: { reason: string }) => apiPost(`/api/payroll/${id}/skip`, data),
   };
 }
 
-export function usePayrollAttendanceReview(year: number, month: number) {
+export function usePayrollAttendanceReview(year: number, month: number, payrollGroupId?: string) {
+  const params = new URLSearchParams({ year: String(year), month: String(month) });
+  if (payrollGroupId) params.set('payrollGroupId', payrollGroupId);
   const { data, error, isLoading, mutate } = useSWR<AttendanceReview>(
-    `/api/payroll/attendance-review?year=${year}&month=${month}`,
+    `/api/payroll/attendance-review?${params}`,
     fetcher,
     { revalidateOnFocus: false },
   );

@@ -43,19 +43,36 @@ export class CalculatePayrollUseCase {
     private workPolicyRepo: IWorkPolicyRepository,
   ) {}
 
-  async execute(companyId: string, year: number, month: number): Promise<PayrollResultDto[]> {
+  async execute(companyId: string, year: number, month: number, payrollGroupId?: string): Promise<PayrollResultDto[]> {
     // Check if payroll already exists for this period
     const existing = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
+
+    // Load all active employees (with optional payrollGroup filter)
+    const employees = await this.employeeRepo.findAll(companyId, {
+      status: 'ACTIVE',
+      page: 1,
+      limit: 10000,
+      ...(payrollGroupId && { payrollGroupId }),
+    });
+    const targetUserIds = employees.items.map((e) => e.id);
+
     if (existing.length > 0) {
-      const hasConfirmed = existing.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
+      // payrollGroupId가 있으면 해당 그룹 직원의 확정 여부만 확인
+      const targetExisting = payrollGroupId
+        ? existing.filter((e) => targetUserIds.includes(e.employeeId))
+        : existing;
+      const hasConfirmed = targetExisting.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
       if (hasConfirmed) {
         throw new ValidationError('해당 기간의 급여가 이미 확정되었습니다. 확정 취소 후 다시 계산해주세요.');
       }
     }
 
-    // Always delete non-confirmed records to handle soft-deleted leftovers
-    // (soft-deleted records still hold unique constraint on company_id+user_id+year+month)
-    await this.salaryCalcRepo.deleteByPeriod(companyId, year, month);
+    // Delete non-confirmed records (그룹별 시 해당 직원만, 전체 시 전체)
+    if (payrollGroupId && targetUserIds.length > 0) {
+      await this.salaryCalcRepo.deleteByPeriodAndUserIds(companyId, year, month, targetUserIds);
+    } else {
+      await this.salaryCalcRepo.deleteByPeriod(companyId, year, month);
+    }
 
     // Load company settings
     const company = await this.companyRepo.findById(companyId);
@@ -89,13 +106,6 @@ export class CalculatePayrollUseCase {
       name: tel.name,
       monthlyLimit: Number(tel.monthlyLimit),
     }));
-
-    // Load all active employees
-    const employees = await this.employeeRepo.findAll(companyId, {
-      status: 'ACTIVE',
-      page: 1,
-      limit: 10000,
-    });
 
     // Load attendance snapshots for the period
     const attendanceData = await this.salaryAttendanceRepo.findByPeriod(companyId, year, month);

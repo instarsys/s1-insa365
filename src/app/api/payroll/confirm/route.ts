@@ -11,12 +11,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(confirmPayrollSchema, body);
     if (!validation.success) return validation.response;
-    const { year, month } = validation.data;
+    const { year, month, payrollGroupId } = validation.data;
 
     const { salaryCalcRepo, salaryAttendanceRepo, employeeRepo, payrollMonthlyRepo, notificationRepo, auditLogRepo, leaveRequestRepo } = getContainer();
 
-    // 활성 직원 중 근태 미확정 확인
-    const activeEmployees = await employeeRepo.findAll(auth.companyId, { status: 'ACTIVE', page: 1, limit: 10000 });
+    // 활성 직원 중 근태 미확정 확인 (payrollGroupId가 있으면 해당 그룹만)
+    const activeEmployees = await employeeRepo.findAll(auth.companyId, {
+      status: 'ACTIVE',
+      page: 1,
+      limit: 10000,
+      ...(payrollGroupId && { payrollGroupId }),
+    });
+    const targetUserIds = activeEmployees.items.map((e) => e.id);
+
     const attendanceData = await salaryAttendanceRepo.findByPeriod(auth.companyId, year, month);
     const confirmedUserIds = new Set(attendanceData.map((a) => a.userId));
     const unconfirmedEmployees = activeEmployees.items.filter((e) => !confirmedUserIds.has(e.id));
@@ -43,13 +50,21 @@ async function handler(request: NextRequest, auth: AuthContext) {
     }
 
     const drafts = await salaryCalcRepo.findByPeriod(auth.companyId, year, month);
-    const draftItems = drafts.filter((d) => d.status === 'DRAFT');
+    // payrollGroupId가 있으면 해당 그룹 직원의 DRAFT만 필터
+    const draftItems = payrollGroupId
+      ? drafts.filter((d) => d.status === 'DRAFT' && targetUserIds.includes(d.userId))
+      : drafts.filter((d) => d.status === 'DRAFT');
 
     if (draftItems.length === 0) {
       return errorResponse('확정할 급여 계산이 없습니다.', 400);
     }
 
-    await salaryCalcRepo.updateStatus(auth.companyId, year, month, 'CONFIRMED', auth.userId);
+    // payrollGroupId가 있으면 해당 직원만 상태 변경, 없으면 전체
+    if (payrollGroupId && targetUserIds.length > 0) {
+      await salaryCalcRepo.updateStatusByUserIds(auth.companyId, year, month, targetUserIds, 'CONFIRMED', auth.userId);
+    } else {
+      await salaryCalcRepo.updateStatus(auth.companyId, year, month, 'CONFIRMED', auth.userId);
+    }
 
     // Create PayrollMonthly records
     for (const calc of draftItems) {
@@ -91,8 +106,9 @@ async function handler(request: NextRequest, auth: AuthContext) {
     });
 
     return successResponse({ confirmedCount: draftItems.length });
-  } catch {
-    return errorResponse('급여 확정 중 오류가 발생했습니다.', 500);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : '급여 확정 중 오류가 발생했습니다.';
+    return errorResponse(message, 500);
   }
 }
 

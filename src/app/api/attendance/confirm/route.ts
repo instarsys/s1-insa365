@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { withRole } from '@/presentation/middleware/withRole';
+import { withPermission } from '@/presentation/middleware/withPermission';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, validateBody } from '@/presentation/api/helpers';
 import { confirmAttendanceSchema } from '@/presentation/api/schemas';
@@ -16,7 +16,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(confirmAttendanceSchema, body);
     if (!validation.success) return validation.response;
-    const { year, month, userIds } = validation.data;
+    const { year, month, userIds, payrollGroupId } = validation.data;
 
     const daysInMonth = new Date(year, month, 0).getDate();
     const startDate = new Date(Date.UTC(year, month - 1, 1));
@@ -24,7 +24,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     const { userRepo, attendanceRepo, salaryAttendanceRepo, employeeRepo, workPolicyRepo, leaveRequestRepo, auditLogRepo, companyHolidayRepo } = getContainer();
 
-    const employees = await userRepo.findActiveUsers(auth.companyId, userIds);
+    // payrollGroupId가 있으면 해당 그룹 소속 활성 직원만 대상
+    let targetUserIds = userIds;
+    if (payrollGroupId && !userIds) {
+      const groupEmployees = await employeeRepo.findAll(auth.companyId, {
+        status: 'ACTIVE',
+        payrollGroupId,
+        page: 1,
+        limit: 10000,
+      });
+      targetUserIds = groupEmployees.items.map((e: { id: string }) => e.id);
+    }
+
+    const employees = await userRepo.findActiveUsers(auth.companyId, targetUserIds);
     const empIds = employees.map((e) => e.id);
 
     // 회사 기본 WorkPolicy (fallback용)
@@ -208,10 +220,11 @@ async function handler(request: NextRequest, auth: AuthContext) {
     });
 
     return successResponse({ confirmedCount: empIds.length });
-  } catch (error) {
-    console.error('[attendance/confirm] 근태 확정 오류:', error);
-    return errorResponse('근태 확정 중 오류가 발생했습니다.', 500);
+  } catch (err) {
+    console.error('[attendance/confirm] 근태 확정 오류:', err);
+    const message = err instanceof Error ? err.message : '근태 확정 중 오류가 발생했습니다.';
+    return errorResponse(message, 500);
   }
 }
 
-export const POST = withRole('MANAGER', handler) as (request: NextRequest) => Promise<NextResponse>;
+export const POST = withPermission('ATTENDANCE_MGMT', 'CONFIRM', handler) as (request: NextRequest) => Promise<NextResponse>;

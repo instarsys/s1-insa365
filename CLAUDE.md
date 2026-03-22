@@ -225,7 +225,7 @@ These are hard requirements derived from s0 lessons — violating them caused pr
 - **Multi-tenancy via companyId (구현 완료)** — Every DB query must filter by `companyId`. JWT tokens carry `companyId`. 24 Repositories, 68 write 메서드 전부 companyId 검증 완비 (100%). `findFirst({ id, companyId })` before `update`/`softDelete`/`delete` (returns null on mismatch). Refresh token에 JWT↔DB companyId 교차 검증 추가.
 - **Soft delete everywhere** — Use `deletedAt` field, never hard delete. Korean labor law requires 3-year data retention.
 - **PII encryption** — Resident registration numbers (주민등록번호) use AES-256-GCM encryption.
-- **DB-level tenant isolation (RLS) (구현 완료)** — PostgreSQL RLS on 17 tenant tables via `current_setting('app.company_id')` + `FORCE ROW LEVEL SECURITY` (table owner도 RLS 적용). `getPrismaForTenant(companyId)` extension auto-injects companyId (incremental adoption). `setTenantContext()` UUID 형식 검증으로 SQL injection 방어. Defense-in-depth: application code + DB policy both enforce isolation. Global tables (companies, insurance_rates, tax_brackets, tax_exempt_limits, minimum_wages, legal_parameters) excluded from RLS.
+- **DB-level tenant isolation (RLS) (구현 완료)** — PostgreSQL RLS on 20 tenant tables via `current_setting('app.company_id')` + `FORCE ROW LEVEL SECURITY` (table owner도 RLS 적용). `getPrismaForTenant(companyId)` extension auto-injects companyId (incremental adoption). `setTenantContext()` UUID 형식 검증으로 SQL injection 방어. Defense-in-depth: application code + DB policy both enforce isolation. Global tables (companies, insurance_rates, tax_brackets, tax_exempt_limits, minimum_wages, legal_parameters) excluded from RLS.
 - **PII field-level encryption** — Both 주민등록번호 AND 계좌번호 use AES-256-GCM. Decryption requires `canViewSensitive` permission flag. All PII access logged to AuditLog (개인정보보호법 compliance).
 - **Async batch processing** — Payroll batch calculation (300+ employees) runs via BullMQ job queue, not synchronous API. Frontend polls progress via status endpoint. PDF bulk generation also queued.
 - **Calculation snapshot immutability** — SalaryCalculation stores the tax/insurance rates used at calculation time. Recalculation uses original rates, not current rates. Insurance rates are date-range based (not yearly) to handle mid-year changes.
@@ -465,14 +465,14 @@ All `update()`/`softDelete()`/`delete()` methods use `findFirst({ id, companyId 
 주요 Repositories: `DepartmentRepository`, `PositionRepository`, `SalaryRuleRepository`, `EmployeeSalaryItemRepository`, `AttendanceRepository`, `SalaryCalculationRepository`, `LeaveRequestRepository`, `LeaveBalanceRepository`, `NotificationRepository`, `EmployeeRepository`, `UserRepository`, `WorkPolicyRepository`, `WorkLocationRepository`, `InvitationRepository`, `AnnouncementRepository`, `PaymentRepository` (subscription 경유), `SubscriptionRepository`, `PayrollMonthlyRepository`, `CompanyHolidayRepository` (deleteMany+companyId), `LeaveGroupRepository`, `LeaveTypeConfigRepository`, `LeaveAccrualRuleRepository`.
 
 ### DB-Level Defense (PostgreSQL RLS)
-17 tenant tables have `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `tenant_isolation_*` policies using `current_setting('app.company_id', true)`.
+20 tenant tables have `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `tenant_isolation_*` policies using `current_setting('app.company_id', true)`.
 
-RLS tables: `users`, `departments`, `positions`, `work_policies`, `work_locations`, `salary_rules`, `employee_salary_items`, `attendances`, `attendance_segments`, `salary_attendance_data`, `salary_calculations`, `leave_requests`, `leave_balances`, `notifications`, `payroll_monthlies`, `audit_logs` (allows NULL companyId for system logs), `company_holidays`.
+RLS tables: `users`, `departments`, `positions`, `work_policies`, `work_locations`, `salary_rules`, `employee_salary_items`, `attendances`, `attendance_segments`, `salary_attendance_data`, `salary_calculations`, `leave_requests`, `leave_balances`, `notifications`, `payroll_monthlies`, `audit_logs` (allows NULL companyId for system logs), `company_holidays`, `payroll_groups`, `payroll_group_managers`, `role_permissions`.
 
 Global tables (NO RLS): `companies`, `insurance_rates`, `tax_brackets`, `tax_exempt_limits`, `minimum_wages`, `legal_parameters`.
 
 ### Prisma Tenant Extension
-`getPrismaForTenant(companyId)` in `src/infrastructure/persistence/prisma/client.ts` — auto-injects companyId into all queries on tenant-scoped models (17 TENANT_MODELS). `setTenantContext(prisma, companyId)` sets PostgreSQL session variable for RLS with UUID format validation (SQL injection 방어).
+`getPrismaForTenant(companyId)` in `src/infrastructure/persistence/prisma/client.ts` — auto-injects companyId into all queries on tenant-scoped models (20 TENANT_MODELS). `setTenantContext(prisma, companyId)` sets PostgreSQL session variable for RLS with UUID format validation (SQL injection 방어).
 
 ### withTenantAuth Middleware (`src/presentation/middleware/withTenantAuth.ts`)
 `withAuth` + RLS 세션 변수 설정을 결합한 인증 래퍼. 사용 시 PostgreSQL `app.company_id` 세션 변수가 자동 설정되어 RLS 정책 동작. DI 컨테이너의 `setTenantContext(companyId)` 경유. 기존 API는 `withAuth` 유지, 신규/수정 API부터 `withTenantAuth` 점진 적용.

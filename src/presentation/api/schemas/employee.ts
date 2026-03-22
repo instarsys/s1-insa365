@@ -28,6 +28,7 @@ export const createEmployeeSchema = z.object({
   salaryType: z.enum(SALARY_TYPES).optional(),
   hourlyRate: z.number().min(0).optional().nullable(),
   attendanceExempt: z.boolean().optional(),
+  payrollGroupId: z.string().uuid().optional().nullable(),
 }).refine(
   (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
   { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },
@@ -69,6 +70,7 @@ export const updateEmployeeSchema = z.object({
   manualHealthInsuranceBase: z.number().min(0).nullable().optional(),
   attendanceExempt: z.boolean().optional(),
   dailyWorkHours: z.number().min(1).max(24).optional(),
+  payrollGroupId: z.string().uuid().optional().nullable(),
 }).strict().refine(
   (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
   { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },

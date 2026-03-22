@@ -40,6 +40,8 @@ import { InvitationRepository } from '../persistence/repositories/InvitationRepo
 import { SubscriptionRepository } from '../persistence/repositories/SubscriptionRepository';
 import { PaymentRepository } from '../persistence/repositories/PaymentRepository';
 import { CompanyHolidayRepository } from '../persistence/repositories/CompanyHolidayRepository';
+import { PayrollGroupRepository } from '../persistence/repositories/PayrollGroupRepository';
+import { RolePermissionRepository } from '../persistence/repositories/RolePermissionRepository';
 
 // ─── Domain Services ────────────────────────────────────────────
 import { PayrollCalculator } from '@domain/services/PayrollCalculator';
@@ -116,6 +118,8 @@ import { CrudSalaryRulesUseCase } from '@/application/use-cases/settings/CrudSal
 import { CrudWorkPolicyUseCase } from '@/application/use-cases/settings/CrudWorkPolicyUseCase';
 import { CrudWorkLocationUseCase } from '@/application/use-cases/settings/CrudWorkLocationUseCase';
 import { CrudCompanyHolidayUseCase } from '@/application/use-cases/settings/CrudCompanyHolidayUseCase';
+import { CrudPayrollGroupUseCase } from '@/application/use-cases/settings/CrudPayrollGroupUseCase';
+import { ManageRolePermissionsUseCase } from '@/application/use-cases/settings/ManageRolePermissionsUseCase';
 
 // System
 import { CrudInsuranceRateUseCase } from '@/application/use-cases/system/CrudInsuranceRateUseCase';
@@ -167,6 +171,8 @@ export interface Container {
   subscriptionRepo: SubscriptionRepository;
   paymentRepo: PaymentRepository;
   companyHolidayRepo: CompanyHolidayRepository;
+  payrollGroupRepo: PayrollGroupRepository;
+  rolePermissionRepo: RolePermissionRepository;
 
   // Infrastructure Services (cross-cutting concerns)
   excelService: ExcelService;
@@ -239,6 +245,8 @@ export interface Container {
   crudWorkPolicyUseCase: CrudWorkPolicyUseCase;
   crudWorkLocationUseCase: CrudWorkLocationUseCase;
   crudCompanyHolidayUseCase: CrudCompanyHolidayUseCase;
+  crudPayrollGroupUseCase: CrudPayrollGroupUseCase;
+  manageRolePermissionsUseCase: ManageRolePermissionsUseCase;
 
   // System Use Cases
   crudInsuranceRateUseCase: CrudInsuranceRateUseCase;
@@ -292,6 +300,8 @@ function createContainer(): Container {
   const subscriptionRepo = new SubscriptionRepository();
   const paymentRepo = new PaymentRepository();
   const companyHolidayRepo = new CompanyHolidayRepository();
+  const payrollGroupRepo = new PayrollGroupRepository();
+  const rolePermissionRepo = new RolePermissionRepository();
 
   // 2. Infrastructure Service 인스턴스
   const excelService = new ExcelService();
@@ -495,6 +505,8 @@ function createContainer(): Container {
   const crudWorkPolicyUseCase = new CrudWorkPolicyUseCase(workPolicyRepo as Any);
   const crudWorkLocationUseCase = new CrudWorkLocationUseCase(workLocationRepo as Any);
   const crudCompanyHolidayUseCase = new CrudCompanyHolidayUseCase(companyHolidayRepo as Any);
+  const crudPayrollGroupUseCase = new CrudPayrollGroupUseCase(payrollGroupRepo as Any);
+  const manageRolePermissionsUseCase = new ManageRolePermissionsUseCase(rolePermissionRepo as Any);
 
   // System
   const crudInsuranceRateUseCase = new CrudInsuranceRateUseCase(insuranceRateRepo as Any);
@@ -541,6 +553,8 @@ function createContainer(): Container {
     subscriptionRepo,
     paymentRepo,
     companyHolidayRepo,
+    payrollGroupRepo,
+    rolePermissionRepo,
     // Infrastructure Services
     excelService,
     encryptionService,
@@ -601,6 +615,8 @@ function createContainer(): Container {
     crudWorkPolicyUseCase,
     crudWorkLocationUseCase,
     crudCompanyHolidayUseCase,
+    crudPayrollGroupUseCase,
+    manageRolePermissionsUseCase,
     // System
     crudInsuranceRateUseCase,
     crudTaxBracketUseCase,

@@ -22,6 +22,9 @@ const TENANT_MODELS = new Set([
   'PayrollMonthly',
   'AuditLog',
   'CompanyHoliday',
+  'PayrollGroup',
+  'PayrollGroupManager',
+  'RolePermission',
 ]);
 
 /**

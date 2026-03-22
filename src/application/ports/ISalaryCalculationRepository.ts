@@ -48,6 +48,8 @@ export interface ISalaryCalculationRepository {
   update(companyId: string, id: string, data: Partial<CreateSalaryCalculationData>): Promise<PayrollResultDto | null>;
   updateStatus(companyId: string, year: number, month: number, status: string, confirmedBy?: string): Promise<void>;
   deleteByPeriod(companyId: string, year: number, month: number): Promise<void>;
+  deleteByPeriodAndUserIds(companyId: string, year: number, month: number, userIds: string[]): Promise<void>;
+  updateStatusByUserIds(companyId: string, year: number, month: number, userIds: string[], status: string, confirmedBy?: string): Promise<void>;
   getSpreadsheet(companyId: string, year: number, month: number): Promise<PayrollSpreadsheetRowDto[]>;
   getLedger(companyId: string, year: number, month: number): Promise<PayrollLedgerRowDto[]>;
   getHistory(companyId: string, page?: number, limit?: number): Promise<PaginatedResult<PayrollHistoryDto>>;

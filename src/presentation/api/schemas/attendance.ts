@@ -11,6 +11,7 @@ export const confirmAttendanceSchema = z.object({
   year: z.number().int().min(2020).max(currentYear + 1),
   month: z.number().int().min(1).max(12),
   userIds: z.array(z.string().uuid()).optional(),
+  payrollGroupId: z.string().uuid().optional(),
 });
 
 export type CheckInInput = z.infer<typeof checkInSchema>;

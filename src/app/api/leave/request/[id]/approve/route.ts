@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { withRole } from '@/presentation/middleware/withRole';
+import { withPermission } from '@/presentation/middleware/withPermission';
 import { type AuthContext } from '@/presentation/middleware/withAuth';
 import { successResponse, errorResponse, notFoundResponse } from '@/presentation/api/helpers';
 
@@ -68,7 +68,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
 function createRoute() {
   return async (request: NextRequest, routeContext: RouteContext) => {
     (request as unknown as { routeContext: RouteContext }).routeContext = routeContext;
-    const wrapped = withRole('MANAGER', handler);
+    const wrapped = withPermission('LEAVE_MGMT', 'APPROVE', handler);
     return wrapped(request);
   };
 }

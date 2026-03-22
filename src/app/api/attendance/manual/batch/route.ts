@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContainer } from '@/infrastructure/di/container';
-import { withAuth, type AuthContext } from '@/presentation/middleware/withAuth';
+import { type AuthContext } from '@/presentation/middleware/withAuth';
+import { withPermission } from '@/presentation/middleware/withPermission';
 import { createdResponse, errorResponse } from '@/presentation/api/helpers';
 import { ValidationError, EntityNotFoundError } from '@/domain/errors';
 
@@ -25,5 +26,4 @@ async function handler(request: NextRequest, auth: AuthContext) {
   }
 }
 
-const wrapped = withAuth(handler);
-export const POST = wrapped as (request: NextRequest) => Promise<NextResponse>;
+export const POST = withPermission('ATTENDANCE_MGMT', 'EDIT', handler) as (request: NextRequest) => Promise<NextResponse>;

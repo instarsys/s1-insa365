@@ -258,8 +258,8 @@ export function useAttendanceMutations() {
   return {
     checkIn: (data: { latitude?: number; longitude?: number }) => apiPost('/api/attendance/check-in', data),
     checkOut: (data: { latitude?: number; longitude?: number }) => apiPost('/api/attendance/check-out', data),
-    confirmAttendance: (data: { year: number; month: number }) => apiPost('/api/attendance/confirm', data),
-    cancelConfirmAttendance: (data: { year: number; month: number }) => apiPost('/api/attendance/cancel', data),
+    confirmAttendance: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/attendance/confirm', data),
+    cancelConfirmAttendance: (data: { year: number; month: number; payrollGroupId?: string }) => apiPost('/api/attendance/cancel', data),
     manualEntry: (data: Record<string, unknown>) => apiPost('/api/attendance/manual', data),
     batchManualEntry: (data: Record<string, unknown>) => apiPost('/api/attendance/manual/batch', data),
     deleteAttendance: (id: string) => apiDelete(`/api/attendance/${id}`),
