@@ -118,144 +118,137 @@ export default function CompanySettingsPage() {
 
   return (
     <div>
-      <PageHeader title="회사 정보" subtitle="회사 기본 정보를 설정합니다." />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>회사 로고 / 직인</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <div className="flex items-start gap-12">
-            <ImageUpload
-              imageUrl={form.logoUrl}
-              onUpload={(file) => handleImageUpload('logo', file)}
-              onDelete={() => handleImageDelete('logo')}
-              shape="square"
-              size={120}
-              label="회사 로고"
-            />
-            <ImageUpload
-              imageUrl={form.sealUrl}
-              onUpload={(file) => handleImageUpload('seal', file)}
-              onDelete={() => handleImageDelete('seal')}
-              shape="square"
-              size={120}
-              label="회사 직인"
-            />
-          </div>
-          <p className="mt-3 text-xs text-gray-500">
-            로고와 직인은 급여명세서, 문서 등에 사용됩니다. 권장 크기: 200×200px 이상, PNG/JPG 형식
-          </p>
-        </CardBody>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>기본 정보</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Input
-              label="상호"
-              value={form.name}
-              readOnly
-              className="bg-gray-50 text-gray-500 cursor-not-allowed"
-            />
-            <Input
-              label="사업자번호"
-              value={form.businessNumber}
-              readOnly
-              className="bg-gray-50 text-gray-500 cursor-not-allowed"
-            />
-            <Input
-              label="대표자명"
-              value={form.representativeName}
-              onChange={(e) => updateField('representativeName', e.target.value)}
-            />
-            <PhoneInput
-              label="전화번호"
-              value={form.phone}
-              onChange={(digits) => updateField('phone', digits)}
-            />
-            <Input
-              label="이메일"
-              type="email"
-              value={form.email}
-              onChange={(e) => updateField('email', e.target.value)}
-            />
-            <div className="sm:col-span-2">
-              <AddressSearchInput
-                label="주소"
-                value={form.address}
-                onChange={(addr) => updateField('address', addr)}
-              />
-            </div>
-          </div>
-        </CardBody>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>급여 설정</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select
-              label="급여일"
-              options={PAY_DAY_OPTIONS}
-              value={String(form.payDay)}
-              onChange={(v) => updateField('payDay', Number(v))}
-            />
-            <Select
-              label="일할계산 방법"
-              options={PRORATION_OPTIONS}
-              value={form.prorationMethod}
-              onChange={(v) => updateField('prorationMethod', v)}
-            />
-            <p className="text-xs text-gray-500 sm:col-span-2">
-              역일 기준: 해당 월 총 일수(토·일·공휴일 포함) 기준으로 계산합니다.<br />
-              근무일 기준: 해당 월 평일 수(토·일·공휴일 제외) 기준으로 계산합니다.
-            </p>
-            <p className="text-xs text-gray-500 sm:col-span-2">
-              지각/조퇴 유예시간, 야간근로, 소정근로시간 등은 설정 &gt; 근무 정책에서 정책별로 관리합니다.
-            </p>
-          </div>
-        </CardBody>
-      </Card>
-
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>GPS 출퇴근 정책</CardTitle>
-        </CardHeader>
-        <CardBody>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Select
-              label="GPS 검증 모드"
-              options={GPS_ENFORCEMENT_OPTIONS}
-              value={form.gpsEnforcementMode}
-              onChange={(v) => updateField('gpsEnforcementMode', v)}
-            />
-            <div />
-            <p className="text-xs text-gray-500 sm:col-span-2">
-              <strong>사용 안 함</strong>: GPS 좌표만 기록하며 반경 검증을 하지 않습니다.<br />
-              <strong>경고</strong>: 반경 밖 출퇴근 시 경고를 표시하지만 출퇴근은 허용합니다.<br />
-              <strong>차단</strong>: 반경 밖에서는 출퇴근이 불가합니다.
-            </p>
-            <p className="text-xs text-gray-500 sm:col-span-2">
-              근무지별 반경 설정은 설정 &gt; 근무지 관리에서 할 수 있습니다.
-            </p>
-          </div>
-        </CardBody>
-      </Card>
-
-      <div className="mt-6 flex justify-end">
+      <PageHeader title="회사 정보" subtitle="회사 기본 정보를 설정합니다.">
         <Button onClick={handleSave} disabled={saving}>
           {saving ? <Spinner size="sm" /> : <Save className="h-4 w-4" />}
           저장
         </Button>
+      </PageHeader>
+
+      {/* 2-column 마스터 레이아웃 */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* 좌측: 회사 정보 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>회사 정보</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-5">
+            {/* 로고 / 직인 */}
+            <div className="flex items-start gap-8">
+              <ImageUpload
+                imageUrl={form.logoUrl}
+                onUpload={(file) => handleImageUpload('logo', file)}
+                onDelete={() => handleImageDelete('logo')}
+                shape="square"
+                size={96}
+                label="회사 로고"
+              />
+              <ImageUpload
+                imageUrl={form.sealUrl}
+                onUpload={(file) => handleImageUpload('seal', file)}
+                onDelete={() => handleImageDelete('seal')}
+                shape="square"
+                size={96}
+                label="회사 직인"
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              급여명세서, 문서 등에 사용됩니다. 권장: 200×200px 이상, PNG/JPG
+            </p>
+
+            <hr className="border-gray-200" />
+
+            {/* 기본 정보 필드 */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                label="상호"
+                value={form.name}
+                readOnly
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <Input
+                label="사업자번호"
+                value={form.businessNumber}
+                readOnly
+                className="bg-gray-50 text-gray-500 cursor-not-allowed"
+              />
+              <Input
+                label="대표자명"
+                value={form.representativeName}
+                onChange={(e) => updateField('representativeName', e.target.value)}
+              />
+              <PhoneInput
+                label="전화번호"
+                value={form.phone}
+                onChange={(digits) => updateField('phone', digits)}
+              />
+              <Input
+                label="이메일"
+                type="email"
+                value={form.email}
+                onChange={(e) => updateField('email', e.target.value)}
+              />
+              <div className="sm:col-span-2">
+                <AddressSearchInput
+                  label="주소"
+                  value={form.address}
+                  onChange={(addr) => updateField('address', addr)}
+                />
+              </div>
+            </div>
+          </CardBody>
+        </Card>
+
+        {/* 우측: 급여 / 근태 설정 */}
+        <Card>
+          <CardHeader>
+            <CardTitle>급여 / 근태 설정</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-5">
+            {/* 급여 설정 */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Select
+                label="급여일"
+                options={PAY_DAY_OPTIONS}
+                value={String(form.payDay)}
+                onChange={(v) => updateField('payDay', Number(v))}
+              />
+              <Select
+                label="일할계산 방법"
+                options={PRORATION_OPTIONS}
+                value={form.prorationMethod}
+                onChange={(v) => updateField('prorationMethod', v)}
+              />
+            </div>
+            <p className="text-xs text-gray-500">
+              역일 기준: 해당 월 총 일수(토·일·공휴일 포함) 기준 계산 / 근무일 기준: 평일 수 기준 계산
+            </p>
+            <p className="text-xs text-gray-500">
+              지각/조퇴 유예시간, 야간근로, 소정근로시간 등은 설정 &gt; 근무 정책에서 관리합니다.
+            </p>
+
+            <hr className="border-gray-200" />
+
+            {/* GPS 정책 */}
+            <Select
+              label="GPS 출퇴근 정책"
+              options={GPS_ENFORCEMENT_OPTIONS}
+              value={form.gpsEnforcementMode}
+              onChange={(v) => updateField('gpsEnforcementMode', v)}
+            />
+            <p className="text-xs text-gray-500">
+              <strong>사용 안 함</strong>: GPS 좌표만 기록, 반경 검증 없음<br />
+              <strong>경고</strong>: 반경 밖 출퇴근 시 경고 표시, 허용<br />
+              <strong>차단</strong>: 반경 밖에서 출퇴근 불가
+            </p>
+            <p className="text-xs text-gray-500">
+              근무지별 반경 설정은 설정 &gt; 근무지 관리에서 할 수 있습니다.
+            </p>
+          </CardBody>
+        </Card>
       </div>
 
-      {/* 휴일 설정 */}
+      {/* 휴일 설정 (하단, 전체 너비) */}
       <HolidaySection />
     </div>
   );
