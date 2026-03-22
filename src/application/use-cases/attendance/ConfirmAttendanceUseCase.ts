@@ -152,7 +152,7 @@ export class ConfirmAttendanceUseCase {
         if (attendanceDates.has(dateStr)) continue;
 
         if (leaveDates.has(dateStr)) {
-          await this.attendanceRepo.create({
+          await (this.attendanceRepo as unknown as { create(companyId: string, data: Record<string, unknown>): Promise<unknown> }).create(companyId, {
             companyId,
             userId: empId,
             date: dateUTC,
@@ -162,7 +162,7 @@ export class ConfirmAttendanceUseCase {
           continue;
         }
 
-        await this.attendanceRepo.create({
+        await (this.attendanceRepo as unknown as { create(companyId: string, data: Record<string, unknown>): Promise<unknown> }).create(companyId, {
           companyId,
           userId: empId,
           date: dateUTC,

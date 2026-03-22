@@ -155,17 +155,26 @@ export class GrossPayCalculator {
       for (const item of formulaItems) {
         if (!item.formula) continue;
 
+        let amount: number;
         if (isLegacyAllowanceKeyword(item.formula)) {
-          // 레거시 키워드인 경우 PremiumCalculator로 개별 계산
           const legacyPremiums = PremiumCalculator.calculate(ordinaryHourlyWage, attendance);
-          const amount = getLegacyPremiumAmount(item.formula, legacyPremiums);
-          formulaAllowances += amount;
+          amount = getLegacyPremiumAmount(item.formula, legacyPremiums);
         } else {
-          // 새 수식 엔진
-          const amount = FormulaEngine.evaluate(item.formula, ctx);
-          formulaAllowances += amount;
+          amount = FormulaEngine.evaluate(item.formula, ctx);
+        }
+
+        formulaAllowances += amount;
+
+        // 항목 코드로 개별 프리미엄 필드에 매핑
+        if (item.code === 'A08') premiums.overtimePay = amount;
+        else if (item.code === 'A09') premiums.nightPay = amount;
+        else if (item.code === 'A10') {
+          // A10은 휴일근로 (8시간 이내 + 8시간 초과 합산)
+          premiums.holidayPay = amount;
         }
       }
+      premiums.totalPremium = premiums.overtimePay + premiums.nightPay + premiums.nightOvertimePay +
+        premiums.holidayPay + premiums.holidayOvertimePay + premiums.holidayNightPay + premiums.holidayNightOvertimePay;
     }
 
     // 4. Variable allowances: ALLOWANCE + VARIABLE type (not prorated)

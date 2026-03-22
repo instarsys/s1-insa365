@@ -199,12 +199,13 @@ function InsuranceRateTab() {
 /* ─── Tab: Tax Brackets ─── */
 
 function TaxBracketTab() {
-  const [year, setYear] = useState('2025');
-  const { data, isLoading } = useSWR<{ items: TaxBracket[] }>('/api/system/tax-brackets', fetcher);
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const { data, isLoading } = useSWR<{ items: TaxBracket[] }>(`/api/system/tax-brackets?year=${year}`, fetcher);
   const brackets = data?.items ?? [];
 
-  const filtered = brackets.filter((b) => b.year === Number(year));
-  const uniqueYears = [...new Set(brackets.map((b) => b.year))].sort((a, b) => b - a);
+  const filtered = brackets;
+  const currentYear = new Date().getFullYear();
+  const uniqueYears = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   const columns: Column<TaxBracket>[] = [
     { key: 'minIncome', label: '최소소득', render: (r) => formatKRW(Number(r.minIncome)) },
@@ -239,17 +240,17 @@ function TaxBracketTab() {
 
 function TaxExemptTab() {
   const toast = useToast();
-  const { data, isLoading, mutate } = useSWR<{ items: TaxExemptLimit[] }>('/api/system/tax-exempt-limits', fetcher);
+  const [year, setYear] = useState(String(new Date().getFullYear()));
+  const { data, isLoading, mutate } = useSWR<{ items: TaxExemptLimit[] }>(`/api/system/tax-exempt-limits?year=${year}`, fetcher);
   const exempts = data?.items ?? [];
-
-  const [year, setYear] = useState('2025');
   const [showModal, setShowModal] = useState(false);
   const [editItem, setEditItem] = useState<TaxExemptLimit | null>(null);
   const [form, setForm] = useState({ code: '', name: '', monthlyLimit: '' });
   const [saving, setSaving] = useState(false);
 
-  const filtered = exempts.filter((e) => e.year === Number(year));
-  const uniqueYears = [...new Set(exempts.map((e) => e.year))].sort((a, b) => b - a);
+  const filtered = exempts;
+  const currentYear = new Date().getFullYear();
+  const uniqueYears = Array.from({ length: 5 }, (_, i) => currentYear - 2 + i);
 
   const openEdit = (r: TaxExemptLimit) => {
     setEditItem(r);

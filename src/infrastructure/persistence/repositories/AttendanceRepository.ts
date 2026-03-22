@@ -62,6 +62,10 @@ export class AttendanceRepository {
     });
   }
 
+  async findByUserAndMonth(companyId: string, userId: string, year: number, month: number) {
+    return this.findMonthly(companyId, userId, year, month);
+  }
+
   async create(companyId: string, data: Prisma.AttendanceUncheckedCreateInput) {
     // soft-deleted 동일 userId+date 레코드가 있으면 hard delete (unique 충돌 방지)
     if (data.userId && data.date) {
