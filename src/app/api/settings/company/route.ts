@@ -20,6 +20,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
   const allowedFields = [
     'representativeName', 'address', 'phone', 'email',
     'payDay', 'prorationMethod', 'gpsEnforcementMode',
+    'logoUrl', 'sealUrl',
   ] as const;
 
   const updateData: Record<string, unknown> = {};

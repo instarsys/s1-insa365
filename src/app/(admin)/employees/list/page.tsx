@@ -7,11 +7,11 @@ import { PageHeader } from '@/components/layout';
 import {
   Button, Table, Badge, SearchInput, Select, Pagination,
   Spinner, EmptyState, SlidePanel, Input, DatePicker, useToast,
-  Tabs, Avatar, PhoneInput,
+  Tabs, Avatar, PhoneInput, ImageUpload,
 } from '@/components/ui';
 import { useEmployees, useEmployeeMutations } from '@/hooks';
 import { formatDate, formatKRW } from '@/lib/utils';
-import { fetcher } from '@/lib/api';
+import { fetcher, apiPost } from '@/lib/api';
 import { HIRE_TYPE_OPTIONS, SALARY_TYPE_OPTIONS } from '@/lib/constants';
 import { Plus, Users, Download } from 'lucide-react';
 import { useEmployeeImport } from '@/hooks/useEmployeeImport';
@@ -63,6 +63,7 @@ interface EmployeeForm {
   workLocationId: string;
   payrollGroupId: string;
   attendanceExempt: boolean;
+  profileImageUrl: string;
 }
 
 const emptyForm: EmployeeForm = {
@@ -85,6 +86,7 @@ const emptyForm: EmployeeForm = {
   workLocationId: '',
   payrollGroupId: '',
   attendanceExempt: false,
+  profileImageUrl: '',
 };
 
 export default function EmployeeListPage() {
@@ -214,6 +216,7 @@ export default function EmployeeListPage() {
         workLocationId: form.workLocationId || undefined,
         payrollGroupId: form.payrollGroupId || null,
         attendanceExempt: form.attendanceExempt,
+        profileImageUrl: form.profileImageUrl || undefined,
       };
 
       const created = await createEmployee(payload) as { id: string };
@@ -374,6 +377,32 @@ export default function EmployeeListPage() {
         size="lg"
       >
         <div className="space-y-5">
+          {/* 프로필 사진 */}
+          <div className="flex justify-center">
+            <ImageUpload
+              imageUrl={form.profileImageUrl || null}
+              onUpload={async (file) => {
+                try {
+                  const { uploadUrl, imageUrl } = await apiPost<{ uploadUrl: string; imageUrl: string }>(
+                    '/api/upload/presigned-url',
+                    { category: 'profile', contentType: file.type },
+                  );
+                  await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+                  setForm((f) => ({ ...f, profileImageUrl: imageUrl }));
+                  toast.success('프로필 사진이 업로드되었습니다.');
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : '업로드에 실패했습니다.');
+                }
+              }}
+              onDelete={async () => {
+                setForm((f) => ({ ...f, profileImageUrl: '' }));
+              }}
+              shape="circle"
+              size={96}
+              label="프로필 사진"
+            />
+          </div>
+
           {/* Section 1: 기본 정보 */}
           <h3 className="text-sm font-semibold text-gray-700">기본 정보</h3>
           <Input

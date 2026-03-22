@@ -13,8 +13,9 @@ import { Spinner } from '@/components/ui/Spinner';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui';
+import { ImageUpload } from '@/components/ui/ImageUpload';
 import { AddressSearchInput } from '@/components/address/AddressSearchInput';
-import { apiGet, apiPut } from '@/lib/api';
+import { apiGet, apiPut, apiPost } from '@/lib/api';
 import { useCompanyHolidays, useCompanyHolidayMutations } from '@/hooks';
 
 interface CompanySettings {
@@ -27,6 +28,8 @@ interface CompanySettings {
   payDay: number;
   prorationMethod: string;
   gpsEnforcementMode: string;
+  logoUrl: string | null;
+  sealUrl: string | null;
 }
 
 const PAY_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
@@ -58,6 +61,8 @@ export default function CompanySettingsPage() {
     payDay: 25,
     prorationMethod: 'CALENDAR_DAY',
     gpsEnforcementMode: 'OFF',
+    logoUrl: null,
+    sealUrl: null,
   });
 
   useEffect(() => {
@@ -67,8 +72,37 @@ export default function CompanySettingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  function updateField(field: keyof CompanySettings, value: string | number) {
+  const toast = useToast();
+
+  function updateField(field: keyof CompanySettings, value: string | number | null) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  async function handleImageUpload(type: 'logo' | 'seal', file: File) {
+    try {
+      const { uploadUrl, imageUrl } = await apiPost<{ uploadUrl: string; imageUrl: string }>(
+        '/api/upload/presigned-url',
+        { category: type, contentType: file.type },
+      );
+      await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+      const field = type === 'logo' ? 'logoUrl' : 'sealUrl';
+      await apiPut('/api/settings/company', { [field]: imageUrl });
+      updateField(field as keyof CompanySettings, imageUrl);
+      toast.success(type === 'logo' ? '로고가 업로드되었습니다.' : '직인이 업로드되었습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '업로드에 실패했습니다.');
+    }
+  }
+
+  async function handleImageDelete(type: 'logo' | 'seal') {
+    try {
+      const field = type === 'logo' ? 'logoUrl' : 'sealUrl';
+      await apiPut('/api/settings/company', { [field]: null });
+      updateField(field as keyof CompanySettings, null);
+      toast.success(type === 'logo' ? '로고가 삭제되었습니다.' : '직인이 삭제되었습니다.');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '삭제에 실패했습니다.');
+    }
   }
 
   async function handleSave() {
@@ -87,6 +121,35 @@ export default function CompanySettingsPage() {
       <PageHeader title="회사 정보" subtitle="회사 기본 정보를 설정합니다." />
 
       <Card>
+        <CardHeader>
+          <CardTitle>회사 로고 / 직인</CardTitle>
+        </CardHeader>
+        <CardBody>
+          <div className="flex items-start gap-12">
+            <ImageUpload
+              imageUrl={form.logoUrl}
+              onUpload={(file) => handleImageUpload('logo', file)}
+              onDelete={() => handleImageDelete('logo')}
+              shape="square"
+              size={120}
+              label="회사 로고"
+            />
+            <ImageUpload
+              imageUrl={form.sealUrl}
+              onUpload={(file) => handleImageUpload('seal', file)}
+              onDelete={() => handleImageDelete('seal')}
+              shape="square"
+              size={120}
+              label="회사 직인"
+            />
+          </div>
+          <p className="mt-3 text-xs text-gray-500">
+            로고와 직인은 급여명세서, 문서 등에 사용됩니다. 권장 크기: 200×200px 이상, PNG/JPG 형식
+          </p>
+        </CardBody>
+      </Card>
+
+      <Card className="mt-6">
         <CardHeader>
           <CardTitle>기본 정보</CardTitle>
         </CardHeader>

@@ -40,3 +40,4 @@ export { Checkbox } from './Checkbox';
 export type { CheckboxProps } from './Checkbox';
 export { DropdownMenu } from './DropdownMenu';
 export { StatusBadgeDropdown } from './StatusBadgeDropdown';
+export { ImageUpload } from './ImageUpload';

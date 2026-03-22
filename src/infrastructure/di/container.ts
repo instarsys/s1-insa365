@@ -57,6 +57,7 @@ import { ExcelService } from '../excel/ExcelService';
 import { encryptionService } from '../encryption/EncryptionService';
 import { s3Service } from '../external/S3Service';
 import { KakaoGeocodingService } from '../external/KakaoGeocodingService';
+import { GetPresignedUploadUrlUseCase } from '@/application/use-cases/upload/GetPresignedUploadUrlUseCase';
 import { generateInviteCode } from '../invite/InviteCodeGenerator';
 
 // ─── Use Cases ──────────────────────────────────────────────────
@@ -186,6 +187,9 @@ export interface Container {
     verifyRefreshToken(token: string): { userId: string; companyId: string; role: string; canViewSensitive: boolean };
   };
   generateInviteCode: (length?: number) => string;
+
+  // Upload Use Cases
+  getPresignedUploadUrlUseCase: GetPresignedUploadUrlUseCase;
 
   // Auth Use Cases
   loginUseCase: LoginUseCase;
@@ -498,6 +502,9 @@ function createContainer(): Container {
     salaryAttendanceRepo as Any,
   );
 
+  // Upload
+  const getPresignedUploadUrlUseCase = new GetPresignedUploadUrlUseCase(s3Service as Any);
+
   // Dashboard
   const getDashboardTodosUseCase = new GetDashboardTodosUseCase(
     attendanceRepo as Any,
@@ -571,6 +578,7 @@ function createContainer(): Container {
     excelService,
     encryptionService,
     s3Service,
+    getPresignedUploadUrlUseCase,
     kakaoGeocodingService,
     passwordService: passwordAdapter,
     jwtService,

@@ -31,7 +31,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     const body = await request.json();
     const validation = validateBody(createEmployeeSchema, body);
     if (!validation.success) return validation.response;
-    const { name, email, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate, attendanceExempt, payrollGroupId } = validation.data;
+    const { name, email, phone, role, departmentId, positionId, workPolicyId, workLocationId, joinDate, dependents, rrn, bankAccount, bankName, address, isHouseholder, hireType, baseSalary, salaryType, hourlyRate, attendanceExempt, payrollGroupId, profileImageUrl } = validation.data;
 
     const { employeeRepo, salaryRuleRepo, employeeSalaryItemRepo, auditLogRepo, passwordService, encryptionService } = getContainer();
 
@@ -75,6 +75,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
       hourlyRate: hourlyRate ?? null,
       attendanceExempt: attendanceExempt ?? false,
       payrollGroupId: payrollGroupId ?? null,
+      profileImageUrl: profileImageUrl ?? null,
       mustChangePassword: true,
     });
     const user = {

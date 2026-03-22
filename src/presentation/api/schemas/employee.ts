@@ -37,6 +37,7 @@ export const createEmployeeSchema = z.object({
   hourlyRate: z.number().min(0).optional().nullable(),
   attendanceExempt: z.boolean().optional(),
   payrollGroupId: z.string().uuid().optional().nullable(),
+  profileImageUrl: z.string().max(500).optional().nullable(),
 }).refine(
   (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
   { message: '시급제 직원은 근태 면제를 설정할 수 없습니다.', path: ['attendanceExempt'] },

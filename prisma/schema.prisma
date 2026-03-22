@@ -199,6 +199,8 @@ model Company {
   subscriptionPlan         SubscriptionPlan @default(TRIAL) @map("subscription_plan")
   gpsEnforcementMode       String           @default("OFF") @map("gps_enforcement_mode")
   employeeCountRange       String?          @map("employee_count_range")
+  logoUrl                  String?          @map("logo_url")
+  sealUrl                  String?          @map("seal_url")
   createdAt                DateTime         @default(now()) @map("created_at")
   updatedAt                DateTime         @updatedAt @map("updated_at")
   deletedAt                DateTime?        @map("deleted_at")
