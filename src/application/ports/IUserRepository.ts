@@ -34,4 +34,5 @@ export interface IUserRepository {
   create(data: CreateUserData): Promise<UserDto>;
   updateRefreshToken(companyId: string, id: string, refreshToken: string | null): Promise<void>;
   findByCompanyAndEmail(companyId: string, email: string): Promise<UserDto | null>;
+  findActiveUsers(companyId: string, ids?: string[]): Promise<{ id: string }[]>;
 }

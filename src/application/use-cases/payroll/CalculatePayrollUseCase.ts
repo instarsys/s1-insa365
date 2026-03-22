@@ -48,12 +48,29 @@ export class CalculatePayrollUseCase {
     const existing = await this.salaryCalcRepo.findByPeriod(companyId, year, month);
 
     // Load all active employees (with optional payrollGroup filter)
-    const employees = await this.employeeRepo.findAll(companyId, {
+    const activeEmployees = await this.employeeRepo.findAll(companyId, {
       status: 'ACTIVE',
       page: 1,
       limit: 10000,
       ...(payrollGroupId && { payrollGroupId }),
     });
+
+    // 퇴사 월 직원도 포함 (당월 1일 이후 퇴사자 → 일할계산 대상)
+    const monthStart = new Date(year, month - 1, 1);
+    const resignedInMonth = await this.employeeRepo.findAll(companyId, {
+      status: 'RESIGNED',
+      resignDateFrom: monthStart,
+      page: 1,
+      limit: 10000,
+      ...(payrollGroupId && { payrollGroupId }),
+    });
+
+    const employees = {
+      items: [...activeEmployees.items, ...resignedInMonth.items],
+      total: activeEmployees.total + resignedInMonth.total,
+      page: 1,
+      limit: 10000,
+    };
     const targetUserIds = employees.items.map((e) => e.id);
 
     if (existing.length > 0) {
@@ -64,6 +81,15 @@ export class CalculatePayrollUseCase {
       const hasConfirmed = targetExisting.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
       if (hasConfirmed) {
         throw new ValidationError('해당 기간의 급여가 이미 확정되었습니다. 확정 취소 후 다시 계산해주세요.');
+      }
+    }
+
+    // 삭제 전 수동 수정값(variableAllowances) 백업
+    const manualOverrides = new Map<string, number>();
+    for (const e of existing) {
+      const va = Number(e.variableAllowances);
+      if (e.status === 'DRAFT' && va !== 0) {
+        manualOverrides.set(e.userId ?? e.employeeId, va);
       }
     }
 
@@ -322,6 +348,16 @@ export class CalculatePayrollUseCase {
           minimumWageWarning: false,
           errorMessage: error instanceof Error ? error.message : 'Unknown error',
         });
+      }
+    }
+
+    // 수동 수정값(variableAllowances) 복원
+    if (manualOverrides.size > 0) {
+      for (const calc of calculations) {
+        const preserved = manualOverrides.get(calc.userId);
+        if (preserved !== undefined && preserved !== 0 && calc.status === 'DRAFT') {
+          calc.variableAllowances = preserved;
+        }
       }
     }
 

@@ -39,4 +39,5 @@ export interface IPayrollMonthlyRepository {
   create(data: CreatePayrollMonthlyData): Promise<PayrollMonthlyDto>;
   createMany(data: CreatePayrollMonthlyData[]): Promise<number>;
   deleteByPeriod(companyId: string, year: number, month: number): Promise<void>;
+  upsert(companyId: string, userId: string, year: number, month: number, data: CreatePayrollMonthlyData): Promise<PayrollMonthlyDto>;
 }

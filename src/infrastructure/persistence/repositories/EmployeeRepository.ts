@@ -6,6 +6,7 @@ export interface EmployeeFilters {
   departmentId?: string;
   payrollGroupId?: string;
   status?: string;
+  resignDateFrom?: Date;
   page?: number;
   limit?: number;
 }
@@ -33,6 +34,7 @@ export class EmployeeRepository {
     if (filters.departmentId) where.departmentId = filters.departmentId;
     if (filters.payrollGroupId) where.payrollGroupId = filters.payrollGroupId;
     if (filters.status) where.employeeStatus = filters.status as Prisma.EnumEmployeeStatusFilter['equals'];
+    if (filters.resignDateFrom) where.resignDate = { gte: filters.resignDateFrom };
 
     const [items, total] = await Promise.all([
       prisma.user.findMany({

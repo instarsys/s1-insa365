@@ -387,8 +387,14 @@ function createContainer(): Container {
   const getDailyAttendanceUseCase = new GetDailyAttendanceUseCase(attendanceRepo as Any);
   const getMonthlyAttendanceUseCase = new GetMonthlyAttendanceUseCase(attendanceRepo as Any);
   const confirmAttendanceUseCase = new ConfirmAttendanceUseCase(
+    userRepo as Any,
+    employeeRepo as Any,
     attendanceRepo as Any,
     salaryAttendanceRepo as Any,
+    leaveRequestRepo as Any,
+    workPolicyRepo as Any,
+    companyHolidayRepo as Any,
+    auditLogRepo as Any,
   );
   const get52HourStatusUseCase = new Get52HourStatusUseCase(
     attendanceRepo as Any,
@@ -464,11 +470,17 @@ function createContainer(): Container {
   const getPayrollSummaryUseCase = new GetPayrollSummaryUseCase(salaryCalcRepo as Any);
   const confirmPayrollUseCase = new ConfirmPayrollUseCase(
     salaryCalcRepo as Any,
+    salaryAttendanceRepo as Any,
+    employeeRepo as Any,
+    leaveRequestRepo as Any,
     payrollMonthlyRepo as Any,
+    notificationRepo as Any,
+    auditLogRepo as Any,
   );
   const cancelPayrollUseCase = new CancelPayrollUseCase(
     salaryCalcRepo as Any,
     payrollMonthlyRepo as Any,
+    auditLogRepo as Any,
   );
   const skipEmployeePayrollUseCase = new SkipEmployeePayrollUseCase(salaryCalcRepo as Any);
   const getPayrollHistoryUseCase = new GetPayrollHistoryUseCase(salaryCalcRepo as Any);

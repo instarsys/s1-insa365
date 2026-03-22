@@ -11,4 +11,6 @@ export interface ILeaveRequestRepository {
     rejectReason?: string,
   ): Promise<LeaveRequestDto>;
   countPending(companyId: string): Promise<number>;
+  findApprovedByPeriod(companyId: string, userId: string, startDate: Date, endDate: Date): Promise<LeaveRequestDto[]>;
+  findPendingByPeriod(companyId: string, startDate: Date, endDate: Date): Promise<LeaveRequestDto[]>;
 }

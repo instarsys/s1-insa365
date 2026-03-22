@@ -54,6 +54,7 @@ export interface CreateSalaryAttendanceData {
   paidLeaveMinutes: number;
   confirmedAt: Date;
   confirmedBy: string;
+  version?: number;
 }
 
 export interface ISalaryAttendanceDataRepository {

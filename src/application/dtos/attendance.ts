@@ -12,6 +12,8 @@ export interface RecordAttendanceDto {
 export interface ConfirmAttendanceDto {
   year: number;
   month: number;
+  userIds?: string[];
+  payrollGroupId?: string;
   departmentId?: string;
 }
 
@@ -95,6 +97,26 @@ export interface BatchManualAttendanceResultDto {
   totalSkipped: number;
   created: { date: string }[];
   skipped: { date: string; reason: string }[];
+}
+
+/** 근태 확정 시 스냅샷 생성에 필요한 전체 시간 필드 */
+export interface AttendanceRecordDto {
+  id: string;
+  userId: string;
+  date: Date;
+  checkInTime: Date | null;
+  status: string;
+  regularMinutes: number;
+  overtimeMinutes: number;
+  nightMinutes: number;
+  nightOvertimeMinutes: number;
+  holidayMinutes: number;
+  holidayOvertimeMinutes: number;
+  holidayNightMinutes: number;
+  holidayNightOvertimeMinutes: number;
+  lateMinutes: number;
+  earlyLeaveMinutes: number;
+  isHoliday: boolean;
 }
 
 export interface GpsValidationResultDto {

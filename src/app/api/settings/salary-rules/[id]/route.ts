@@ -48,13 +48,36 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
   });
 
-  // 수식 변경 시 기존 직원 항목에도 전파
-  const { employeeSalaryItemRepo, auditLogRepo } = getContainer();
-  let formulaPropagatedCount = 0;
-  if (body.formula !== undefined && body.formula !== existing.formula) {
-    formulaPropagatedCount = await employeeSalaryItemRepo.updateFormulaByCode(
-      auth.companyId, existing.code, updated?.formula ?? null,
-    );
+  // 규칙 속성 변경 시 전체 직원에게 자동 동기화 (금액 보존, 속성만 업데이트)
+  const { employeeSalaryItemRepo, userRepo, salaryRuleRepo, auditLogRepo } = getContainer();
+  let syncedEmployeeCount = 0;
+
+  const hasPropertyChange = ['name', 'paymentType', 'paymentCycle', 'isOrdinaryWage', 'isTaxExempt', 'taxExemptCode', 'formula', 'sortOrder', 'isActive'].some(
+    (key) => body[key] !== undefined && body[key] !== (existing as Record<string, unknown>)[key],
+  );
+
+  if (hasPropertyChange) {
+    const allRules = await salaryRuleRepo.findAll(auth.companyId);
+    const activeRules = allRules.filter((r: { isActive: boolean }) => r.isActive);
+    const ruleData = activeRules.map((rule: Record<string, unknown>) => ({
+      code: rule.code as string,
+      name: rule.name as string,
+      type: rule.type as string,
+      paymentType: rule.paymentType as string,
+      paymentCycle: rule.paymentCycle as string,
+      defaultAmount: Number(rule.defaultAmount ?? 0),
+      isOrdinaryWage: rule.isOrdinaryWage as boolean,
+      isTaxExempt: rule.isTaxExempt as boolean,
+      taxExemptCode: (rule.taxExemptCode as string) ?? null,
+      sortOrder: rule.sortOrder as number,
+      formula: (rule.formula as string) ?? null,
+    }));
+
+    const activeUsers = await userRepo.findActiveUsers(auth.companyId);
+    for (const user of activeUsers) {
+      await employeeSalaryItemRepo.upsertFromRules(auth.companyId, user.id, ruleData as unknown as Parameters<typeof employeeSalaryItemRepo.upsertFromRules>[2]);
+      syncedEmployeeCount++;
+    }
   }
 
   await auditLogRepo.create({
@@ -64,7 +87,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     entityType: 'SalaryRule',
     entityId: id,
     before: existing as unknown as Record<string, unknown>,
-    after: { ...body as Record<string, unknown>, formulaPropagatedEmployees: formulaPropagatedCount },
+    after: { ...body as Record<string, unknown>, syncedEmployees: syncedEmployeeCount },
   });
 
   return successResponse(updated);

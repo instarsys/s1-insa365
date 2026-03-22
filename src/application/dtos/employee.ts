@@ -89,6 +89,7 @@ export interface EmployeeDto {
   salaryType: string;
   hourlyRate: number | null;
   attendanceExempt: boolean;
+  dailyWorkHours: number;
   profileImageUrl: string | null;
   createdAt: string;
 }
@@ -97,7 +98,9 @@ export interface EmployeeListFilters {
   search?: string;
   departmentId?: string;
   positionId?: string;
+  payrollGroupId?: string;
   status?: string;
+  resignDateFrom?: Date;
   page?: number;
   limit?: number;
 }

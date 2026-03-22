@@ -10,12 +10,15 @@ export interface CalculatePayrollDto {
 export interface PayrollResultDto {
   id: string;
   employeeId: string;
+  /** employeeId 별칭 (UseCase에서 userId로 참조) */
+  userId: string;
   employeeName: string;
   employeeNumber: string | null;
   departmentName: string | null;
   year: number;
   month: number;
   status: string;
+  confirmedAt: string | null;
 
   // Phase 1
   ordinaryWageMonthly: number;

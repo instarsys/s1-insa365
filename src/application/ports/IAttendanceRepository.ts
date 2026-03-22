@@ -1,4 +1,4 @@
-import type { DailyAttendanceDto, MonthlyAttendanceSummaryDto } from '../dtos/attendance';
+import type { DailyAttendanceDto, MonthlyAttendanceSummaryDto, AttendanceRecordDto } from '../dtos/attendance';
 
 export interface CreateAttendanceData {
   companyId: string;
@@ -13,6 +13,8 @@ export interface CreateAttendanceData {
   isOutOfRange?: boolean;
   checkInLocationName?: string;
   checkInDistance?: number;
+  status?: string;
+  isHoliday?: boolean;
 }
 
 export interface UpdateAttendanceData {
@@ -47,4 +49,8 @@ export interface IAttendanceRepository {
   confirmMonth(companyId: string, year: number, month: number, confirmedBy: string): Promise<void>;
   getWeeklyHours(companyId: string, userId: string, weekStartDate: Date): Promise<number>;
   isMonthConfirmed(companyId: string, year: number, month: number): Promise<boolean>;
+  findByUserAndMonth(companyId: string, userId: string, year: number, month: number): Promise<AttendanceRecordDto[]>;
+  confirmByDateRange(companyId: string, userIds: string[], startDate: Date, endDate: Date): Promise<number>;
+  deleteAutoAbsentByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<number>;
+  unconfirmByDateRange(companyId: string, startDate: Date, endDate: Date): Promise<number>;
 }

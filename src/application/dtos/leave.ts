@@ -38,6 +38,7 @@ export interface LeaveRequestDto {
   rejectedAt: string | null;
   rejectReason: string | null;
   createdAt: string;
+  leaveTypeConfig?: { name: string; deductsFromBalance: boolean } | null;
 }
 
 export interface LeaveBalanceDto {
