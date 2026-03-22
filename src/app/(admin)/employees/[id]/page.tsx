@@ -527,7 +527,20 @@ export default function EmployeeDetailPage() {
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {/* Row 1: 사번, 주민등록번호, 입사구분 */}
                 <InfoItem label="사번" value={emp.employeeNumber as string} />
+                {isEditingPersonnel ? (
+                  <Input
+                    label="주민등록번호"
+                    value={editForm.rrn}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
+                    placeholder="000000-0000000"
+                    maxLength={14}
+                    required
+                  />
+                ) : (
+                  <InfoItem label="주민등록번호" value={displayRrn} />
+                )}
                 {isEditingPersonnel ? (
                   <Select
                     label="입사구분"
@@ -538,6 +551,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="입사구분" value={hireTypeLabel} />
                 )}
+                {/* Row 2: 부서, 직급, 입사일 */}
                 {isEditingPersonnel ? (
                   <Select
                     label="부서"
@@ -559,19 +573,6 @@ export default function EmployeeDetailPage() {
                   <InfoItem label="직급" value={pos?.name ?? '-'} />
                 )}
                 {isEditingPersonnel ? (
-                  <Select
-                    label="급여 그룹"
-                    options={payrollGroupOptions}
-                    value={editForm.payrollGroupId}
-                    onChange={(v) => setEditForm((f) => ({ ...f, payrollGroupId: v }))}
-                  />
-                ) : (
-                  <InfoItem
-                    label="급여 그룹"
-                    value={payrollGroups.find((g) => g.id === (emp.payrollGroupId as string))?.name ?? '-'}
-                  />
-                )}
-                {isEditingPersonnel ? (
                   <DatePicker
                     label="입사일"
                     value={editForm.joinDate}
@@ -580,6 +581,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="입사일" value={emp.joinDate ? formatDate(emp.joinDate as string) : '-'} />
                 )}
+                {/* 퇴사/휴직 정보 (해당 상태일 때만) */}
                 {(emp.employeeStatus as string) === 'RESIGNED' && (
                   <>
                     {isEditingPersonnel ? (
@@ -613,6 +615,20 @@ export default function EmployeeDetailPage() {
                     )}
                   </>
                 )}
+                {/* Row 3: 급여그룹, 근무정책, 근무지 */}
+                {isEditingPersonnel ? (
+                  <Select
+                    label="급여 그룹"
+                    options={payrollGroupOptions}
+                    value={editForm.payrollGroupId}
+                    onChange={(v) => setEditForm((f) => ({ ...f, payrollGroupId: v }))}
+                  />
+                ) : (
+                  <InfoItem
+                    label="급여 그룹"
+                    value={payrollGroups.find((g) => g.id === (emp.payrollGroupId as string))?.name ?? '-'}
+                  />
+                )}
                 {isEditingPersonnel ? (
                   <Select
                     label="근무정책"
@@ -630,57 +646,55 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
+                {/* Row 4: 근태면제 + 안내문구 */}
                 {isEditingPersonnel ? (
-                  <Input
-                    label="주민등록번호"
-                    value={editForm.rrn}
-                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
-                    placeholder="000000-0000000"
-                    maxLength={14}
-                    required
-                  />
-                ) : (
-                  <InfoItem label="주민등록번호" value={displayRrn} />
-                )}
-                <div className="sm:col-span-2 lg:col-span-3">
-                  {isEditingPersonnel ? (
-                    <div className="w-full">
-                      <label className="mb-1 block text-xs font-medium text-gray-700">근태 면제</label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if ((emp.salaryType as string) === 'HOURLY') return;
-                          setEditForm((f) => ({ ...f, attendanceExempt: !f.attendanceExempt }));
-                        }}
-                        disabled={(emp.salaryType as string) === 'HOURLY'}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          editForm.attendanceExempt ? 'bg-indigo-600' : 'bg-gray-300'
-                        } ${(emp.salaryType as string) === 'HOURLY' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      >
-                        <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            editForm.attendanceExempt ? 'translate-x-6' : 'translate-x-1'
-                          }`}
-                        />
-                      </button>
-                      <span className="ml-2 text-sm text-gray-600">
-                        {editForm.attendanceExempt ? 'ON' : 'OFF'}
-                      </span>
-                      {(emp.salaryType as string) === 'HOURLY' && (
-                        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                          <div className="flex items-start gap-2">
-                            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
-                            <p className="text-xs text-amber-700">현재 이 직원은 시급제이므로 근태면제를 설정할 수 없습니다.</p>
-                          </div>
+                  <div className="w-full">
+                    <label className="mb-1 block text-xs font-medium text-gray-700">근태 면제</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if ((emp.salaryType as string) === 'HOURLY') return;
+                        setEditForm((f) => ({ ...f, attendanceExempt: !f.attendanceExempt }));
+                      }}
+                      disabled={(emp.salaryType as string) === 'HOURLY'}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        editForm.attendanceExempt ? 'bg-indigo-600' : 'bg-gray-300'
+                      } ${(emp.salaryType as string) === 'HOURLY' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          editForm.attendanceExempt ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                    <span className="ml-2 text-sm text-gray-600">
+                      {editForm.attendanceExempt ? 'ON' : 'OFF'}
+                    </span>
+                    {(emp.salaryType as string) === 'HOURLY' && (
+                      <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+                          <p className="text-xs text-amber-700">현재 이 직원은 시급제이므로 근태면제를 설정할 수 없습니다.</p>
                         </div>
-                      )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <InfoItem
+                    label="근태 면제"
+                    value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
+                  />
+                )}
+                <div className="sm:col-span-1 lg:col-span-2">
+                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-start gap-2">
+                      <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
+                      <div className="text-xs text-gray-500">
+                        <p>근태면제 기능은 월급제 직원만 사용할 수 있습니다. 설정 시 출퇴근 기록 없이 매월 기본급과 고정수당이 지급됩니다.</p>
+                        <p className="mt-1">시급제는 근무시간을 기준으로 급여가 산정되므로 근태면제를 사용할 수 없습니다.</p>
+                      </div>
                     </div>
-                  ) : (
-                    <InfoItem
-                      label="근태 면제"
-                      value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
-                    />
-                  )}
+                  </div>
                 </div>
               </div>
             </CardBody>
