@@ -9,6 +9,15 @@ type RouteContext = { params: Promise<{ id: string }> };
 async function handler(request: NextRequest, auth: AuthContext) {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
 
+  // 관리자가 승인 시 days를 수정할 수 있음
+  let bodyDays: number | undefined;
+  try {
+    const body = await request.json();
+    bodyDays = body?.days;
+  } catch {
+    // body 없어도 OK
+  }
+
   const { leaveRequestRepo, leaveBalanceRepo, notificationRepo, attendanceRepo } = getContainer();
 
   const leaveRequest = await leaveRequestRepo.findByIdWithConfig(auth.companyId, id);
@@ -28,11 +37,19 @@ async function handler(request: NextRequest, auth: AuthContext) {
     return errorResponse(`해당 기간에 근태 기록이 존재하여 휴가를 승인할 수 없습니다. 근태를 먼저 삭제해주세요. (근태 기록일: ${dates})`, 409);
   }
 
-  const updated = await leaveRequestRepo.update(auth.companyId, id, {
+  // 관리자가 days를 수정한 경우 반영
+  const finalDays = bodyDays ?? Number(leaveRequest.days);
+
+  const updateData: Record<string, unknown> = {
     status: 'APPROVED',
     approvedBy: auth.userId,
     approvedAt: new Date(),
-  });
+  };
+  if (bodyDays !== undefined && bodyDays !== Number(leaveRequest.days)) {
+    updateData.days = bodyDays;
+  }
+
+  const updated = await leaveRequestRepo.update(auth.companyId, id, updateData);
 
   // Update leave balance (skip if leaveTypeConfig says deductsFromBalance=false)
   const shouldDeduct = leaveRequest.leaveTypeConfig
@@ -45,8 +62,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
 
     if (balance) {
       await leaveBalanceRepo.update(auth.companyId, balance.id, {
-        usedDays: { increment: leaveRequest.days },
-        remainingDays: { decrement: leaveRequest.days },
+        usedDays: { increment: finalDays },
+        remainingDays: { decrement: finalDays },
       });
     }
   }

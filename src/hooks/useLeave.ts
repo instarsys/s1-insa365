@@ -155,9 +155,9 @@ export function useLeaveBalances() {
 
 export function useLeaveMutations() {
   return {
-    createRequest: (data: { type: string; leaveTypeConfigId?: string; startDate: string; endDate: string; days: number; reason?: string }) =>
+    createRequest: (data: { type: string; leaveTypeConfigId?: string; startDate: string; endDate: string; days?: number; reason?: string }) =>
       apiPost('/api/leave/request', data),
-    approve: (id: string) => apiPut(`/api/leave/request/${id}/approve`),
+    approve: (id: string, days?: number) => apiPut(`/api/leave/request/${id}/approve`, days !== undefined ? { days } : {}),
     reject: (id: string, data: { reason: string }) => apiPut(`/api/leave/request/${id}/reject`, data),
     updateBalance: (userId: string, data: { year: number; totalDays: number }) =>
       apiPut(`/api/leave/balance/${userId}`, data),

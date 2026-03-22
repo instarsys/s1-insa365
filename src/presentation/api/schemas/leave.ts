@@ -5,7 +5,7 @@ export const createLeaveRequestSchema = z.object({
   leaveTypeConfigId: z.string().uuid().optional().nullable(),
   startDate: z.string().min(1, '시작일을 입력해주세요.'),
   endDate: z.string().min(1, '종료일을 입력해주세요.'),
-  days: z.number().min(0.5).max(365),
+  days: z.number().min(0.5).max(365).optional(),
   reason: z.string().max(500).optional().nullable(),
 });
 

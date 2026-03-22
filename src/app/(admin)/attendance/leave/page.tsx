@@ -118,11 +118,27 @@ export default function LeaveManagementPage() {
     { key: 'balances', label: '연차 관리' },
   ];
 
-  const handleApprove = async (id: string) => {
+  const [approveModalOpen, setApproveModalOpen] = useState(false);
+  const [approveTargetId, setApproveTargetId] = useState('');
+  const [approveDays, setApproveDays] = useState(0);
+  const [approveTargetInfo, setApproveTargetInfo] = useState('');
+
+  const openApproveModal = (id: string) => {
+    const req = requests.find((r) => r.id === id);
+    if (!req) return;
+    setApproveTargetId(id);
+    setApproveDays(Number(req.days));
+    setApproveTargetInfo(`${req.userName} / ${req.startDate?.slice(0, 10)} ~ ${req.endDate?.slice(0, 10)}`);
+    setApproveModalOpen(true);
+  };
+
+  const handleApprove = async () => {
+    if (!approveTargetId) return;
     setIsProcessing(true);
     try {
-      await approve(id);
+      await approve(approveTargetId, approveDays);
       toast.success('휴가가 승인되었습니다.');
+      setApproveModalOpen(false);
       await mutate();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : '승인에 실패했습니다.');
@@ -220,7 +236,7 @@ export default function LeaveManagementPage() {
         return (
           <div className="flex gap-1">
             <button
-              onClick={() => handleApprove(row.id as string)}
+              onClick={() => openApproveModal(row.id as string)}
               disabled={isProcessing}
               className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50"
             >
@@ -470,6 +486,38 @@ export default function LeaveManagementPage() {
             <p className="mt-1 text-xs text-gray-500">해당 기간 중 실제 휴가로 적용할 근무일 수입니다. (예: 월~금 5일 중 반차 1일이면 0.5일)</p>
           </div>
           <Textarea label="사유" value={editReason} onChange={(e) => setEditReason(e.target.value)} rows={2} />
+        </div>
+      </Modal>
+
+      {/* Approve Modal */}
+      <Modal
+        open={approveModalOpen}
+        onClose={() => setApproveModalOpen(false)}
+        title="휴가 승인"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setApproveModalOpen(false)}>
+              취소
+            </Button>
+            <Button onClick={handleApprove} disabled={isProcessing || approveDays <= 0}>
+              {isProcessing ? '처리 중...' : '승인'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">{approveTargetInfo}</p>
+          <Input
+            label="적용 일수"
+            type="number"
+            step="0.5"
+            min="0.5"
+            value={String(approveDays)}
+            onChange={(e) => setApproveDays(Number(e.target.value))}
+          />
+          <p className="text-xs text-gray-500">
+            근무일 기준으로 자동 계산된 일수입니다. 필요 시 수정할 수 있습니다.
+          </p>
         </div>
       </Modal>
 

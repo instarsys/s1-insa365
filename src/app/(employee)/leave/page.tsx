@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import { Card, CardBody, Badge, Button, Select, DatePicker, Textarea, Modal } from '@/components/ui';
 import { useLeaveRequests, useLeaveBalance, useLeaveMutations, useLeaveTypeConfigs } from '@/hooks';
 import { formatDate } from '@/lib/utils';
+import { apiGet } from '@/lib/api';
 
 const STATUS_MAP: Record<string, { label: string; variant: 'success' | 'warning' | 'error' | 'info' | 'gray' }> = {
   PENDING: { label: '대기중', variant: 'warning' },
@@ -52,30 +53,35 @@ export default function EmployeeLeavePage() {
     ? selectedConfig?.timeOption === 'HALF_DAY'
     : formType === 'HALF_AM' || formType === 'HALF_PM';
 
-  const days = (() => {
-    if (useDbTypes && selectedConfig) {
-      return selectedConfig.deductionDays;
+  const [calculatedDays, setCalculatedDays] = useState(0);
+
+  // 시작일/종료일 변경 시 서버에서 근무일 수 자동 계산
+  useEffect(() => {
+    if (isHalfDay) {
+      setCalculatedDays(0.5);
+      return;
     }
-    if (isHalfDay) return 0.5;
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diff = Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(diff, 0);
-  })();
+    if (!startDate || !endDate) {
+      setCalculatedDays(0);
+      return;
+    }
+    apiGet<{ days: number }>(`/api/leave/calculate-days?startDate=${startDate}&endDate=${endDate}`)
+      .then((res) => setCalculatedDays(res.days))
+      .catch(() => setCalculatedDays(0));
+  }, [startDate, endDate, isHalfDay]);
+
+  const days = calculatedDays;
 
   const handleSubmit = async () => {
     if (!startDate) return;
     setSubmitting(true);
     try {
       const effectiveEndDate = isHalfDay ? startDate : endDate;
-      const effectiveDays = isHalfDay ? 0.5 : days;
       await createRequest({
         type: useDbTypes ? 'ANNUAL' : formType,
         leaveTypeConfigId: useDbTypes ? formTypeConfigId : undefined,
         startDate,
         endDate: effectiveEndDate,
-        days: effectiveDays,
         reason,
       });
       setShowForm(false);
