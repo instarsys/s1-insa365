@@ -465,6 +465,7 @@ model EmployeeSalaryItem {
   isActive       Boolean       @default(true) @map("is_active")
   sortOrder      Int           @default(0) @map("sort_order")
   formula        String?
+  paymentMonths  String?       @map("payment_months")  // "2" or "3,6,9,12" or null(매월)
   createdAt      DateTime      @default(now()) @map("created_at")
   updatedAt      DateTime      @updatedAt @map("updated_at")
   deletedAt      DateTime?     @map("deleted_at")

@@ -203,6 +203,7 @@ export class CalculatePayrollUseCase {
           isTaxExempt: si.isTaxExempt,
           taxExemptCode: si.taxExemptCode ?? undefined,
           formula: si.formula ?? undefined,
+          paymentMonths: si.paymentMonths ?? undefined,
         }));
 
         // Get attendance snapshot

@@ -14,6 +14,7 @@ export interface EmployeeSalaryItemDto {
   isActive: boolean;
   sortOrder: number;
   formula: string | null;
+  paymentMonths: string | null;
 }
 
 export interface CreateEmployeeSalaryItemData {

@@ -96,6 +96,7 @@ export class GrossPayCalculator {
     prorationRatio: number,
     salaryType: 'MONTHLY' | 'HOURLY' = 'MONTHLY',
     hourlyRate?: number,
+    month?: number,
   ): GrossPayResult {
     const items = salaryItemProps.map((p) => new SalaryItem(p));
 
@@ -117,10 +118,10 @@ export class GrossPayCalculator {
       );
     }
 
-    // 2. Fixed allowances: ALLOWANCE + FIXED type, prorated
+    // 2. Fixed allowances: ALLOWANCE + FIXED type, prorated + 지급월 필터
     const fixedAllowances = Math.floor(
       items
-        .filter((item) => item.isAllowance() && item.isFixed())
+        .filter((item) => item.isAllowance() && item.isFixed() && (!month || item.isPayableInMonth(month)))
         .reduce((sum, item) => sum + item.amount, 0) * prorationRatio,
     );
 

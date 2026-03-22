@@ -30,6 +30,8 @@ export interface SalaryItemProps {
   taxExemptCode?: string;
   /** 산식 문자열 (FORMULA 타입인 경우). 레거시 키워드 또는 실제 수식 */
   formula?: string;
+  /** 지급 대상 월 (예: "2" = 2월만, "3,6,9,12" = 분기별, null = 매월) */
+  paymentMonths?: string;
 }
 
 export class SalaryItem {
@@ -44,6 +46,7 @@ export class SalaryItem {
   readonly isTaxExempt: boolean;
   readonly taxExemptCode?: string;
   readonly formula?: string;
+  readonly paymentMonths?: string;
 
   constructor(props: SalaryItemProps) {
     this.id = props.id;
@@ -52,11 +55,19 @@ export class SalaryItem {
     this.type = props.type;
     this.paymentType = props.paymentType;
     this.paymentCycle = props.paymentCycle;
-    this.amount = Number(props.amount); // Prisma Decimal → plain number 변환 (문자열 연결 방지)
+    this.amount = Number(props.amount);
     this.isOrdinaryWage = props.isOrdinaryWage;
     this.isTaxExempt = props.isTaxExempt;
     this.taxExemptCode = props.taxExemptCode;
     this.formula = props.formula;
+    this.paymentMonths = props.paymentMonths;
+  }
+
+  /** 해당 월에 지급 대상인지 확인 */
+  isPayableInMonth(month: number): boolean {
+    if (!this.paymentMonths) return true; // null = 매월
+    const months = this.paymentMonths.split(',').map(Number);
+    return months.includes(month);
   }
 
   /**

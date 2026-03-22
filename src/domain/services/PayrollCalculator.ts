@@ -56,6 +56,7 @@ export class PayrollCalculator {
         proration.ratio,
         input.employee.salaryType,
         input.employee.hourlyRate,
+        input.month,
       );
 
       // Phase 3: Tax-Exempt Separation
