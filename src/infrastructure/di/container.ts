@@ -500,6 +500,7 @@ function createContainer(): Container {
   const getPayrollDetailUseCase = new GetPayrollDetailUseCase(
     salaryCalcRepo as Any,
     salaryAttendanceRepo as Any,
+    employeeSalaryItemRepo as Any,
   );
 
   // Upload

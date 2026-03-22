@@ -1,5 +1,6 @@
 import type { ISalaryCalculationRepository } from '../../ports/ISalaryCalculationRepository';
 import type { ISalaryAttendanceDataRepository } from '../../ports/ISalaryAttendanceDataRepository';
+import type { IEmployeeSalaryItemRepository } from '../../ports/IEmployeeSalaryItemRepository';
 import type { PayrollDetailDto, PayBreakdownItem, DeductionBreakdownItem } from '../../dtos/payroll';
 
 function fmtKRW(n: number): string {
@@ -14,6 +15,7 @@ export class GetPayrollDetailUseCase {
   constructor(
     private salaryCalcRepo: ISalaryCalculationRepository,
     private salaryAttendanceRepo: ISalaryAttendanceDataRepository,
+    private employeeSalaryItemRepo?: IEmployeeSalaryItemRepository,
   ) {}
 
   async execute(companyId: string, calculationId: string): Promise<PayrollDetailDto | null> {
@@ -46,8 +48,20 @@ export class GetPayrollDetailUseCase {
       });
     }
 
-    // 고정수당
-    if (Number(calc.fixedAllowances) > 0) {
+    // 고정수당 — 개별 항목 표시
+    if (this.employeeSalaryItemRepo) {
+      const salaryItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, calc.userId ?? calc.employeeId);
+      const fixedAllowanceItems = salaryItems.filter(
+        (si) => si.type === 'ALLOWANCE' && si.paymentType === 'FIXED' && Number(si.amount) > 0,
+      );
+      for (const si of fixedAllowanceItems) {
+        payItems.push({
+          label: String(si.name),
+          amount: Number(si.amount),
+          description: String(si.name),
+        });
+      }
+    } else if (Number(calc.fixedAllowances) > 0) {
       payItems.push({
         label: '고정수당',
         amount: Number(calc.fixedAllowances),
@@ -242,6 +256,21 @@ export class GetPayrollDetailUseCase {
         rate: 0.1,
         description: `${fmtKRW(Number(calc.incomeTax))} × 10%`,
       });
+    }
+
+    // 임의공제 (D07~D12) 개별 항목 표시
+    if (this.employeeSalaryItemRepo) {
+      const salaryItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, calc.userId ?? calc.employeeId);
+      const deductionFixedItems = salaryItems.filter(
+        (si) => si.type === 'DEDUCTION' && si.paymentType === 'FIXED' && Number(si.amount) > 0,
+      );
+      for (const si of deductionFixedItems) {
+        deductionItems.push({
+          label: String(si.name),
+          amount: Number(si.amount),
+          description: String(si.name),
+        });
+      }
     }
 
     // 5. 근태 정보 매핑
