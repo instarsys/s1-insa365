@@ -81,7 +81,9 @@ export default function EmployeeDetailPage() {
   const tabParam = searchParams.get('tab');
   const initialTab = DETAIL_TABS.some(t => t.key === tabParam) ? tabParam! : 'basic';
   const [activeTab, setActiveTab] = useState(initialTab);
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditingPersonnel, setIsEditingPersonnel] = useState(false);
+  const [isEditingContact, setIsEditingContact] = useState(false);
+  const [isEditingPayrollBase, setIsEditingPayrollBase] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showResignModal, setShowResignModal] = useState(false);
   const [resignDate, setResignDate] = useState(new Date().toISOString().slice(0, 10));
@@ -163,7 +165,7 @@ export default function EmployeeDetailPage() {
   // Edit form state
   const [editForm, setEditForm] = useState<EditFormState>(emptyEditForm);
 
-  const startEdit = useCallback(() => {
+  const populateEditForm = useCallback(() => {
     if (!employee) return;
     const emp = employee as Record<string, unknown>;
     setEditForm({
@@ -186,55 +188,59 @@ export default function EmployeeDetailPage() {
       payrollGroupId: (emp.payrollGroupId as string) ?? '',
       attendanceExempt: (emp.attendanceExempt as boolean) ?? false,
     });
-    setIsEditing(true);
   }, [employee]);
 
-  const cancelEdit = () => {
-    setIsEditing(false);
-    setEditForm(emptyEditForm);
-  };
+  // 섹션별 편집 시작/취소/저장 함수
+  const startEditPersonnel = () => { populateEditForm(); setIsEditingPersonnel(true); };
+  const cancelEditPersonnel = () => { setIsEditingPersonnel(false); };
+  const startEditContact = () => { populateEditForm(); setIsEditingContact(true); };
+  const cancelEditContact = () => { setIsEditingContact(false); };
+  const startEditPayrollBase = () => { populateEditForm(); setIsEditingPayrollBase(true); };
+  const cancelEditPayrollBase = () => { setIsEditingPayrollBase(false); };
 
-  const saveEdit = async () => {
-    if (!editForm.name || !editForm.email || !editForm.phone || !editForm.rrn) {
-      toast.error('이름, 이메일, 연락처, 주민등록번호는 필수입니다.');
-      return;
-    }
-    if (!editForm.workPolicyId) {
-      toast.error('근무정책을 선택해주세요.');
-      return;
-    }
-
+  const saveSectionEdit = async (section: 'personnel' | 'contact' | 'payrollBase') => {
     setIsSaving(true);
     try {
-      const payload: Record<string, unknown> = {
-        name: editForm.name,
-        email: editForm.email,
-        phone: editForm.phone,
-        departmentId: editForm.departmentId || null,
-        positionId: editForm.positionId || null,
-        workPolicyId: editForm.workPolicyId || null,
-        joinDate: editForm.joinDate || null,
-        resignDate: editForm.resignDate || null,
-        resignReason: editForm.resignReason || null,
-        address: editForm.address || null,
-        isHouseholder: editForm.isHouseholder,
-        dependents: parseInt(editForm.dependents) || 1,
-        hireType: editForm.hireType || null,
-        bankName: editForm.bankName || null,
-        payrollGroupId: editForm.payrollGroupId || null,
-        attendanceExempt: editForm.attendanceExempt,
-      };
-      if (editForm.bankAccount) {
-        payload.bankAccount = editForm.bankAccount;
+      let payload: Record<string, unknown> = {};
+      if (section === 'personnel') {
+        if (!editForm.workPolicyId) { toast.error('근무정책을 선택해주세요.'); setIsSaving(false); return; }
+        payload = {
+          name: editForm.name,
+          departmentId: editForm.departmentId || null,
+          positionId: editForm.positionId || null,
+          workPolicyId: editForm.workPolicyId || null,
+          joinDate: editForm.joinDate || null,
+          resignDate: editForm.resignDate || null,
+          resignReason: editForm.resignReason || null,
+          hireType: editForm.hireType || null,
+          payrollGroupId: editForm.payrollGroupId || null,
+          attendanceExempt: editForm.attendanceExempt,
+        };
+      } else if (section === 'contact') {
+        if (!editForm.email || !editForm.phone) { toast.error('이메일과 연락처는 필수입니다.'); setIsSaving(false); return; }
+        payload = {
+          email: editForm.email,
+          phone: editForm.phone,
+          address: editForm.address || null,
+        };
+      } else {
+        if (!editForm.rrn) { toast.error('주민등록번호는 필수입니다.'); setIsSaving(false); return; }
+        payload = {
+          rrn: editForm.rrn,
+          isHouseholder: editForm.isHouseholder,
+          dependents: parseInt(editForm.dependents) || 1,
+          bankName: editForm.bankName || null,
+        };
+        if (editForm.bankAccount) payload.bankAccount = editForm.bankAccount;
       }
-      payload.rrn = editForm.rrn;
       await updateEmployee(id, payload);
-      toast.success('직원 정보가 수정되었습니다.');
-      setIsEditing(false);
+      toast.success('저장되었습니다.');
+      if (section === 'personnel') setIsEditingPersonnel(false);
+      else if (section === 'contact') setIsEditingContact(false);
+      else setIsEditingPayrollBase(false);
       await mutate();
     } catch (err) {
-      const msg = err instanceof Error ? err.message : '';
-      toast.error(msg ? `수정에 실패했습니다: ${msg}` : '수정에 실패했습니다.');
+      toast.error(err instanceof Error ? err.message : '수정에 실패했습니다.');
     } finally {
       setIsSaving(false);
     }
@@ -404,7 +410,7 @@ export default function EmployeeDetailPage() {
               imageUrl={emp.profileImageUrl as string | undefined}
               size="lg"
             />
-            {isEditing && (
+            {(isEditingPersonnel || isEditingContact || isEditingPayrollBase) && (
               <>
                 <button
                   onClick={() => fileInputRef.current?.click()}
@@ -494,40 +500,35 @@ export default function EmployeeDetailPage() {
       {/* Tab Content: Basic Info */}
       {activeTab === 'basic' && (
         <div className="space-y-6">
-          {/* Edit Controls */}
-          <div className="flex justify-end">
-            {!isEditing ? (
-              <Button variant="ghost" size="sm" onClick={startEdit}>
-                <Pencil className="h-4 w-4" />
-                수정
-              </Button>
-            ) : (
-              <div className="flex gap-2">
-                <Button variant="ghost" size="sm" onClick={cancelEdit} disabled={isSaving}>
-                  <X className="h-4 w-4" />
-                  취소
-                </Button>
-                <Button size="sm" onClick={saveEdit} disabled={isSaving}>
-                  <Check className="h-4 w-4" />
-                  {isSaving ? '저장 중...' : '저장'}
-                </Button>
-              </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Section 1: 인사 정보 */}
+          {/* Section 1: 인사 정보 (기존 인사 정보 + 근무 설정 병합) */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Briefcase className="h-4 w-4 text-gray-400" />
                 인사 정보
               </CardTitle>
+              {!isEditingPersonnel ? (
+                <Button variant="ghost" size="sm" onClick={startEditPersonnel}>
+                  <Pencil className="h-4 w-4" />
+                  편집
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={cancelEditPersonnel} disabled={isSaving}>
+                    <X className="h-4 w-4" />
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={() => saveSectionEdit('personnel')} disabled={isSaving}>
+                    <Check className="h-4 w-4" />
+                    {isSaving ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardBody>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <InfoItem label="사번" value={emp.employeeNumber as string} />
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <Select
                     label="입사구분"
                     options={hireTypeOptions}
@@ -537,7 +538,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="입사구분" value={hireTypeLabel} />
                 )}
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <Select
                     label="부서"
                     options={departmentOptions}
@@ -547,7 +548,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="부서" value={dept?.name ?? '-'} />
                 )}
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <Select
                     label="직급"
                     options={positionOptions}
@@ -557,7 +558,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="직급" value={pos?.name ?? '-'} />
                 )}
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <Select
                     label="급여 그룹"
                     options={payrollGroupOptions}
@@ -570,7 +571,7 @@ export default function EmployeeDetailPage() {
                     value={payrollGroups.find((g) => g.id === (emp.payrollGroupId as string))?.name ?? '-'}
                   />
                 )}
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <DatePicker
                     label="입사일"
                     value={editForm.joinDate}
@@ -581,7 +582,7 @@ export default function EmployeeDetailPage() {
                 )}
                 {(emp.employeeStatus as string) === 'RESIGNED' && (
                   <>
-                    {isEditing ? (
+                    {isEditingPersonnel ? (
                       <DatePicker
                         label="퇴사일"
                         value={editForm.resignDate}
@@ -590,7 +591,7 @@ export default function EmployeeDetailPage() {
                     ) : (
                       <InfoItem label="퇴사일" value={emp.resignDate ? formatDate(emp.resignDate as string) : '-'} />
                     )}
-                    {isEditing ? (
+                    {isEditingPersonnel ? (
                       <Input
                         label="퇴사사유"
                         value={editForm.resignReason}
@@ -612,21 +613,7 @@ export default function EmployeeDetailPage() {
                     )}
                   </>
                 )}
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Section: 근무 설정 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-gray-400" />
-                근무 설정
-              </CardTitle>
-            </CardHeader>
-            <CardBody>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {isEditing ? (
+                {isEditingPersonnel ? (
                   <Select
                     label="근무정책"
                     options={workPolicyOptions}
@@ -643,8 +630,8 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
-                <div className="sm:col-span-2">
-                  {isEditing ? (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  {isEditingPersonnel ? (
                     <div className="w-full">
                       <label className="mb-1 block text-xs font-medium text-gray-700">근태 면제</label>
                       <button
@@ -667,15 +654,6 @@ export default function EmployeeDetailPage() {
                       <span className="ml-2 text-sm text-gray-600">
                         {editForm.attendanceExempt ? 'ON' : 'OFF'}
                       </span>
-                      <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <div className="flex items-start gap-2">
-                          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-                          <div className="text-xs text-gray-500">
-                            <p>근태면제 기능은 월급제 직원만 사용할 수 있습니다. 설정 시 출퇴근 기록 없이 매월 기본급과 고정수당이 지급됩니다.</p>
-                            <p className="mt-1">시급제는 근무시간을 기준으로 급여가 산정되므로 근태면제를 사용할 수 없습니다.</p>
-                          </div>
-                        </div>
-                      </div>
                       {(emp.salaryType as string) === 'HOURLY' && (
                         <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                           <div className="flex items-start gap-2">
@@ -686,40 +664,44 @@ export default function EmployeeDetailPage() {
                       )}
                     </div>
                   ) : (
-                    <div>
-                      <InfoItem
-                        label="근태 면제"
-                        value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
-                      />
-                      <div className="mt-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
-                        <div className="flex items-start gap-2">
-                          <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gray-400" />
-                          <div className="text-xs text-gray-500">
-                            <p>근태면제 기능은 월급제 직원만 사용할 수 있습니다. 설정 시 출퇴근 기록 없이 매월 기본급과 고정수당이 지급됩니다.</p>
-                            <p className="mt-1">시급제는 근무시간을 기준으로 급여가 산정되므로 근태면제를 사용할 수 없습니다.</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <InfoItem
+                      label="근태 면제"
+                      value={(emp.attendanceExempt as boolean) ? 'ON' : 'OFF'}
+                    />
                   )}
                 </div>
               </div>
             </CardBody>
           </Card>
-          </div>
 
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Section 2: 개인 정보 */}
+          {/* Section 2: 연락처 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-gray-400" />
-                개인 정보
+                <Phone className="h-4 w-4 text-gray-400" />
+                연락처
               </CardTitle>
+              {!isEditingContact ? (
+                <Button variant="ghost" size="sm" onClick={startEditContact}>
+                  <Pencil className="h-4 w-4" />
+                  편집
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={cancelEditContact} disabled={isSaving}>
+                    <X className="h-4 w-4" />
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={() => saveSectionEdit('contact')} disabled={isSaving}>
+                    <Check className="h-4 w-4" />
+                    {isSaving ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              )}
             </CardHeader>
             <CardBody>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {isEditing ? (
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {isEditingContact ? (
                   <Input
                     label="이메일"
                     required
@@ -730,7 +712,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="이메일" value={emp.email as string} required />
                 )}
-                {isEditing ? (
+                {isEditingContact ? (
                   <PhoneInput
                     label="연락처"
                     required
@@ -741,8 +723,8 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="연락처" value={formatPhoneNumber((emp.phone as string) || '')} required />
                 )}
-                <div className="sm:col-span-2">
-                  {isEditing ? (
+                <div className="sm:col-span-2 lg:col-span-1">
+                  {isEditingContact ? (
                     <Input
                       label="주소"
                       value={editForm.address}
@@ -754,7 +736,50 @@ export default function EmployeeDetailPage() {
                     <InfoItem label="주소" value={(emp.address as string) || '-'} />
                   )}
                 </div>
-                {isEditing ? (
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Section 3: 급여 기초 정보 (주민번호/세대주/부양가족 + 계좌) */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-gray-400" />
+                급여 기초 정보
+              </CardTitle>
+              {!isEditingPayrollBase ? (
+                <Button variant="ghost" size="sm" onClick={startEditPayrollBase}>
+                  <Pencil className="h-4 w-4" />
+                  편집
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={cancelEditPayrollBase} disabled={isSaving}>
+                    <X className="h-4 w-4" />
+                    취소
+                  </Button>
+                  <Button size="sm" onClick={() => saveSectionEdit('payrollBase')} disabled={isSaving}>
+                    <Check className="h-4 w-4" />
+                    {isSaving ? '저장 중...' : '저장'}
+                  </Button>
+                </div>
+              )}
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                {isEditingPayrollBase ? (
+                  <Input
+                    label="주민등록번호"
+                    value={editForm.rrn}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
+                    placeholder="000000-0000000"
+                    maxLength={14}
+                    required
+                  />
+                ) : (
+                  <InfoItem label="주민등록번호" value={displayRrn} />
+                )}
+                {isEditingPayrollBase ? (
                   <div className="w-full">
                     <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
                     <button
@@ -777,7 +802,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="세대주여부" value={(emp.isHouseholder as boolean) ? '세대주' : '세대원'} />
                 )}
-                {isEditing ? (
+                {isEditingPayrollBase ? (
                   <Input
                     label="부양가족수"
                     type="number"
@@ -789,33 +814,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="부양가족수" value={`${(emp.dependents as number) ?? 1}명`} />
                 )}
-                {isEditing ? (
-                  <Input
-                    label="주민등록번호"
-                    value={editForm.rrn}
-                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
-                    placeholder="000000-0000000"
-                    maxLength={14}
-                    required
-                  />
-                ) : (
-                  <InfoItem label="주민등록번호" value={displayRrn} />
-                )}
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Section 3: 계좌 정보 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Landmark className="h-4 w-4 text-gray-400" />
-                계좌 정보
-              </CardTitle>
-            </CardHeader>
-            <CardBody>
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                {isEditing ? (
+                {isEditingPayrollBase ? (
                   <Select
                     label="은행명"
                     options={bankOptions}
@@ -825,7 +824,7 @@ export default function EmployeeDetailPage() {
                 ) : (
                   <InfoItem label="은행명" value={bankNameLabel} />
                 )}
-                {isEditing ? (
+                {isEditingPayrollBase ? (
                   <Input
                     label="계좌번호"
                     value={editForm.bankAccount}
@@ -839,7 +838,6 @@ export default function EmployeeDetailPage() {
               </div>
             </CardBody>
           </Card>
-          </div>
         </div>
       )}
 
