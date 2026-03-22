@@ -84,15 +84,6 @@ export class CalculatePayrollUseCase {
       }
     }
 
-    // 삭제 전 수동 수정값(variableAllowances) 백업
-    const manualOverrides = new Map<string, number>();
-    for (const e of existing) {
-      const va = Number(e.variableAllowances);
-      if (e.status === 'DRAFT' && va !== 0) {
-        manualOverrides.set(e.userId ?? e.employeeId, va);
-      }
-    }
-
     // Delete non-confirmed records (그룹별 시 해당 직원만, 전체 시 전체)
     if (payrollGroupId && targetUserIds.length > 0) {
       await this.salaryCalcRepo.deleteByPeriodAndUserIds(companyId, year, month, targetUserIds);
@@ -348,16 +339,6 @@ export class CalculatePayrollUseCase {
           minimumWageWarning: false,
           errorMessage: error instanceof Error ? error.message : 'Unknown error',
         });
-      }
-    }
-
-    // 수동 수정값(variableAllowances) 복원
-    if (manualOverrides.size > 0) {
-      for (const calc of calculations) {
-        const preserved = manualOverrides.get(calc.userId);
-        if (preserved !== undefined && preserved !== 0 && calc.status === 'DRAFT') {
-          calc.variableAllowances = preserved;
-        }
       }
     }
 
