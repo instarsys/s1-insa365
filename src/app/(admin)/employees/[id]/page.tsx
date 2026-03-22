@@ -204,6 +204,7 @@ export default function EmployeeDetailPage() {
       let payload: Record<string, unknown> = {};
       if (section === 'personnel') {
         if (!editForm.workPolicyId) { toast.error('근무정책을 선택해주세요.'); setIsSaving(false); return; }
+        if (!editForm.rrn) { toast.error('주민등록번호는 필수입니다.'); setIsSaving(false); return; }
         payload = {
           name: editForm.name,
           departmentId: editForm.departmentId || null,
@@ -215,6 +216,7 @@ export default function EmployeeDetailPage() {
           hireType: editForm.hireType || null,
           payrollGroupId: editForm.payrollGroupId || null,
           attendanceExempt: editForm.attendanceExempt,
+          rrn: editForm.rrn,
         };
       } else if (section === 'contact') {
         if (!editForm.email || !editForm.phone) { toast.error('이메일과 연락처는 필수입니다.'); setIsSaving(false); return; }
@@ -224,9 +226,7 @@ export default function EmployeeDetailPage() {
           address: editForm.address || null,
         };
       } else {
-        if (!editForm.rrn) { toast.error('주민등록번호는 필수입니다.'); setIsSaving(false); return; }
         payload = {
-          rrn: editForm.rrn,
           isHouseholder: editForm.isHouseholder,
           dependents: parseInt(editForm.dependents) || 1,
           bankName: editForm.bankName || null,
@@ -630,6 +630,18 @@ export default function EmployeeDetailPage() {
                   label="근무지"
                   value={(emp.workLocation as { name: string } | null)?.name ?? '-'}
                 />
+                {isEditingPersonnel ? (
+                  <Input
+                    label="주민등록번호"
+                    value={editForm.rrn}
+                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
+                    placeholder="000000-0000000"
+                    maxLength={14}
+                    required
+                  />
+                ) : (
+                  <InfoItem label="주민등록번호" value={displayRrn} />
+                )}
                 <div className="sm:col-span-2 lg:col-span-3">
                   {isEditingPersonnel ? (
                     <div className="w-full">
@@ -767,18 +779,6 @@ export default function EmployeeDetailPage() {
             </CardHeader>
             <CardBody>
               <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {isEditingPayrollBase ? (
-                  <Input
-                    label="주민등록번호"
-                    value={editForm.rrn}
-                    onChange={(e) => setEditForm((f) => ({ ...f, rrn: e.target.value }))}
-                    placeholder="000000-0000000"
-                    maxLength={14}
-                    required
-                  />
-                ) : (
-                  <InfoItem label="주민등록번호" value={displayRrn} />
-                )}
                 {isEditingPayrollBase ? (
                   <div className="w-full">
                     <label className="mb-1 block text-xs font-medium text-gray-700">세대주여부</label>
