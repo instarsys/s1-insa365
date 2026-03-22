@@ -68,7 +68,7 @@ interface PayrollDetailData {
     nightMinutes: number;
     holidayMinutes: number;
   } | null;
-  payItems: { label: string; amount: number; description: string }[];
+  payItems: { label: string; amount: number; description: string; editable?: boolean; itemCode?: string }[];
   totalPay: number;
   totalNonTaxable: number;
   taxableIncome: number;
@@ -181,11 +181,20 @@ function PayrollDetailPanel({ detail, isLoading }: { detail: PayrollDetailData |
               <div key={i} className="flex items-baseline justify-between text-xs">
                 <div>
                   <span className="font-medium text-gray-700">{item.label}</span>
-                  <span className="ml-2 text-gray-400">{item.description}</span>
+                  {!item.editable && <span className="ml-2 text-gray-400">{item.description}</span>}
                 </div>
-                <span className={`ml-4 whitespace-nowrap font-medium tabular-nums ${item.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
-                  {formatKRW(item.amount)}
-                </span>
+                {item.editable ? (
+                  <input
+                    type="number"
+                    className="ml-4 w-28 rounded border border-gray-300 px-2 py-0.5 text-right text-xs tabular-nums focus:border-blue-500 focus:outline-none"
+                    defaultValue={item.amount}
+                    placeholder="0"
+                  />
+                ) : (
+                  <span className={`ml-4 whitespace-nowrap font-medium tabular-nums ${item.amount < 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                    {formatKRW(item.amount)}
+                  </span>
+                )}
               </div>
             ))}
             <div className="flex justify-between border-t border-blue-200 pt-1.5 text-xs font-semibold text-blue-700">

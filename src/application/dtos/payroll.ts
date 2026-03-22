@@ -196,6 +196,8 @@ export interface PayBreakdownItem {
   rate?: number;
   multiplier?: number;
   description: string;
+  editable?: boolean;
+  itemCode?: string;
 }
 
 export interface DeductionBreakdownItem {
