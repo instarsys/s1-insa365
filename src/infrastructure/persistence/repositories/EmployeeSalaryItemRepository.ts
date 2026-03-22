@@ -129,6 +129,7 @@ export class EmployeeSalaryItemRepository {
       defaultAmount: number; isOrdinaryWage: boolean;
       isTaxExempt: boolean; taxExemptCode: string | null;
       sortOrder: number; formula: string | null;
+      paymentMonths?: string | null;
     }>,
   ): Promise<{ created: number; updated: number; deleted: number }> {
     return prisma.$transaction(async (tx) => {
@@ -157,6 +158,7 @@ export class EmployeeSalaryItemRepository {
               taxExemptCode: rule.taxExemptCode,
               sortOrder: rule.sortOrder,
               formula: rule.formula,
+              paymentMonths: rule.paymentMonths ?? null,
             },
           });
           updated++;
@@ -176,6 +178,7 @@ export class EmployeeSalaryItemRepository {
               taxExemptCode: rule.taxExemptCode,
               sortOrder: rule.sortOrder,
               formula: rule.formula,
+              paymentMonths: rule.paymentMonths ?? null,
             } as Prisma.EmployeeSalaryItemUncheckedCreateInput,
           });
           created++;

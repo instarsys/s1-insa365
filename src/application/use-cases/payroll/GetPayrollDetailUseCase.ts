@@ -174,20 +174,8 @@ export class GetPayrollDetailUseCase {
       });
     }
 
-    // 변동수당 — 개별 항목 표시 (편집 가능)
-    if (this.employeeSalaryItemRepo) {
-      const allItems = await this.employeeSalaryItemRepo.findActiveByEmployee(companyId, calc.userId ?? calc.employeeId);
-      const variableItems = allItems.filter((si) => si.type === 'ALLOWANCE' && si.paymentType === 'VARIABLE');
-      for (const si of variableItems) {
-        payItems.push({
-          label: si.name,
-          amount: Number(si.amount),
-          description: si.name,
-          editable: true,
-          itemCode: si.code,
-        });
-      }
-    } else if (Number(calc.variableAllowances) > 0) {
+    // 변동수당 합계 (0보다 클 때만 표시)
+    if (Number(calc.variableAllowances) > 0) {
       payItems.push({
         label: '변동수당',
         amount: Number(calc.variableAllowances),

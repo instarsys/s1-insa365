@@ -108,6 +108,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           taxExemptCode: rule.taxExemptCode,
           sortOrder: rule.sortOrder,
           formula: rule.formula,
+          paymentMonths: rule.paymentMonths,
         })),
       );
     }

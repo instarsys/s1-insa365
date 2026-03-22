@@ -111,6 +111,7 @@ interface SalaryItemData {
   isActive: boolean;
   sortOrder: number;
   formula?: string;
+  paymentMonths?: string | null;
 }
 
 export function useEmployeeSalaryItems(employeeId: string | null) {
@@ -125,7 +126,7 @@ export function useEmployeeSalaryItems(employeeId: string | null) {
 
 export async function updateSalaryItems(
   employeeId: string,
-  items: Array<{ id: string; amount?: number }>,
+  items: Array<{ id: string; amount?: number; paymentMonths?: string | null }>,
 ) {
   return apiPut(`/api/employees/${employeeId}/salary-items`, { items });
 }

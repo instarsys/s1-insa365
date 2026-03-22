@@ -117,7 +117,7 @@ async function main() {
     { code: 'A08', name: '연장근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 1.5 * 연장근로분 / 60)', sortOrder: 8 },
     { code: 'A09', name: '야간근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 0.5 * 야간근로분 / 60)', sortOrder: 9 },
     { code: 'A10', name: '휴일근로수당', type: 'ALLOWANCE' as const, paymentType: 'FORMULA' as const, formula: 'floor(통상시급 * 1.5 * 휴일근로분_8이내 / 60) + floor(통상시급 * 2.0 * 휴일근로분_8초과 / 60)', sortOrder: 10 },
-    { code: 'A11', name: '상여금', type: 'ALLOWANCE' as const, paymentType: 'VARIABLE' as const, paymentCycle: 'QUARTERLY' as const, sortOrder: 11 },
+    { code: 'A11', name: '상여금', type: 'ALLOWANCE' as const, paymentType: 'VARIABLE' as const, paymentCycle: 'QUARTERLY' as const, paymentMonths: '3,6,9,12', sortOrder: 11 },
   ];
 
   for (const rule of allowanceRules) {
@@ -134,6 +134,7 @@ async function main() {
         isTaxExempt: rule.isTaxExempt || false,
         taxExemptCode: rule.taxExemptCode,
         formula: rule.formula,
+        paymentMonths: rule.paymentMonths,
         sortOrder: rule.sortOrder,
       },
     });

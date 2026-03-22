@@ -26,6 +26,7 @@ async function handlePost(_request: NextRequest, auth: AuthContext) {
     taxExemptCode: rule.taxExemptCode ?? null,
     sortOrder: rule.sortOrder,
     formula: rule.formula ?? null,
+    paymentMonths: rule.paymentMonths ?? null,
   }));
 
   // 재직 직원 목록

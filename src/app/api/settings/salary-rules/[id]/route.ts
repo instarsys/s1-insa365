@@ -46,13 +46,14 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.formula !== undefined && { formula: body.formula }),
     ...(body.description !== undefined && { description: body.description }),
     ...(body.sortOrder !== undefined && { sortOrder: body.sortOrder }),
+    ...(body.paymentMonths !== undefined && { paymentMonths: body.paymentMonths }),
   });
 
   // 규칙 속성 변경 시 전체 직원에게 자동 동기화 (금액 보존, 속성만 업데이트)
   const { employeeSalaryItemRepo, userRepo, salaryRuleRepo, auditLogRepo } = getContainer();
   let syncedEmployeeCount = 0;
 
-  const hasPropertyChange = ['name', 'paymentType', 'paymentCycle', 'isOrdinaryWage', 'isTaxExempt', 'taxExemptCode', 'formula', 'sortOrder', 'isActive'].some(
+  const hasPropertyChange = ['name', 'paymentType', 'paymentCycle', 'isOrdinaryWage', 'isTaxExempt', 'taxExemptCode', 'formula', 'sortOrder', 'isActive', 'paymentMonths'].some(
     (key) => body[key] !== undefined && body[key] !== (existing as Record<string, unknown>)[key],
   );
 
@@ -71,6 +72,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
       taxExemptCode: (rule.taxExemptCode as string) ?? null,
       sortOrder: rule.sortOrder as number,
       formula: (rule.formula as string) ?? null,
+      paymentMonths: (rule.paymentMonths as string) ?? null,
     }));
 
     const activeUsers = await userRepo.findActiveUsers(auth.companyId);

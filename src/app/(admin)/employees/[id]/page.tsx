@@ -1253,6 +1253,7 @@ function SalaryTab({
 
   const [isEditingItems, setIsEditingItems] = useState(false);
   const [editAmounts, setEditAmounts] = useState<Record<string, string>>({});
+  const [editPaymentMonths, setEditPaymentMonths] = useState<Record<string, number[]>>({});
   const [isSavingItems, setIsSavingItems] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [showSystemDeductions, setShowSystemDeductions] = useState(false);
@@ -1387,21 +1388,36 @@ function SalaryTab({
 
   const startEditItems = () => {
     const amounts: Record<string, string> = {};
+    const pMonths: Record<string, number[]> = {};
     for (const item of salaryItems) {
       if ((item.paymentType === 'FIXED' || item.paymentType === 'VARIABLE') && item.isActive) {
         amounts[item.id] = String(Number(item.amount));
       }
+      pMonths[item.id] = item.paymentMonths
+        ? String(item.paymentMonths).split(',').map(Number)
+        : [1,2,3,4,5,6,7,8,9,10,11,12];
     }
     setEditAmounts(amounts);
+    setEditPaymentMonths(pMonths);
     setIsEditingItems(true);
   };
 
   const saveItems = async () => {
     setIsSavingItems(true);
     try {
-      const updates = Object.entries(editAmounts).map(([id, amount]) => ({
+      // 금액 + paymentMonths 병합
+      const itemIdSet = new Set([
+        ...Object.keys(editAmounts),
+        ...Object.keys(editPaymentMonths),
+      ]);
+      const updates = Array.from(itemIdSet).map((id) => ({
         id,
-        amount: Number(amount) || 0,
+        ...(editAmounts[id] !== undefined && { amount: Number(editAmounts[id]) || 0 }),
+        ...(editPaymentMonths[id] !== undefined && {
+          paymentMonths: editPaymentMonths[id].length > 0 && editPaymentMonths[id].length < 12
+            ? editPaymentMonths[id].sort((a, b) => a - b).join(',')
+            : null,
+        }),
       }));
       await updateSalaryItems(employeeId, updates);
       toast.success('급여 항목이 저장되었습니다.');
@@ -1741,6 +1757,7 @@ function SalaryTab({
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">항목명</th>
                     <th className="px-4 py-3 text-left text-xs font-medium text-gray-500">구분</th>
                     <th className="px-4 py-3 text-right text-xs font-medium text-gray-500">금액</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">지급월</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">통상임금</th>
                     <th className="px-4 py-3 text-center text-xs font-medium text-gray-500">비과세</th>
                   </tr>
@@ -1801,6 +1818,40 @@ function SalaryTab({
                             </span>
                           ) : (
                             formatKRW(Number(item.amount))
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {inactive ? (
+                            <span className="text-gray-400">-</span>
+                          ) : isEditingItems ? (
+                            <div className="flex flex-wrap justify-center gap-0.5">
+                              {[1,2,3,4,5,6,7,8,9,10,11,12].map((m) => {
+                                const months = editPaymentMonths[item.id] ?? [];
+                                const sel = months.includes(m);
+                                return (
+                                  <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => setEditPaymentMonths((prev) => {
+                                      const cur = prev[item.id] ?? [];
+                                      const next = cur.includes(m) ? cur.filter((x) => x !== m) : [...cur, m];
+                                      return { ...prev, [item.id]: next };
+                                    })}
+                                    className={`w-5 h-5 rounded text-[10px] font-medium leading-none ${
+                                      sel ? 'bg-indigo-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {m}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-gray-600">
+                              {item.paymentMonths
+                                ? String(item.paymentMonths).split(',').map(Number).sort((a,b) => a-b).map(m => `${m}월`).join(', ')
+                                : '매월'}
+                            </span>
                           )}
                         </td>
                         <td className="px-4 py-3 text-center">

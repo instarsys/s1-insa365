@@ -72,13 +72,18 @@ export class SalaryItem {
 
   /**
    * Convert the item amount to its monthly equivalent.
-   * Non-monthly items are divided by their cycle:
-   * - MONTHLY: amount (no change)
-   * - BIMONTHLY: amount / 2
-   * - QUARTERLY: amount / 3
-   * - ANNUAL: amount / 12
+   * Uses paymentMonths if available, otherwise falls back to paymentCycle.
+   * - paymentMonths=null (매월): amount (no change)
+   * - paymentMonths="2" (1개월): amount * 1/12
+   * - paymentMonths="3,6,9,12" (4개월): amount * 4/12
    */
   toMonthlyAmount(): number {
+    if (this.paymentMonths) {
+      const monthCount = this.paymentMonths.split(',').length;
+      if (monthCount >= 12) return this.amount;
+      return Math.floor(this.amount * monthCount / 12);
+    }
+    // fallback to paymentCycle for backward compatibility
     switch (this.paymentCycle) {
       case 'MONTHLY':
         return this.amount;

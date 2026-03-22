@@ -46,6 +46,7 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
           ...(item.isActive !== undefined && { isActive: item.isActive }),
           ...(item.isOrdinaryWage !== undefined && { isOrdinaryWage: item.isOrdinaryWage }),
           ...(item.isTaxExempt !== undefined && { isTaxExempt: item.isTaxExempt }),
+          ...(item.paymentMonths !== undefined && { paymentMonths: item.paymentMonths }),
         },
       })),
     );
@@ -139,6 +140,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     taxExemptCode: rule.taxExemptCode ?? null,
     sortOrder: rule.sortOrder,
     formula: rule.formula ?? null,
+    paymentMonths: rule.paymentMonths ?? null,
   }));
 
   const result = await employeeSalaryItemRepo.upsertFromRules(auth.companyId, id, ruleData);

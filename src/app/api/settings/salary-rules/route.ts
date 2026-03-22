@@ -18,7 +18,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
   }
 
   const body = await request.json();
-  const { code, name, type, paymentType, paymentCycle, defaultAmount, isOrdinaryWage, isTaxExempt, taxExemptCode, formula, description, sortOrder } = body;
+  const { code, name, type, paymentType, paymentCycle, defaultAmount, isOrdinaryWage, isTaxExempt, taxExemptCode, formula, description, sortOrder, paymentMonths } = body;
 
   if (!code || !name || !type) {
     return errorResponse('코드, 이름, 유형은 필수입니다.', 400);
@@ -53,6 +53,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     description: description ?? null,
     sortOrder: sortOrder ?? 0,
     isSystemManaged: false,
+    paymentMonths: paymentMonths ?? null,
   });
 
   // 기존 직원에게 자동 전파
@@ -81,6 +82,7 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
           taxExemptCode: taxExemptCode ?? null,
           sortOrder: rule.sortOrder,
           formula: formula ?? null,
+          paymentMonths: paymentMonths ?? null,
           isActive: rule.isSystemManaged ? true : false,
         })),
       );

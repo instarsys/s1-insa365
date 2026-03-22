@@ -14,6 +14,7 @@ export interface SalaryRuleDto {
   sortOrder: number;
   formula: string | null;
   description: string | null;
+  paymentMonths: string | null;
 }
 
 export interface CreateSalaryRuleData {
@@ -30,6 +31,7 @@ export interface CreateSalaryRuleData {
   sortOrder?: number;
   formula?: string;
   description?: string;
+  paymentMonths?: string;
 }
 
 export interface ISalaryRuleRepository {

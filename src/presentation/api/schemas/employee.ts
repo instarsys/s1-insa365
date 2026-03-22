@@ -103,6 +103,7 @@ export const updateSalaryItemsSchema = z.object({
     isActive: z.boolean().optional(),
     isOrdinaryWage: z.boolean().optional(),
     isTaxExempt: z.boolean().optional(),
+    paymentMonths: z.string().nullable().optional(),
   })).min(1, '최소 1개 이상의 항목이 필요합니다.'),
 });
 

@@ -35,6 +35,7 @@ interface SalaryRule {
   formula?: string;
   sortOrder: number;
   isSystemManaged?: boolean;
+  paymentMonths?: string | null;
 }
 
 const PAYMENT_TYPE_OPTIONS = [
@@ -42,12 +43,14 @@ const PAYMENT_TYPE_OPTIONS = [
   { value: 'FORMULA', label: '산식' },
 ];
 
-const PAYMENT_CYCLE_OPTIONS = [
-  { value: 'MONTHLY', label: '월' },
-  { value: 'BIMONTHLY', label: '격월' },
-  { value: 'QUARTERLY', label: '분기' },
-  { value: 'ANNUAL', label: '연' },
-];
+const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'];
+
+function formatPaymentMonths(paymentMonths: string | null | undefined): string {
+  if (!paymentMonths) return '매월';
+  const months = paymentMonths.split(',').map(Number).sort((a, b) => a - b);
+  if (months.length === 12) return '매월';
+  return months.map(m => `${m}월`).join(', ');
+}
 
 const TAX_EXEMPT_OPTIONS = [
   { value: '', label: '없음' },
@@ -74,7 +77,7 @@ export default function SalaryRulesPage() {
   const [formCode, setFormCode] = useState('');
   const [formName, setFormName] = useState('');
   const [formPaymentType, setFormPaymentType] = useState('FIXED');
-  const [formPaymentCycle, setFormPaymentCycle] = useState('MONTHLY');
+  const [formPaymentMonths, setFormPaymentMonths] = useState<number[]>([]);
   const [formDefaultAmount, setFormDefaultAmount] = useState(0);
   const [formOrdinaryWage, setFormOrdinaryWage] = useState(false);
   const [formTaxExempt, setFormTaxExempt] = useState(false);
@@ -102,12 +105,14 @@ export default function SalaryRulesPage() {
     r.type === activeTab || (activeTab === 'ALLOWANCE' && r.type === 'BASE'),
   );
 
+  const ALL_MONTHS = [1,2,3,4,5,6,7,8,9,10,11,12];
+
   function openCreate() {
     setEditing(null);
     setFormCode('');
     setFormName('');
     setFormPaymentType('FIXED');
-    setFormPaymentCycle('MONTHLY');
+    setFormPaymentMonths(ALL_MONTHS);
     setFormDefaultAmount(0);
     setFormOrdinaryWage(false);
     setFormTaxExempt(false);
@@ -122,7 +127,9 @@ export default function SalaryRulesPage() {
     setFormCode(rule.code);
     setFormName(rule.name);
     setFormPaymentType(rule.paymentType);
-    setFormPaymentCycle(rule.paymentCycle);
+    setFormPaymentMonths(
+      rule.paymentMonths ? rule.paymentMonths.split(',').map(Number) : ALL_MONTHS,
+    );
     setFormDefaultAmount(rule.defaultAmount);
     setFormOrdinaryWage(rule.isOrdinaryWage);
     setFormTaxExempt(rule.isTaxExempt);
@@ -132,6 +139,12 @@ export default function SalaryRulesPage() {
     setShowPanel(true);
   }
 
+  function toggleMonth(month: number) {
+    setFormPaymentMonths((prev) =>
+      prev.includes(month) ? prev.filter((m) => m !== month) : [...prev, month].sort((a, b) => a - b),
+    );
+  }
+
   async function handleSave() {
     setSaving(true);
     const body = {
@@ -139,7 +152,9 @@ export default function SalaryRulesPage() {
       name: formName,
       type: activeTab,
       paymentType: formPaymentType,
-      paymentCycle: formPaymentCycle,
+      paymentMonths: formPaymentMonths.length > 0 && formPaymentMonths.length < 12
+        ? formPaymentMonths.sort((a, b) => a - b).join(',')
+        : null,
       defaultAmount: formDefaultAmount,
       isOrdinaryWage: formOrdinaryWage,
       isTaxExempt: formTaxExempt,
@@ -216,6 +231,14 @@ export default function SalaryRulesPage() {
         const formula = row.formula as string | undefined;
         if (!formula) return <span className="text-xs text-gray-300">-</span>;
         return <FormulaDisplay formula={formula} />;
+      },
+    },
+    {
+      key: 'paymentMonths',
+      label: '지급월',
+      render: (row: RuleRow) => {
+        const pm = row.paymentMonths as string | null | undefined;
+        return <span className="text-xs">{formatPaymentMonths(pm)}</span>;
       },
     },
     {
@@ -359,13 +382,67 @@ export default function SalaryRulesPage() {
             onChange={setFormPaymentType}
             disabled={!!editing?.isSystemManaged}
           />
-          <Select
-            label="지급 주기"
-            options={PAYMENT_CYCLE_OPTIONS}
-            value={formPaymentCycle}
-            onChange={setFormPaymentCycle}
-            disabled={!!editing?.isSystemManaged}
-          />
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-gray-700">지급월</label>
+            {editing?.isSystemManaged ? (
+              <div className="text-sm text-gray-600">{formatPaymentMonths(editing.paymentMonths)}</div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-2">
+                  <button
+                    type="button"
+                    className={`rounded px-2 py-1 text-xs font-medium ${
+                      formPaymentMonths.length === 12 ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                    onClick={() => setFormPaymentMonths(ALL_MONTHS)}
+                  >
+                    매월
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    onClick={() => setFormPaymentMonths([3, 6, 9, 12])}
+                  >
+                    분기
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 hover:bg-gray-200"
+                    onClick={() => setFormPaymentMonths([6, 12])}
+                  >
+                    반기
+                  </button>
+                </div>
+                <div className="grid grid-cols-6 gap-1.5">
+                  {MONTH_LABELS.map((label, idx) => {
+                    const month = idx + 1;
+                    const selected = formPaymentMonths.includes(month);
+                    return (
+                      <button
+                        key={month}
+                        type="button"
+                        onClick={() => toggleMonth(month)}
+                        className={`rounded-md border px-2 py-1.5 text-xs font-medium transition-colors ${
+                          selected
+                            ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {formPaymentMonths.length >= 12
+                    ? '매월 지급됩니다.'
+                    : formPaymentMonths.length === 0
+                      ? '지급월을 선택하세요.'
+                      : `${formPaymentMonths.sort((a, b) => a - b).map(m => `${m}월`).join(', ')}에만 지급됩니다.`}
+                </p>
+              </>
+            )}
+          </div>
           <Input
             label="기본 금액"
             type="number"
