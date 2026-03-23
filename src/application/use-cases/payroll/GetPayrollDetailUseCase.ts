@@ -39,12 +39,22 @@ export class GetPayrollDetailUseCase {
 
     // 기본급
     if (Number(calc.basePay) > 0) {
+      const userRel = (calc as unknown as Record<string, unknown>).user as Record<string, unknown> | undefined;
+      const isHourly = userRel?.salaryType === 'HOURLY';
+      const baseHours = isHourly && attendanceSnap
+        ? minutesToHours(Number(attendanceSnap.totalRegularMinutes))
+        : undefined;
+      let baseDesc = '기본급';
+      if (calc.prorationApplied) {
+        baseDesc = `기본급 × ${calc.prorationRatio ?? 1} (일할계산)`;
+      } else if (isHourly && baseHours != null) {
+        baseDesc = `시급 ${fmtKRW(Number(userRel?.hourlyRate ?? 0))} × ${baseHours}h`;
+      }
       payItems.push({
         label: '기본급',
         amount: Number(calc.basePay),
-        description: calc.prorationApplied
-          ? `기본급 × ${calc.prorationRatio ?? 1} (일할계산)`
-          : '기본급',
+        hours: baseHours,
+        description: baseDesc,
       });
     }
 

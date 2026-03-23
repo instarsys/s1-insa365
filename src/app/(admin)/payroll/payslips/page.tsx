@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { SearchInput } from '@/components/ui/SearchInput';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { usePayrollSpreadsheet } from '@/hooks';
+import { usePayrollLedger } from '@/hooks';
 import { formatKRW } from '@/lib/utils';
 
 const currentDate = new Date();
@@ -24,31 +24,88 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
   label: `${i + 1}월`,
 }));
 
+interface LedgerItem {
+  label: string;
+  amount: number;
+  description?: string;
+  [key: string]: unknown;
+}
+
+interface LedgerEmployee {
+  employeeNumber: string;
+  employeeName: string;
+  departmentName: string;
+  payItems: LedgerItem[];
+  deductionItems: LedgerItem[];
+  totalPay: number;
+  totalDeduction: number;
+  netPay: number;
+  metadata?: { salaryType?: string; [key: string]: unknown } | null;
+  [key: string]: unknown;
+}
+
+interface LedgerData {
+  employees: LedgerEmployee[];
+}
+
 export default function PayslipsPage() {
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
   const [search, setSearch] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
-  const { rows, isLoading } = usePayrollSpreadsheet(year, month);
+  const { ledger, isLoading } = usePayrollLedger(year, month);
+  const data = ledger as LedgerData | undefined;
+  const employees = useMemo(() => data?.employees ?? [], [data]);
   const yearOptions = useMemo(() => generateYearOptions(), []);
 
-  const filteredRows = useMemo(() => {
-    if (!search) return rows;
+  const filteredEmployees = useMemo(() => {
+    if (!search) return employees;
     const q = search.toLowerCase();
-    return rows.filter(
-      (r) =>
-        r.employeeName.toLowerCase().includes(q) ||
-        r.employeeNumber.toLowerCase().includes(q),
+    return employees.filter(
+      (e) =>
+        e.employeeName.toLowerCase().includes(q) ||
+        e.employeeNumber.toLowerCase().includes(q),
     );
-  }, [rows, search]);
+  }, [employees, search]);
 
   const selectedEmployee = selectedEmployeeId
-    ? rows.find((r) => r.employeeId === selectedEmployeeId)
-    : filteredRows[0] ?? null;
+    ? employees.find((e) => e.employeeNumber === selectedEmployeeId)
+    : filteredEmployees[0] ?? null;
 
-  const allowanceItems = selectedEmployee?.items.filter((i) => i.type === 'ALLOWANCE') ?? [];
-  const deductionItems = selectedEmployee?.items.filter((i) => i.type === 'DEDUCTION') ?? [];
+  const payItems = (selectedEmployee?.payItems ?? []).filter((i) => i.amount !== 0);
+  const deductionItems = (selectedEmployee?.deductionItems ?? []).filter((i) => i.amount !== 0);
+
+  // 기본급은 payItems에서 추출
+  const basePay = (selectedEmployee?.payItems ?? []).find((i) => i.label === '기본급')?.amount ?? 0;
+
+  function getPayBasis(item: LedgerItem): string | null {
+    // hours 필드가 있으면 시간 표시 (연장/야간/휴일/시급제 기본급)
+    if (item.hours != null) {
+      const h = Number(item.hours);
+      return h < 1 ? `${Math.round(h * 60)}분` : `${h}시간`;
+    }
+    // 결근/무급휴가 (description에서 일수 추출)
+    if (item.label.includes('결근') || item.label.includes('무급휴가')) {
+      const match = String(item.description ?? '').match(/(\d+)일/);
+      return match ? `${match[1]}일` : null;
+    }
+    // 지각/조퇴 (description에서 시간 추출)
+    if (item.label.includes('지각') || item.label.includes('조퇴')) {
+      const match = String(item.description ?? '').match(/([\d.]+)h/);
+      if (match) {
+        const h = parseFloat(match[1]);
+        return h < 1 ? `${Math.round(h * 60)}분` : `${h}시간`;
+      }
+    }
+    // 시급제 기본급 (description에서 시간 추출)
+    if (item.label === '기본급') {
+      const match = String(item.description ?? '').match(/([\d.]+)h/);
+      return match ? `${parseFloat(match[1])}시간` : null;
+    }
+    return null;
+  }
+
 
   return (
     <div>
@@ -97,20 +154,20 @@ export default function PayslipsPage() {
           <CardBody className="max-h-[600px] overflow-y-auto p-0">
             {isLoading ? (
               <Spinner text="로딩중..." className="py-8" />
-            ) : filteredRows.length === 0 ? (
-              <EmptyState title="직원이 없습니다" />
+            ) : filteredEmployees.length === 0 ? (
+              <EmptyState title="급여명세서가 없습니다" description="급여를 확정하면 명세서가 생성됩니다." />
             ) : (
               <ul className="divide-y divide-gray-100">
-                {filteredRows.map((row) => (
-                  <li key={row.employeeId}>
+                {filteredEmployees.map((emp) => (
+                  <li key={emp.employeeNumber}>
                     <button
-                      onClick={() => setSelectedEmployeeId(row.employeeId)}
+                      onClick={() => setSelectedEmployeeId(emp.employeeNumber)}
                       className={`w-full px-4 py-3 text-left transition-colors hover:bg-indigo-50 ${
-                        selectedEmployee?.employeeId === row.employeeId ? 'bg-indigo-50 border-l-2 border-indigo-600' : ''
+                        selectedEmployee?.employeeNumber === emp.employeeNumber ? 'bg-indigo-50 border-l-2 border-indigo-600' : ''
                       }`}
                     >
-                      <p className="text-sm font-medium text-gray-800">{row.employeeName}</p>
-                      <p className="text-xs text-gray-500">{row.employeeNumber} / {row.departmentName ?? '-'}</p>
+                      <p className="text-sm font-medium text-gray-800">{emp.employeeName}</p>
+                      <p className="text-xs text-gray-500">{emp.employeeNumber} / {emp.departmentName || '-'}</p>
                     </button>
                   </li>
                 ))}
@@ -152,11 +209,11 @@ export default function PayslipsPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">부서</p>
-                    <p className="mt-0.5 font-medium text-gray-800">{selectedEmployee.departmentName ?? '-'}</p>
+                    <p className="mt-0.5 font-medium text-gray-800">{selectedEmployee.departmentName || '-'}</p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-500">기본급</p>
-                    <p className="mt-0.5 font-medium text-gray-800">{formatKRW(selectedEmployee.basePay)}</p>
+                    <p className="mt-0.5 font-medium text-gray-800">{formatKRW(basePay)}</p>
                   </div>
                 </div>
 
@@ -171,12 +228,20 @@ export default function PayslipsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {allowanceItems.map((item) => (
-                        <tr key={item.code} className="border-b border-gray-100">
-                          <td className="py-2 text-gray-700">{item.name}</td>
-                          <td className="py-2 text-right tabular-nums">{formatKRW(item.amount)}</td>
+                      {payItems.map((item, idx) => {
+                        const basis = getPayBasis(item);
+                        return (
+                        <tr key={idx} className="border-b border-gray-100">
+                          <td className="py-2">
+                            <div className="text-gray-700">{item.label}</div>
+                            {basis && <div className="text-[11px] text-gray-400">{basis}</div>}
+                          </td>
+                          <td className={`py-2 text-right tabular-nums ${item.amount < 0 ? 'text-red-600' : ''}`}>
+                            {formatKRW(item.amount)}
+                          </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                       <tr className="border-t-2 border-blue-200 font-semibold text-blue-700">
                         <td className="py-2">총 지급액</td>
                         <td className="py-2 text-right tabular-nums">{formatKRW(selectedEmployee.totalPay)}</td>
@@ -196,9 +261,9 @@ export default function PayslipsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {deductionItems.map((item) => (
-                        <tr key={item.code} className="border-b border-gray-100">
-                          <td className="py-2 text-gray-700">{item.name}</td>
+                      {deductionItems.map((item, idx) => (
+                        <tr key={idx} className="border-b border-gray-100">
+                          <td className="py-2 text-gray-700">{item.label}</td>
                           <td className="py-2 text-right tabular-nums text-red-600">{formatKRW(item.amount)}</td>
                         </tr>
                       ))}

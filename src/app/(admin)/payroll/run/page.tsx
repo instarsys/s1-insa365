@@ -479,7 +479,7 @@ export default function PayrollRunPage() {
             )}
             <Button
               onClick={handleCalculateClick}
-              disabled={calculating || (!reviewLoading && review != null && review.unconfirmedEmployees.length > 0)}
+              disabled={calculating || (!reviewLoading && review != null && review.unconfirmedEmployees.length > 0) || summary?.status === 'CONFIRMED' || summary?.status === 'PAID'}
               size="sm"
             >
               {calculating ? (
@@ -499,6 +499,21 @@ export default function PayrollRunPage() {
               </span>
             )}
           </div>
+
+          {/* 급여 확정 완료 안내 배너 */}
+          {(summary?.status === 'CONFIRMED' || summary?.status === 'PAID') && (
+            <div className="mb-2 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-blue-500" />
+                <span className="text-sm font-medium text-blue-700">
+                  {year}년 {month}월 급여가 이미 {summary?.status === 'PAID' ? '지급' : '확정'}되었습니다.
+                </span>
+                <span className="text-xs text-blue-600">
+                  재계산하려면 먼저 급여 확정을 취소해주세요.
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 근태 미확정 경고 배너 */}
           {!reviewLoading && review && review.unconfirmedEmployees.length > 0 && (

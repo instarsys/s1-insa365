@@ -1,4 +1,5 @@
 import { prisma } from '../prisma/client';
+import type { Prisma } from '@/generated/prisma/client';
 
 interface CreateWorkPolicyData {
   name: string;
@@ -17,6 +18,13 @@ interface CreateWorkPolicyData {
   weeklyWorkHours?: number;
   weeklyOvertimeLimit?: number;
   monthlyOvertimeLimit?: number;
+  checkInAllowedMinutes?: number;
+  checkOutAllowedMinutes?: number;
+  overtimeMinThreshold?: number;
+  overtimeRoundingMinutes?: number;
+  breakType?: string;
+  breakSchedule?: Prisma.InputJsonValue | null;
+  attendanceCalcMode?: string;
 }
 
 export class WorkPolicyRepository {
@@ -59,6 +67,12 @@ export class WorkPolicyRepository {
         weeklyWorkHours: data.weeklyWorkHours ?? 40,
         weeklyOvertimeLimit: data.weeklyOvertimeLimit ?? 12,
         monthlyOvertimeLimit: data.monthlyOvertimeLimit ?? 52,
+        checkInAllowedMinutes: data.checkInAllowedMinutes ?? 30,
+        checkOutAllowedMinutes: data.checkOutAllowedMinutes ?? 60,
+        overtimeMinThreshold: data.overtimeMinThreshold ?? 0,
+        overtimeRoundingMinutes: data.overtimeRoundingMinutes ?? 0,
+        breakType: data.breakType ?? 'FIXED',
+        attendanceCalcMode: data.attendanceCalcMode ?? 'TIME_BASED',
       },
     });
   }
@@ -68,7 +82,7 @@ export class WorkPolicyRepository {
       where: { id, companyId, deletedAt: null },
     });
     if (!existing) return null;
-    return prisma.workPolicy.update({ where: { id }, data });
+    return prisma.workPolicy.update({ where: { id }, data: data as Prisma.WorkPolicyUncheckedUpdateInput });
   }
 
   async softDelete(companyId: string, id: string) {

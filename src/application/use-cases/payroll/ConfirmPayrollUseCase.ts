@@ -77,6 +77,11 @@ export class ConfirmPayrollUseCase {
 
     // PayrollMonthly 레코드 생성 (불변 스냅샷 포함)
     for (const calc of draftItems) {
+      // findByPeriod가 user { department } 를 include 하므로 관계 데이터 추출
+      const calcAny = calc as unknown as Record<string, unknown>;
+      const userRel = calcAny.user as Record<string, unknown> | undefined;
+      const deptRel = userRel?.department as Record<string, unknown> | undefined;
+
       // GetPayrollDetailUseCase로 상세 항목 빌드
       const calcId = calc.id ?? (calc as unknown as Record<string, string>).calculationId;
       let payItemsSnapshot: unknown = null;
@@ -119,9 +124,9 @@ export class ConfirmPayrollUseCase {
         localIncomeTax: calc.localIncomeTax,
         netPay: calc.netPay,
         payrollGroupId: payrollGroupId ?? calc.payrollGroupId ?? null,
-        employeeName: calc.employeeName ?? null,
-        employeeNumber: calc.employeeNumber ?? null,
-        departmentName: calc.departmentName ?? null,
+        employeeName: (userRel?.name as string) ?? null,
+        employeeNumber: (userRel?.employeeNumber as string) ?? null,
+        departmentName: (deptRel?.name as string) ?? null,
         salaryType: (snapshotMetadata as Record<string, unknown> | null)?.salaryType as string ?? null,
         payItemsSnapshot,
         deductionItemsSnapshot,

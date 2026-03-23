@@ -7,6 +7,7 @@ import { successResponse, errorResponse, notFoundResponse, noContentResponse } f
 type RouteContext = { params: Promise<{ id: string }> };
 
 async function handlePut(request: NextRequest, auth: AuthContext) {
+  try {
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
   const body = await request.json();
 
@@ -34,9 +35,20 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     ...(body.weeklyWorkHours !== undefined && { weeklyWorkHours: body.weeklyWorkHours }),
     ...(body.weeklyOvertimeLimit !== undefined && { weeklyOvertimeLimit: body.weeklyOvertimeLimit }),
     ...(body.monthlyOvertimeLimit !== undefined && { monthlyOvertimeLimit: body.monthlyOvertimeLimit }),
+    ...(body.checkInAllowedMinutes !== undefined && { checkInAllowedMinutes: body.checkInAllowedMinutes }),
+    ...(body.checkOutAllowedMinutes !== undefined && { checkOutAllowedMinutes: body.checkOutAllowedMinutes }),
+    ...(body.overtimeMinThreshold !== undefined && { overtimeMinThreshold: body.overtimeMinThreshold }),
+    ...(body.overtimeRoundingMinutes !== undefined && { overtimeRoundingMinutes: body.overtimeRoundingMinutes }),
+    ...(body.breakType !== undefined && { breakType: body.breakType }),
+    ...(body.breakSchedule !== undefined && { breakSchedule: body.breakSchedule }),
+    ...(body.attendanceCalcMode !== undefined && { attendanceCalcMode: body.attendanceCalcMode }),
   });
 
   return successResponse(updated);
+  } catch (err) {
+    console.error('[work-policy PUT]', err);
+    return errorResponse(err instanceof Error ? err.message : '근무 정책 수정 중 오류가 발생했습니다.', 500);
+  }
 }
 
 async function handleDelete(request: NextRequest, auth: AuthContext) {

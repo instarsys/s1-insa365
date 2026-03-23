@@ -80,7 +80,7 @@ export class CalculatePayrollUseCase {
     if (existing.length > 0) {
       // payrollGroupId가 있으면 해당 그룹 직원의 확정 여부만 확인
       const targetExisting = payrollGroupId
-        ? existing.filter((e) => targetUserIds.includes(e.employeeId))
+        ? existing.filter((e) => targetUserIds.includes(e.userId))
         : existing;
       const hasConfirmed = targetExisting.some((e) => e.status === 'CONFIRMED' || e.status === 'PAID');
       if (hasConfirmed) {

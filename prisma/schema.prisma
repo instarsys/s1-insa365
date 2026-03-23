@@ -380,6 +380,21 @@ model WorkPolicy {
   weeklyOvertimeLimit      Int     @default(12)      @map("weekly_overtime_limit")
   monthlyOvertimeLimit     Int     @default(52)      @map("monthly_overtime_limit")
 
+  // === 출퇴근 허용시간 ===
+  checkInAllowedMinutes    Int     @default(30)      @map("check_in_allowed_minutes")
+  checkOutAllowedMinutes   Int     @default(60)      @map("check_out_allowed_minutes")
+
+  // === 연장근로 적용 ===
+  overtimeMinThreshold     Int     @default(0)       @map("overtime_min_threshold")
+  overtimeRoundingMinutes  Int     @default(0)       @map("overtime_rounding_minutes")
+
+  // === 복수 휴게시간 ===
+  breakType                String  @default("FIXED") @map("break_type")
+  breakSchedule            Json?   @map("break_schedule")
+
+  // === 지각/연장 판정 기준 ===
+  attendanceCalcMode       String  @default("TIME_BASED") @map("attendance_calc_mode")
+
   createdAt    DateTime  @default(now()) @map("created_at")
   updatedAt    DateTime  @updatedAt @map("updated_at")
   deletedAt    DateTime? @map("deleted_at")

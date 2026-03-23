@@ -4,6 +4,7 @@ import type { ICompanyRepository } from '../../ports/ICompanyRepository';
 import type { CheckInResultDto } from '../../dtos/attendance';
 import { GpsValidator, type GpsCoordinates, type GpsEnforcementMode, type WorkLocationInfo } from '@domain/services/GpsValidator';
 import { isWorkDay, timeStringToDate } from '@domain/services/AttendanceClassifier';
+import { ValidationError } from '@domain/errors';
 
 interface EmployeeRepo {
   findById(companyId: string, userId: string): Promise<{
@@ -18,11 +19,13 @@ interface WorkPolicyRepo {
     startTime: string;
     workDays: string;
     lateGraceMinutes: number;
+    checkInAllowedMinutes?: number;
   } | null>;
   findDefault(companyId: string): Promise<{
     startTime: string;
     workDays: string;
     lateGraceMinutes: number;
+    checkInAllowedMinutes?: number;
   } | null>;
 }
 
@@ -116,11 +119,20 @@ export class CheckInAttendanceUseCase {
       };
     }
 
-    // 4. 지각 판정
+    // 4. 출근 허용시간 검증 + 지각 판정
     let status: 'ON_TIME' | 'LATE' = 'ON_TIME';
     if (workPolicy) {
-      const lateGrace = workPolicy.lateGraceMinutes ?? 0;
       const policyStart = timeStringToDate(today, workPolicy.startTime);
+
+      // 출근 허용시간: 출근시간 N분 전부터 가능
+      const checkInAllowed = workPolicy.checkInAllowedMinutes ?? 30;
+      const allowedFrom = new Date(policyStart.getTime() - checkInAllowed * 60000);
+      if (now < allowedFrom) {
+        throw new ValidationError(`출근은 ${workPolicy.startTime} 기준 ${checkInAllowed}분 전부터 가능합니다.`);
+      }
+
+      // 지각 판정
+      const lateGrace = workPolicy.lateGraceMinutes ?? 0;
       const lateThreshold = new Date(policyStart.getTime() + lateGrace * 60000);
       if (now > lateThreshold) {
         status = 'LATE';

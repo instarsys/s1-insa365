@@ -64,6 +64,7 @@ export class PayrollMonthlyRepository {
   async findByPeriodAndGroup(companyId: string, year: number, month: number, payrollGroupId?: string) {
     return prisma.payrollMonthly.findMany({
       where: { companyId, year, month, ...(payrollGroupId && { payrollGroupId }) },
+      include: { user: { include: { department: true } } },
       orderBy: { employeeName: 'asc' },
     });
   }

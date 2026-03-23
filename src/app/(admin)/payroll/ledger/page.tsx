@@ -23,16 +23,26 @@ const MONTH_OPTIONS = Array.from({ length: 12 }, (_, i) => ({
   label: `${i + 1}월`,
 }));
 
+interface LedgerItem {
+  label: string;
+  amount: number;
+  description?: string;
+}
+
+interface LedgerEmployee {
+  employeeNumber: string;
+  employeeName: string;
+  departmentName: string;
+  payItems: LedgerItem[];
+  deductionItems: LedgerItem[];
+  totalPay: number;
+  totalDeduction: number;
+  netPay: number;
+  [key: string]: unknown;
+}
+
 interface LedgerData {
-  employees: {
-    employeeNumber: string;
-    employeeName: string;
-    departmentName: string;
-    items: { code: string; name: string; amount: number; type: string }[];
-    totalPay: number;
-    totalDeduction: number;
-    netPay: number;
-  }[];
+  employees: LedgerEmployee[];
 }
 
 export default function PayrollLedgerPage() {
@@ -45,29 +55,35 @@ export default function PayrollLedgerPage() {
 
   const yearOptions = useMemo(() => generateYearOptions(), []);
 
-  // Gather all unique columns
+  // Gather all unique column labels
   const allAllowances = useMemo(() => {
-    const m = new Map<string, string>();
+    const seen = new Set<string>();
+    const result: { label: string }[] = [];
     for (const emp of employees) {
-      for (const item of emp.items) {
-        if (item.type === 'ALLOWANCE' && !m.has(item.code)) m.set(item.code, item.name);
+      for (const item of emp.payItems ?? []) {
+        if (!seen.has(item.label)) { seen.add(item.label); result.push({ label: item.label }); }
       }
     }
-    return Array.from(m.entries()).map(([code, name]) => ({ code, name }));
+    return result;
   }, [employees]);
 
   const allDeductions = useMemo(() => {
-    const m = new Map<string, string>();
+    const seen = new Set<string>();
+    const result: { label: string }[] = [];
     for (const emp of employees) {
-      for (const item of emp.items) {
-        if (item.type === 'DEDUCTION' && !m.has(item.code)) m.set(item.code, item.name);
+      for (const item of emp.deductionItems ?? []) {
+        if (!seen.has(item.label)) { seen.add(item.label); result.push({ label: item.label }); }
       }
     }
-    return Array.from(m.entries()).map(([code, name]) => ({ code, name }));
+    return result;
   }, [employees]);
 
-  function getAmount(emp: typeof employees[number], code: string): number {
-    return emp.items.find((i) => i.code === code)?.amount ?? 0;
+  function getPayAmount(emp: LedgerEmployee, label: string): number {
+    return (emp.payItems ?? []).find((i) => i.label === label)?.amount ?? 0;
+  }
+
+  function getDeductionAmount(emp: LedgerEmployee, label: string): number {
+    return (emp.deductionItems ?? []).find((i) => i.label === label)?.amount ?? 0;
   }
 
   // Totals
@@ -76,14 +92,17 @@ export default function PayrollLedgerPage() {
       totalPay: 0,
       totalDeduction: 0,
       netPay: 0,
-      byCode: new Map<string, number>(),
+      byLabel: new Map<string, number>(),
     };
     for (const emp of employees) {
       result.totalPay += emp.totalPay;
       result.totalDeduction += emp.totalDeduction;
       result.netPay += emp.netPay;
-      for (const item of emp.items) {
-        result.byCode.set(item.code, (result.byCode.get(item.code) ?? 0) + item.amount);
+      for (const item of emp.payItems ?? []) {
+        result.byLabel.set(item.label, (result.byLabel.get(item.label) ?? 0) + item.amount);
+      }
+      for (const item of emp.deductionItems ?? []) {
+        result.byLabel.set(item.label, (result.byLabel.get(item.label) ?? 0) + item.amount);
       }
     }
     return result;
@@ -147,16 +166,16 @@ export default function PayrollLedgerPage() {
                       부서
                     </th>
                     {allAllowances.map((col) => (
-                      <th key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-blue-600">
-                        {col.name}
+                      <th key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-blue-600">
+                        {col.label}
                       </th>
                     ))}
                     <th className="whitespace-nowrap bg-blue-50 px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-blue-700">
                       총지급
                     </th>
                     {allDeductions.map((col) => (
-                      <th key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-red-600">
-                        {col.name}
+                      <th key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-red-600">
+                        {col.label}
                       </th>
                     ))}
                     <th className="whitespace-nowrap bg-red-50 px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-red-700">
@@ -180,16 +199,16 @@ export default function PayrollLedgerPage() {
                         {emp.departmentName}
                       </td>
                       {allAllowances.map((col) => (
-                        <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
-                          {formatKRW(getAmount(emp, col.code))}
+                        <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
+                          {formatKRW(getPayAmount(emp, col.label))}
                         </td>
                       ))}
                       <td className="whitespace-nowrap bg-blue-50/50 px-4 py-3 text-right text-sm font-semibold tabular-nums text-blue-700">
                         {formatKRW(emp.totalPay)}
                       </td>
                       {allDeductions.map((col) => (
-                        <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
-                          {formatKRW(getAmount(emp, col.code))}
+                        <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
+                          {formatKRW(getDeductionAmount(emp, col.label))}
                         </td>
                       ))}
                       <td className="whitespace-nowrap bg-red-50/50 px-4 py-3 text-right text-sm font-semibold tabular-nums text-red-700">
@@ -208,16 +227,16 @@ export default function PayrollLedgerPage() {
                       합계 ({employees.length}명)
                     </td>
                     {allAllowances.map((col) => (
-                      <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
-                        {formatKRW(totals.byCode.get(col.code) ?? 0)}
+                      <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
+                        {formatKRW(totals.byLabel.get(col.label) ?? 0)}
                       </td>
                     ))}
                     <td className="whitespace-nowrap bg-blue-50 px-4 py-3 text-right text-sm tabular-nums text-blue-700">
                       {formatKRW(totals.totalPay)}
                     </td>
                     {allDeductions.map((col) => (
-                      <td key={col.code} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
-                        {formatKRW(totals.byCode.get(col.code) ?? 0)}
+                      <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
+                        {formatKRW(totals.byLabel.get(col.label) ?? 0)}
                       </td>
                     ))}
                     <td className="whitespace-nowrap bg-red-50 px-4 py-3 text-right text-sm tabular-nums text-red-700">

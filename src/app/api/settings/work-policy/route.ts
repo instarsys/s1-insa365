@@ -19,7 +19,10 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     lateGraceMinutes, earlyLeaveGraceMinutes,
     nightWorkStartTime, nightWorkEndTime, overtimeThresholdMinutes,
     monthlyWorkHours, weeklyHoliday, weeklyWorkHours,
-    weeklyOvertimeLimit, monthlyOvertimeLimit } = body;
+    weeklyOvertimeLimit, monthlyOvertimeLimit,
+    checkInAllowedMinutes, checkOutAllowedMinutes,
+    overtimeMinThreshold, overtimeRoundingMinutes,
+    breakType, breakSchedule, attendanceCalcMode } = body;
 
   if (!name || !startTime || !endTime) {
     return errorResponse('이름, 시작시간, 종료시간은 필수입니다.', 400);
@@ -46,6 +49,13 @@ async function handlePost(request: NextRequest, auth: AuthContext) {
     weeklyWorkHours,
     weeklyOvertimeLimit,
     monthlyOvertimeLimit,
+    checkInAllowedMinutes,
+    checkOutAllowedMinutes,
+    overtimeMinThreshold,
+    overtimeRoundingMinutes,
+    breakType,
+    breakSchedule,
+    attendanceCalcMode,
   });
 
   return createdResponse(policy);

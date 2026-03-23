@@ -3,7 +3,8 @@ import type { IWorkLocationRepository } from '../../ports/IWorkLocationRepositor
 import type { ICompanyRepository } from '../../ports/ICompanyRepository';
 import type { CheckOutResultDto } from '../../dtos/attendance';
 import { GpsValidator, type GpsCoordinates, type GpsEnforcementMode, type WorkLocationInfo } from '@domain/services/GpsValidator';
-import { AttendanceClassifier, isWorkDay } from '@domain/services/AttendanceClassifier';
+import { AttendanceClassifier, isWorkDay, timeStringToDate } from '@domain/services/AttendanceClassifier';
+import { ValidationError } from '@domain/errors';
 
 interface EmployeeRepo {
   findById(companyId: string, userId: string): Promise<{
@@ -13,29 +14,28 @@ interface EmployeeRepo {
   } | null>;
 }
 
+interface WorkPolicyData {
+  startTime: string;
+  endTime: string;
+  breakMinutes: number;
+  workDays: string;
+  lateGraceMinutes: number;
+  earlyLeaveGraceMinutes: number;
+  nightWorkStartTime: string;
+  nightWorkEndTime: string;
+  overtimeThresholdMinutes: number;
+  checkInAllowedMinutes?: number;
+  checkOutAllowedMinutes?: number;
+  overtimeMinThreshold?: number;
+  overtimeRoundingMinutes?: number;
+  breakType?: string;
+  breakSchedule?: unknown;
+  attendanceCalcMode?: string;
+}
+
 interface WorkPolicyRepo {
-  findById(companyId: string, id: string): Promise<{
-    startTime: string;
-    endTime: string;
-    breakMinutes: number;
-    workDays: string;
-    lateGraceMinutes: number;
-    earlyLeaveGraceMinutes: number;
-    nightWorkStartTime: string;
-    nightWorkEndTime: string;
-    overtimeThresholdMinutes: number;
-  } | null>;
-  findDefault(companyId: string): Promise<{
-    startTime: string;
-    endTime: string;
-    breakMinutes: number;
-    workDays: string;
-    lateGraceMinutes: number;
-    earlyLeaveGraceMinutes: number;
-    nightWorkStartTime: string;
-    nightWorkEndTime: string;
-    overtimeThresholdMinutes: number;
-  } | null>;
+  findById(companyId: string, id: string): Promise<WorkPolicyData | null>;
+  findDefault(companyId: string): Promise<WorkPolicyData | null>;
 }
 
 interface AttendanceRepoWithSegments extends IAttendanceRepository {
@@ -124,6 +124,16 @@ export class CheckOutAttendanceUseCase {
       workPolicy = await this.workPolicyRepo.findDefault(companyId);
     }
 
+    // 퇴근 허용시간 검증
+    if (workPolicy) {
+      const policyEnd = timeStringToDate(today, workPolicy.endTime);
+      const checkOutAllowed = workPolicy.checkOutAllowedMinutes ?? 60;
+      const allowedUntil = new Date(policyEnd.getTime() + checkOutAllowed * 60000);
+      if (now > allowedUntil) {
+        throw new ValidationError(`퇴근 기록은 ${workPolicy.endTime} 기준 ${checkOutAllowed}분 후까지 가능합니다.`);
+      }
+    }
+
     // GPS 관련 데이터
     const gpsData = {
       checkOutLatitude: coords?.latitude,
@@ -155,6 +165,11 @@ export class CheckOutAttendanceUseCase {
           nightWorkStartTime: workPolicy.nightWorkStartTime,
           nightWorkEndTime: workPolicy.nightWorkEndTime,
           overtimeThresholdMinutes: workPolicy.overtimeThresholdMinutes,
+          overtimeMinThreshold: workPolicy.overtimeMinThreshold,
+          overtimeRoundingMinutes: workPolicy.overtimeRoundingMinutes,
+          breakType: workPolicy.breakType,
+          breakSchedule: workPolicy.breakSchedule,
+          attendanceCalcMode: workPolicy.attendanceCalcMode,
         },
         isHoliday,
         date: today,

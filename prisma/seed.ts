@@ -87,6 +87,12 @@ async function main() {
       weeklyWorkHours: 40,
       weeklyOvertimeLimit: 12,
       monthlyOvertimeLimit: 52,
+      checkInAllowedMinutes: 30,
+      checkOutAllowedMinutes: 60,
+      overtimeMinThreshold: 0,
+      overtimeRoundingMinutes: 0,
+      breakType: 'FIXED',
+      attendanceCalcMode: 'TIME_BASED',
     },
   });
   console.log('Work policy created');

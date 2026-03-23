@@ -22,10 +22,21 @@ export interface ClassifyInput {
     nightWorkStartTime: string;     // default "22:00"
     nightWorkEndTime: string;       // default "06:00"
     overtimeThresholdMinutes: number; // default 480
+    // 기능 3: 연장근로 적용
+    overtimeMinThreshold?: number;    // X분 이상 초과근무해야 연장 인정 (default 0)
+    overtimeRoundingMinutes?: number; // Y분 단위 절사 (default 0 = 미적용)
+    // 기능 4: 복수 휴게시간
+    breakType?: string;               // "FIXED" | "TIERED" | "SCHEDULED" (default "FIXED")
+    breakSchedule?: unknown;           // JSON — TieredBreak[] | ScheduledBreak[]
+    // 기능 5: 지각/연장 판정 기준
+    attendanceCalcMode?: string;       // "TIME_BASED" | "DURATION_BASED" (default "TIME_BASED")
   };
   isHoliday: boolean;
   date: Date;
 }
+
+interface TieredBreak { minWorkHours: number; breakMinutes: number; }
+interface ScheduledBreak { startTime: string; endTime: string; }
 
 export type AttendanceStatusType = 'ON_TIME' | 'LATE' | 'EARLY_LEAVE' | 'HOLIDAY';
 
@@ -110,6 +121,61 @@ export function countWorkDaysInMonth(
   return count;
 }
 
+// ─── Break Time Calculation ─────────────────────────────────────
+
+/**
+ * 휴게시간 계산 (breakType에 따라 다르게 처리).
+ * FIXED: 기존 breakMinutes 사용
+ * TIERED: 근무시간별 단계적 부여
+ * SCHEDULED: 특정 시간대 겹침 계산
+ */
+function calculateBreakMins(
+  workPolicy: ClassifyInput['workPolicy'],
+  rawWorkMinutes: number,
+  checkIn: Date,
+  checkOut: Date,
+  date: Date,
+): number {
+  const breakType = workPolicy.breakType ?? 'FIXED';
+
+  if (breakType === 'TIERED' && Array.isArray(workPolicy.breakSchedule)) {
+    const tiers = workPolicy.breakSchedule as TieredBreak[];
+    const hours = rawWorkMinutes / 60;
+    const applicable = tiers
+      .filter((t) => hours >= t.minWorkHours)
+      .sort((a, b) => b.minWorkHours - a.minWorkHours);
+    return applicable[0]?.breakMinutes ?? workPolicy.breakMinutes;
+  }
+
+  if (breakType === 'SCHEDULED' && Array.isArray(workPolicy.breakSchedule)) {
+    const slots = workPolicy.breakSchedule as ScheduledBreak[];
+    let total = 0;
+    for (const slot of slots) {
+      const slotStart = timeStringToDate(date, slot.startTime);
+      const slotEnd = timeStringToDate(date, slot.endTime);
+      if (slotEnd <= slotStart) slotEnd.setDate(slotEnd.getDate() + 1);
+      total += overlapMinutes(checkIn, checkOut, slotStart, slotEnd);
+    }
+    return total;
+  }
+
+  return workPolicy.breakMinutes; // FIXED
+}
+
+/**
+ * 연장근로 최소기준 + 절사 적용.
+ * overtimeMinThreshold분 미만 초과근무 → 0분 처리
+ * overtimeRoundingMinutes분 단위 절사
+ */
+function applyOvertimeRules(rawOvertime: number, workPolicy: ClassifyInput['workPolicy']): number {
+  if (rawOvertime <= 0) return 0;
+  const minThreshold = workPolicy.overtimeMinThreshold ?? 0;
+  const rounding = workPolicy.overtimeRoundingMinutes ?? 0;
+  if (minThreshold > 0 && rawOvertime < minThreshold) return 0;
+  if (rounding > 0) return Math.floor(rawOvertime / rounding) * rounding;
+  return rawOvertime;
+}
+
 // ─── Main Classifier ────────────────────────────────────────────
 
 export class AttendanceClassifier {
@@ -141,18 +207,24 @@ export class AttendanceClassifier {
       nightEnd.setDate(nightEnd.getDate() + 1);
     }
 
-    // Total work duration: break deducted from day portion only
+    // 휴게시간 계산 (breakType 지원)
     const rawMinutes = Math.floor(
       (checkOutTime.getTime() - checkInTime.getTime()) / 60000,
     );
+    const effectiveBreak = calculateBreakMins(workPolicy, rawMinutes, checkInTime, checkOutTime, date);
+
+    // Total work duration: break deducted from day portion only
     const nightOverlapForTotal = overlapMinutes(checkInTime, checkOutTime, nightStart, nightEnd);
     const nightStartP = new Date(nightStart.getTime() - 24 * 60 * 60000);
     const nightEndP = new Date(nightEnd.getTime() - 24 * 60 * 60000);
     const nightOverlapPrevForTotal = overlapMinutes(checkInTime, checkOutTime, nightStartP, nightEndP);
     const nightRaw = nightOverlapForTotal + nightOverlapPrevForTotal;
     const dayRawForTotal = rawMinutes - nightRaw;
-    const dayAfterBreak = Math.max(0, dayRawForTotal - workPolicy.breakMinutes);
+    const dayAfterBreak = Math.max(0, dayRawForTotal - effectiveBreak);
     const totalMinutes = dayAfterBreak + nightRaw;
+
+    const calcMode = workPolicy.attendanceCalcMode ?? 'TIME_BASED';
+    const threshold = workPolicy.overtimeThresholdMinutes;
 
     // Late / early leave detection
     let lateMinutes = 0;
@@ -161,7 +233,17 @@ export class AttendanceClassifier {
 
     if (isHoliday) {
       status = 'HOLIDAY';
+    } else if (calcMode === 'DURATION_BASED') {
+      // DURATION_BASED: 총 근무시간 기준 — 총 시간만 충족하면 지각/조퇴 없음
+      if (totalMinutes < threshold) {
+        // 부족분을 지각으로 기록 (급여 공제용)
+        lateMinutes = threshold - totalMinutes;
+        status = 'LATE';
+      } else {
+        status = 'ON_TIME';
+      }
     } else {
+      // TIME_BASED (기본): 출퇴근시간 기준 — 지각과 연장을 각각 계산
       // Late: checkIn after policyStart + grace
       const lateThreshold = new Date(
         policyStart.getTime() + workPolicy.lateGraceMinutes * 60000,
@@ -194,14 +276,13 @@ export class AttendanceClassifier {
 
     // Segment calculation
     const segments: SegmentOutput[] = [];
-    const threshold = workPolicy.overtimeThresholdMinutes;
 
     if (isHoliday) {
       // ─── Holiday work ───
       const result = classifyHoliday(
         checkInTime,
         checkOutTime,
-        workPolicy.breakMinutes,
+        effectiveBreak,
         nightStart,
         nightEnd,
         threshold,
@@ -229,10 +310,11 @@ export class AttendanceClassifier {
     const result = classifyNormal(
       checkInTime,
       checkOutTime,
-      workPolicy.breakMinutes,
+      effectiveBreak,
       nightStart,
       nightEnd,
       threshold,
+      workPolicy,
     );
     segments.push(...result.segments);
 
@@ -289,6 +371,7 @@ function classifyNormal(
   nightStart: Date,
   nightEnd: Date,
   threshold: number,
+  workPolicy?: ClassifyInput['workPolicy'],
 ): NormalResult {
   const rawMinutes = Math.floor(
     (checkOut.getTime() - checkIn.getTime()) / 60000,
@@ -319,7 +402,9 @@ function classifyNormal(
 
   // Regular = min(totalWork, threshold)
   const regularTotal = Math.min(totalWork, threshold);
-  const overtimeTotal = Math.max(0, totalWork - threshold);
+  const rawOvertimeTotal = Math.max(0, totalWork - threshold);
+  // 연장근로 최소기준 + 절사 적용 (기능 3)
+  const overtimeTotal = workPolicy ? applyOvertimeRules(rawOvertimeTotal, workPolicy) : rawOvertimeTotal;
 
   // Day portion fills regular first
   const regularDay = Math.min(dayPortion, regularTotal);

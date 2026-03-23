@@ -16,10 +16,13 @@ async function handler(request: NextRequest, auth: AuthContext) {
   // PayrollMonthly 스냅샷에서 읽기 (불변 데이터)
   const records = await payrollMonthlyRepo.findByPeriodAndGroup(auth.companyId, year, month, payrollGroupId);
 
-  const employees = records.map((r) => ({
-    employeeNumber: r.employeeNumber ?? '',
-    employeeName: r.employeeName ?? '',
-    departmentName: r.departmentName ?? '',
+  const employees = records.map((r) => {
+    const userRel = (r as unknown as Record<string, unknown>).user as Record<string, unknown> | undefined;
+    const deptRel = userRel?.department as Record<string, unknown> | undefined;
+    return {
+    employeeNumber: r.employeeNumber ?? (userRel?.employeeNumber as string) ?? '',
+    employeeName: r.employeeName ?? (userRel?.name as string) ?? '',
+    departmentName: r.departmentName ?? (deptRel?.name as string) ?? '',
     payItems: r.payItemsSnapshot ?? [],
     deductionItems: r.deductionItemsSnapshot ?? [],
     attendance: r.attendanceSnapshot ?? null,
@@ -28,7 +31,8 @@ async function handler(request: NextRequest, auth: AuthContext) {
     totalDeduction: Number(r.nationalPension) + Number(r.healthInsurance) + Number(r.longTermCare) +
       Number(r.employmentInsurance) + Number(r.incomeTax) + Number(r.localIncomeTax),
     netPay: Number(r.netPay),
-  }));
+  };
+  });
 
   return successResponse({
     year,
