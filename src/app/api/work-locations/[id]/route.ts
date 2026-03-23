@@ -32,7 +32,13 @@ async function handleDelete(request: NextRequest, auth: AuthContext) {
   }
 
   const { id } = await (request as unknown as { routeContext: RouteContext }).routeContext.params;
-  const { crudWorkLocationUseCase } = getContainer();
+  const { crudWorkLocationUseCase, workLocationRepo } = getContainer();
+
+  // 기본 근무지 삭제 보호
+  const existing = await workLocationRepo.findById(auth.companyId, id);
+  if (!existing) return notFoundResponse('근무지');
+  if (existing.isDefault) return errorResponse('기본 근무지는 삭제할 수 없습니다.', 400);
+
   await crudWorkLocationUseCase.delete(auth.companyId, id);
   return noContentResponse();
 }

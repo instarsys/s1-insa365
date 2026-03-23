@@ -236,12 +236,14 @@ export default function WorkLocationsPage() {
                 >
                   <Pencil className="h-4 w-4" />
                 </button>
-                <button
-                  onClick={() => handleDelete(loc.id, loc.name)}
-                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {!loc.isDefault && (
+                  <button
+                    onClick={() => handleDelete(loc.id, loc.name)}
+                    className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -262,9 +264,16 @@ export default function WorkLocationsPage() {
                   type="text"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  readOnly={editId != null && form.isDefault}
+                  className={cn(
+                    "w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20",
+                    editId != null && form.isDefault && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                  )}
                   placeholder="예: 서울 본사"
                 />
+                {editId != null && form.isDefault && (
+                  <p className="mt-1 text-xs text-gray-400">기본 근무지의 이름은 변경할 수 없습니다.</p>
+                )}
               </div>
               <AddressSearchInput
                 label="주소 *"

@@ -137,10 +137,10 @@ export default function EmployeeListPage() {
     [wlData]
   );
 
-  const payrollGroupOptions = useMemo(() => [
-    { value: '', label: '선택 안함' },
-    ...payrollGroups.map((g) => ({ value: g.id, label: g.isDefault ? `${g.name} (기본)` : g.name })),
-  ], [payrollGroups]);
+  const payrollGroupOptions = useMemo(() =>
+    payrollGroups.map((g) => ({ value: g.id, label: g.isDefault ? `${g.name} (기본)` : g.name })),
+    [payrollGroups]
+  );
 
   // statusTab '' = ACTIVE
   const statusFilter = statusTab || 'ACTIVE';
@@ -175,9 +175,17 @@ export default function EmployeeListPage() {
   const totalPages = Math.ceil(total / 20);
 
   const openCreate = useCallback(() => {
-    setForm(emptyForm);
+    const defaultWP = (wpData?.items ?? []).find((wp: Record<string, unknown>) => wp.isDefault);
+    const defaultWL = (wlData?.items ?? []).find((wl: Record<string, unknown>) => wl.isDefault);
+    const defaultPG = payrollGroups.find((g) => g.isDefault);
+    setForm({
+      ...emptyForm,
+      workPolicyId: defaultWP?.id as string ?? '',
+      workLocationId: defaultWL?.id as string ?? '',
+      payrollGroupId: defaultPG?.id ?? '',
+    });
     setPanelMode('create');
-  }, []);
+  }, [wpData, wlData, payrollGroups]);
 
   const handleTabChange = useCallback((key: string) => {
     setStatusTab(key);

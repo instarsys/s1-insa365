@@ -36,7 +36,7 @@ export const createEmployeeSchema = z.object({
   salaryType: z.enum(SALARY_TYPES).optional(),
   hourlyRate: z.number().min(0).optional().nullable(),
   attendanceExempt: z.boolean().optional(),
-  payrollGroupId: z.string().uuid().optional().nullable(),
+  payrollGroupId: z.string().uuid(),
   profileImageUrl: z.string().max(500).optional().nullable(),
 }).refine(
   (data) => !(data.salaryType === 'HOURLY' && data.attendanceExempt === true),
