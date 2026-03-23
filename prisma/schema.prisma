@@ -71,6 +71,14 @@ enum AuditAction {
   EXPORT
   LOGIN
   LOGOUT
+  SEND
+}
+
+enum PayslipEmailStatus {
+  PENDING
+  SENT
+  OPENED
+  FAILED
 }
 
 enum AttendanceStatus {
@@ -232,6 +240,7 @@ model Company {
   companyHolidays    CompanyHoliday[]
   payrollGroups      PayrollGroup[]
   rolePermissions    RolePermission[]
+  payslipEmailLogs   PayslipEmailLog[]
 
   @@map("companies")
 }
@@ -301,6 +310,7 @@ model User {
   leaveAccrualRecords  LeaveAccrualRecord[]
   termsAgreements      TermsAgreement[]
   payrollGroupManagers PayrollGroupManager[]
+  payslipEmailLogs     PayslipEmailLog[]
 
   @@unique([companyId, email])
   @@unique([companyId, employeeNumber])
@@ -804,6 +814,8 @@ model PayrollMonthly {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
+  payslipEmailLogs   PayslipEmailLog[]
+
   @@unique([companyId, userId, year, month])
   @@index([companyId, year, month])
   @@index([companyId, payrollGroupId, year, month])
@@ -1270,4 +1282,33 @@ model RolePermission {
   @@unique([companyId, role, category, permission])
   @@index([companyId, role])
   @@map("role_permissions")
+}
+
+// ──────────────────────────────────────────────
+// PayslipEmailLog (급여명세서 이메일 발송 이력)
+// ──────────────────────────────────────────────
+
+model PayslipEmailLog {
+  id               String             @id @default(uuid())
+  companyId        String             @map("company_id")
+  company          Company            @relation(fields: [companyId], references: [id])
+  userId           String             @map("user_id")
+  user             User               @relation(fields: [userId], references: [id])
+  payrollMonthlyId String             @map("payroll_monthly_id")
+  payrollMonthly   PayrollMonthly     @relation(fields: [payrollMonthlyId], references: [id])
+  year             Int
+  month            Int
+  recipientEmail   String             @map("recipient_email")
+  status           PayslipEmailStatus @default(PENDING)
+  trackingToken    String             @unique @map("tracking_token")
+  resendMessageId  String?            @map("resend_message_id")
+  sentAt           DateTime?          @map("sent_at")
+  openedAt         DateTime?          @map("opened_at")
+  failReason       String?            @map("fail_reason")
+  sentByUserId     String             @map("sent_by_user_id")
+  createdAt        DateTime           @default(now()) @map("created_at")
+
+  @@index([companyId, year, month])
+  @@index([companyId, userId, year, month])
+  @@map("payslip_email_logs")
 }

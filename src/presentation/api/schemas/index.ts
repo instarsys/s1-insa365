@@ -1,6 +1,6 @@
 export { loginSchema, signupSchema } from './auth';
 export { createEmployeeSchema, updateEmployeeSchema } from './employee';
-export { calculatePayrollSchema, confirmPayrollSchema, cancelPayrollSchema } from './payroll';
+export { calculatePayrollSchema, confirmPayrollSchema, cancelPayrollSchema, sendPayslipEmailSchema } from './payroll';
 export { checkInSchema, confirmAttendanceSchema } from './attendance';
 export { createLeaveRequestSchema, createLeaveGroupSchema, createLeaveTypeConfigSchema, createLeaveAccrualRuleSchema, generateAccrualsSchema, manualAdjustmentSchema, grantLeaveSchema } from './leave';
 export { createInsuranceRateSchema } from './system';

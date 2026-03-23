@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FileText, Printer } from 'lucide-react';
+import { FileText, Printer, Mail, History } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardHeader, CardTitle, CardBody } from '@/components/ui/Card';
 import { Select } from '@/components/ui/Select';
@@ -11,6 +11,8 @@ import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { usePayrollLedger } from '@/hooks';
 import { formatKRW } from '@/lib/utils';
+import { EmailSendDialog } from './EmailSendDialog';
+import { EmailHistoryPanel } from './EmailHistoryPanel';
 
 const currentDate = new Date();
 
@@ -32,6 +34,7 @@ interface LedgerItem {
 }
 
 interface LedgerEmployee {
+  userId?: string;
   employeeNumber: string;
   employeeName: string;
   departmentName: string;
@@ -53,6 +56,8 @@ export default function PayslipsPage() {
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
   const [search, setSearch] = useState('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
 
   const { ledger, isLoading } = usePayrollLedger(year, month);
   const data = ledger as LedgerData | undefined;
@@ -110,6 +115,21 @@ export default function PayslipsPage() {
   return (
     <div>
       <PageHeader title="급여명세서" subtitle="직원별 급여명세서를 조회하고 발송합니다.">
+        <Button
+          variant="secondary"
+          onClick={() => setHistoryPanelOpen(true)}
+          disabled={employees.length === 0}
+        >
+          <History className="h-4 w-4" />
+          발송 이력
+        </Button>
+        <Button
+          onClick={() => setEmailDialogOpen(true)}
+          disabled={employees.length === 0}
+        >
+          <Mail className="h-4 w-4" />
+          이메일 발송
+        </Button>
         <Button variant="secondary" disabled>
           <Printer className="h-4 w-4" />
           인쇄
@@ -287,6 +307,21 @@ export default function PayslipsPage() {
           )}
         </Card>
       </div>
+
+      {/* Email dialogs */}
+      <EmailSendDialog
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        year={year}
+        month={month}
+        employees={employees}
+      />
+      <EmailHistoryPanel
+        open={historyPanelOpen}
+        onClose={() => setHistoryPanelOpen(false)}
+        year={year}
+        month={month}
+      />
     </div>
   );
 }

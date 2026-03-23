@@ -57,7 +57,7 @@ function getRoleDefaultPath(role: string | undefined): string {
 }
 
 // --- Auth Redirect ---
-const publicPaths = ['/login', '/signup', '/join', '/super-admin/login', '/change-password', '/api/auth', '/api/health', '/about', '/contact', '/terms', '/privacy'];
+const publicPaths = ['/login', '/signup', '/join', '/super-admin/login', '/change-password', '/api/auth', '/api/health', '/api/payroll/payslips/email-read', '/about', '/contact', '/terms', '/privacy'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

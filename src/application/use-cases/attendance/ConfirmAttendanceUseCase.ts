@@ -7,7 +7,7 @@ import type { IWorkPolicyRepository } from '../../ports/IWorkPolicyRepository';
 import type { ICompanyHolidayRepository } from '../../ports/ICompanyHolidayRepository';
 import type { IAuditLogRepository } from '../../ports/IAuditLogRepository';
 import type { ConfirmAttendanceDto } from '../../dtos/attendance';
-import { isWorkDay, countWorkDaysInMonth } from '@domain/services/AttendanceClassifier';
+import { AttendanceClassifier, isWorkDay, countWorkDaysInMonth } from '@domain/services/AttendanceClassifier';
 
 /** 로컬 Date → YYYY-MM-DD (타임존 안전, toISOString 대체) */
 function toDateStr(d: Date): string {
@@ -173,6 +173,84 @@ export class ConfirmAttendanceUseCase {
 
       // 결근 포함된 전체 근태 다시 조회
       const allAttendances = await this.attendanceRepo.findByUserAndMonth(companyId, empId, year, month);
+
+      // ── 현재 근무정책으로 재분류 (threshold/rounding/holiday 소급 적용) ──
+      if (workPolicy) {
+        const wpInput = {
+          startTime: workPolicy.startTime,
+          endTime: workPolicy.endTime,
+          breakMinutes: workPolicy.breakMinutes,
+          workDays,
+          lateGraceMinutes: workPolicy.lateGraceMinutes ?? 0,
+          earlyLeaveGraceMinutes: workPolicy.earlyLeaveGraceMinutes ?? 0,
+          nightWorkStartTime: workPolicy.nightWorkStartTime ?? '22:00',
+          nightWorkEndTime: workPolicy.nightWorkEndTime ?? '06:00',
+          overtimeThresholdMinutes: workPolicy.overtimeThresholdMinutes ?? 480,
+          overtimeMinThreshold: workPolicy.overtimeMinThreshold ?? 0,
+          overtimeRoundingMinutes: workPolicy.overtimeRoundingMinutes ?? 0,
+          breakType: workPolicy.breakType ?? 'FIXED',
+          breakSchedule: workPolicy.breakSchedule ?? null,
+          attendanceCalcMode: workPolicy.attendanceCalcMode ?? 'TIME_BASED',
+        };
+
+        for (const att of allAttendances) {
+          if (!att.checkInTime || !att.checkOutTime) continue;
+
+          const attDate = new Date(att.date);
+          const isHoliday = !isWorkDay(attDate, workDays) || holidayDates.has(toDateStr(attDate));
+
+          const result = AttendanceClassifier.classify({
+            checkInTime: new Date(att.checkInTime),
+            checkOutTime: new Date(att.checkOutTime),
+            workPolicy: wpInput,
+            isHoliday,
+            date: attDate,
+          });
+
+          // 재분류 결과가 기존과 다르면 DB 업데이트
+          if (
+            att.overtimeMinutes !== result.overtimeMinutes ||
+            att.regularMinutes !== result.regularMinutes ||
+            att.holidayMinutes !== result.holidayMinutes ||
+            att.holidayOvertimeMinutes !== result.holidayOvertimeMinutes ||
+            att.nightMinutes !== result.nightMinutes ||
+            att.nightOvertimeMinutes !== result.nightOvertimeMinutes ||
+            att.isHoliday !== isHoliday
+          ) {
+            await (this.attendanceRepo as unknown as { updateClassification(companyId: string, id: string, data: Record<string, unknown>): Promise<unknown> }).updateClassification(companyId, att.id, {
+              status: result.status,
+              regularMinutes: result.regularMinutes,
+              overtimeMinutes: result.overtimeMinutes,
+              nightMinutes: result.nightMinutes,
+              nightOvertimeMinutes: result.nightOvertimeMinutes,
+              holidayMinutes: result.holidayMinutes,
+              holidayOvertimeMinutes: result.holidayOvertimeMinutes,
+              holidayNightMinutes: result.holidayNightMinutes,
+              holidayNightOvertimeMinutes: result.holidayNightOvertimeMinutes,
+              totalMinutes: result.totalMinutes,
+              lateMinutes: result.lateMinutes,
+              earlyLeaveMinutes: result.earlyLeaveMinutes,
+              isHoliday,
+            });
+            // 로컬 객체도 업데이트 (합산용)
+            Object.assign(att, {
+              status: result.status,
+              regularMinutes: result.regularMinutes,
+              overtimeMinutes: result.overtimeMinutes,
+              nightMinutes: result.nightMinutes,
+              nightOvertimeMinutes: result.nightOvertimeMinutes,
+              holidayMinutes: result.holidayMinutes,
+              holidayOvertimeMinutes: result.holidayOvertimeMinutes,
+              holidayNightMinutes: result.holidayNightMinutes,
+              holidayNightOvertimeMinutes: result.holidayNightOvertimeMinutes,
+              totalMinutes: result.totalMinutes,
+              lateMinutes: result.lateMinutes,
+              earlyLeaveMinutes: result.earlyLeaveMinutes,
+              isHoliday,
+            });
+          }
+        }
+      }
 
       const existing = await this.salaryAttendanceDataRepo.findByEmployeeAndPeriod(
         companyId, empId, year, month,

@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Spinner } from '@/components/ui/Spinner';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
+import { useToast } from '@/components/ui/Toast';
 
 import { Select } from '@/components/ui/Select';
 
@@ -23,7 +24,7 @@ interface WorkPolicy {
   startTime: string;
   endTime: string;
   breakMinutes: number;
-  workDays: number[];
+  workDays: number[] | string;
   isDefault: boolean;
   lateGraceMinutes: number;
   earlyLeaveGraceMinutes: number;
@@ -64,6 +65,7 @@ function calcMonthlyHours(weeklyHours: number, workDaysCount: number) {
 }
 
 export default function WorkPolicyPage() {
+  const toast = useToast();
   const [policies, setPolicies] = useState<WorkPolicy[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -175,7 +177,11 @@ export default function WorkPolicyPage() {
     setFormStart(policy.startTime);
     setFormEnd(policy.endTime);
     setFormBreak(policy.breakMinutes);
-    setFormDays(policy.workDays);
+    setFormDays(
+      typeof policy.workDays === 'string'
+        ? policy.workDays.split(',').map(Number)
+        : policy.workDays,
+    );
     setFormDefault(policy.isDefault);
     setFormLateGrace(policy.lateGraceMinutes);
     setFormEarlyLeaveGrace(policy.earlyLeaveGraceMinutes);
@@ -214,7 +220,7 @@ export default function WorkPolicyPage() {
       startTime: formStart,
       endTime: formEnd,
       breakMinutes: formBreak,
-      workDays: formDays,
+      workDays: formDays.join(','),
       isDefault: formDefault,
       lateGraceMinutes: formLateGrace,
       earlyLeaveGraceMinutes: formEarlyLeaveGrace,
@@ -242,6 +248,8 @@ export default function WorkPolicyPage() {
       }
       setShowModal(false);
       await loadPolicies();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : '근무 정책 저장에 실패했습니다.');
     } finally {
       setSaving(false);
     }

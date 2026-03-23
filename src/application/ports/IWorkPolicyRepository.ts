@@ -19,6 +19,14 @@ export interface WorkPolicyDto {
   weeklyWorkHours: number;
   weeklyOvertimeLimit: number;
   monthlyOvertimeLimit: number;
+  // 연장근로 적용 설정
+  checkInAllowedMinutes?: number;
+  checkOutAllowedMinutes?: number;
+  overtimeMinThreshold?: number;
+  overtimeRoundingMinutes?: number;
+  breakType?: string;
+  breakSchedule?: unknown;
+  attendanceCalcMode?: string;
 }
 
 export interface CreateWorkPolicyData {

@@ -13,3 +13,5 @@ export { useBilling, usePaymentHistory, useBillingMutations } from './useBilling
 export type { SubscriptionData, PaymentData, PlanConfig } from './useBilling';
 export { useCompanyHolidays, useCompanyHolidayMutations } from './useCompanyHolidays';
 export type { CompanyHolidayItem } from './useCompanyHolidays';
+export { usePayslipEmailHistory, usePayslipEmailMutations } from './usePayslipEmail';
+export type { PayslipEmailHistoryItem } from './usePayslipEmail';

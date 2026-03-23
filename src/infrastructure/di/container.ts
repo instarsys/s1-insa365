@@ -42,6 +42,7 @@ import { PaymentRepository } from '../persistence/repositories/PaymentRepository
 import { CompanyHolidayRepository } from '../persistence/repositories/CompanyHolidayRepository';
 import { PayrollGroupRepository } from '../persistence/repositories/PayrollGroupRepository';
 import { RolePermissionRepository } from '../persistence/repositories/RolePermissionRepository';
+import { PayslipEmailLogRepository } from '../persistence/repositories/PayslipEmailLogRepository';
 
 // ─── Domain Services ────────────────────────────────────────────
 import { PayrollCalculator } from '@domain/services/PayrollCalculator';
@@ -59,6 +60,8 @@ import { s3Service } from '../external/S3Service';
 import { KakaoGeocodingService } from '../external/KakaoGeocodingService';
 import { GetPresignedUploadUrlUseCase } from '@/application/use-cases/upload/GetPresignedUploadUrlUseCase';
 import { generateInviteCode } from '../invite/InviteCodeGenerator';
+import { EmailService } from '../email/EmailService';
+import { buildPayslipEmailHtml } from '../email/PayslipEmailTemplate';
 
 // ─── Use Cases ──────────────────────────────────────────────────
 // Auth
@@ -107,6 +110,9 @@ import { GetPayrollHistoryUseCase } from '@/application/use-cases/payroll/GetPay
 import { GetPayrollLedgerUseCase } from '@/application/use-cases/payroll/GetPayrollLedgerUseCase';
 import { GetAttendanceReviewUseCase } from '@/application/use-cases/payroll/GetAttendanceReviewUseCase';
 import { GetPayrollDetailUseCase } from '@/application/use-cases/payroll/GetPayrollDetailUseCase';
+import { SendPayslipEmailUseCase } from '@/application/use-cases/payroll/SendPayslipEmailUseCase';
+import { GetPayslipEmailHistoryUseCase } from '@/application/use-cases/payroll/GetPayslipEmailHistoryUseCase';
+import { RecordPayslipEmailOpenUseCase } from '@/application/use-cases/payroll/RecordPayslipEmailOpenUseCase';
 
 // Dashboard
 import { GetDashboardTodosUseCase } from '@/application/use-cases/dashboard/GetDashboardTodosUseCase';
@@ -174,6 +180,7 @@ export interface Container {
   companyHolidayRepo: CompanyHolidayRepository;
   payrollGroupRepo: PayrollGroupRepository;
   rolePermissionRepo: RolePermissionRepository;
+  payslipEmailLogRepo: PayslipEmailLogRepository;
 
   // Infrastructure Services (cross-cutting concerns)
   excelService: ExcelService;
@@ -187,6 +194,7 @@ export interface Container {
     verifyRefreshToken(token: string): { userId: string; companyId: string; role: string; canViewSensitive: boolean };
   };
   generateInviteCode: (length?: number) => string;
+  emailService: EmailService;
 
   // Upload Use Cases
   getPresignedUploadUrlUseCase: GetPresignedUploadUrlUseCase;
@@ -237,6 +245,9 @@ export interface Container {
   getPayrollLedgerUseCase: GetPayrollLedgerUseCase;
   getAttendanceReviewUseCase: GetAttendanceReviewUseCase;
   getPayrollDetailUseCase: GetPayrollDetailUseCase;
+  sendPayslipEmailUseCase: SendPayslipEmailUseCase;
+  getPayslipEmailHistoryUseCase: GetPayslipEmailHistoryUseCase;
+  recordPayslipEmailOpenUseCase: RecordPayslipEmailOpenUseCase;
 
   // Dashboard Use Cases
   getDashboardTodosUseCase: GetDashboardTodosUseCase;
@@ -306,9 +317,11 @@ function createContainer(): Container {
   const companyHolidayRepo = new CompanyHolidayRepository();
   const payrollGroupRepo = new PayrollGroupRepository();
   const rolePermissionRepo = new RolePermissionRepository();
+  const payslipEmailLogRepo = new PayslipEmailLogRepository();
 
   // 2. Infrastructure Service 인스턴스
   const excelService = new ExcelService();
+  const emailService = new EmailService();
   const kakaoGeocodingService = new KakaoGeocodingService();
 
   // 3. Domain Service 어댑터 (PayrollCalculator.calculate는 static)
@@ -504,6 +517,22 @@ function createContainer(): Container {
     auditLogRepo as Any,
     getPayrollDetailUseCase,
   );
+  const templateAdapter = { buildHtml: buildPayslipEmailHtml };
+  const sendPayslipEmailUseCase = new SendPayslipEmailUseCase(
+    payslipEmailLogRepo as Any,
+    payrollMonthlyRepo as Any,
+    companyRepo as Any,
+    userRepo as Any,
+    auditLogRepo as Any,
+    emailService,
+    templateAdapter,
+  );
+  const getPayslipEmailHistoryUseCase = new GetPayslipEmailHistoryUseCase(
+    payslipEmailLogRepo as Any,
+  );
+  const recordPayslipEmailOpenUseCase = new RecordPayslipEmailOpenUseCase(
+    payslipEmailLogRepo as Any,
+  );
 
   // Upload
   const getPresignedUploadUrlUseCase = new GetPresignedUploadUrlUseCase(s3Service as Any);
@@ -577,6 +606,7 @@ function createContainer(): Container {
     companyHolidayRepo,
     payrollGroupRepo,
     rolePermissionRepo,
+    payslipEmailLogRepo,
     // Infrastructure Services
     excelService,
     encryptionService,
@@ -586,6 +616,7 @@ function createContainer(): Container {
     passwordService: passwordAdapter,
     jwtService,
     generateInviteCode,
+    emailService,
     // Auth
     loginUseCase,
     signupUseCase,
@@ -628,6 +659,9 @@ function createContainer(): Container {
     getPayrollLedgerUseCase,
     getAttendanceReviewUseCase,
     getPayrollDetailUseCase,
+    sendPayslipEmailUseCase,
+    getPayslipEmailHistoryUseCase,
+    recordPayslipEmailOpenUseCase,
     // Dashboard
     getDashboardTodosUseCase,
     getDashboardWidgetsUseCase,

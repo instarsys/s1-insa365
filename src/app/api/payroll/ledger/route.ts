@@ -20,6 +20,7 @@ async function handler(request: NextRequest, auth: AuthContext) {
     const userRel = (r as unknown as Record<string, unknown>).user as Record<string, unknown> | undefined;
     const deptRel = userRel?.department as Record<string, unknown> | undefined;
     return {
+    userId: r.userId,
     employeeNumber: r.employeeNumber ?? (userRel?.employeeNumber as string) ?? '',
     employeeName: r.employeeName ?? (userRel?.name as string) ?? '',
     departmentName: r.departmentName ?? (deptRel?.name as string) ?? '',

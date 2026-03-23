@@ -105,6 +105,8 @@ export interface AttendanceRecordDto {
   userId: string;
   date: Date;
   checkInTime: Date | null;
+  checkOutTime: Date | null;
+  totalMinutes: number;
   status: string;
   regularMinutes: number;
   overtimeMinutes: number;

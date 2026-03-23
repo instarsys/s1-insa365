@@ -95,6 +95,17 @@ export class AttendanceRepository {
     });
   }
 
+  async updateClassification(companyId: string, id: string, data: Record<string, unknown>) {
+    const existing = await prisma.attendance.findFirst({
+      where: { id, companyId, deletedAt: null },
+    });
+    if (!existing) return null;
+    return prisma.attendance.update({
+      where: { id },
+      data: data as Prisma.AttendanceUncheckedUpdateInput,
+    });
+  }
+
   async confirmMonth(
     companyId: string,
     year: number,
