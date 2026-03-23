@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, Pencil, Trash2, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Clock, Coffee, DoorOpen, AlertTriangle, Timer, Calculator } from 'lucide-react';
 import { PageHeader } from '@/components/layout';
 import { Card, CardBody } from '@/components/ui/Card';
 import { Table } from '@/components/ui/Table';
@@ -350,7 +350,7 @@ export default function WorkPolicyPage() {
         open={showModal}
         onClose={() => setShowModal(false)}
         title={editing ? '근무 정책 수정' : '근무 정책 추가'}
-        size="lg"
+        size="xl"
         footer={
           <>
             <Button variant="ghost" onClick={() => setShowModal(false)}>취소</Button>
@@ -360,171 +360,19 @@ export default function WorkPolicyPage() {
           </>
         }
       >
-        <div className="max-h-[70vh] space-y-6 overflow-y-auto pr-1">
-          {/* 근무시간 섹션 */}
-          <div>
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">근무시간</h4>
-            <div className="space-y-4">
+        <div className="max-h-[75vh] space-y-5 overflow-y-auto pr-1">
+
+          {/* ── 기본 정보 ── */}
+          <div className="flex items-end gap-4">
+            <div className="flex-1">
               <Input
                 label="정책명"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
                 placeholder="예: 일반 근무"
               />
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="출근 시간"
-                  type="time"
-                  value={formStart}
-                  onChange={(e) => { setFormStart(e.target.value); setWeeklyDirty(false); setMonthlyDirty(false); }}
-                />
-                <Input
-                  label="퇴근 시간"
-                  type="time"
-                  value={formEnd}
-                  onChange={(e) => { setFormEnd(e.target.value); setWeeklyDirty(false); setMonthlyDirty(false); }}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Select
-                  label="휴게시간 방식"
-                  options={[
-                    { value: 'FIXED', label: '고정 시간' },
-                    { value: 'TIERED', label: '근무시간별' },
-                    { value: 'SCHEDULED', label: '시간대 지정' },
-                  ]}
-                  value={formBreakType}
-                  onChange={(v) => {
-                    setFormBreakType(v);
-                    if (v === 'TIERED' && (formBreakSchedule.length === 0 || !('minWorkHours' in (formBreakSchedule[0] ?? {})))) {
-                      setFormBreakSchedule([{ minWorkHours: 4, breakMinutes: 30 }, { minWorkHours: 8, breakMinutes: 60 }]);
-                    }
-                    if (v === 'SCHEDULED' && (formBreakSchedule.length === 0 || !('startTime' in (formBreakSchedule[0] ?? {})))) {
-                      setFormBreakSchedule([{ startTime: '12:00', endTime: '13:00' }]);
-                    }
-                    if (v === 'FIXED') setFormBreakSchedule([]);
-                  }}
-                />
-                {formBreakType === 'FIXED' && (
-                  <Input
-                    label="휴게 시간 (분)"
-                    type="number"
-                    value={String(formBreak)}
-                    onChange={(e) => { setFormBreak(Number(e.target.value)); setWeeklyDirty(false); setMonthlyDirty(false); }}
-                  />
-                )}
-              </div>
-
-              {/* TIERED: 근무시간별 휴게 */}
-              {formBreakType === 'TIERED' && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-gray-600">근무시간별 휴게 조건</p>
-                  {formBreakSchedule.map((tier, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-md border border-gray-200 bg-white px-3 py-2">
-                      <input
-                        type="number"
-                        value={String(tier.minWorkHours ?? 0)}
-                        onChange={(e) => {
-                          const next = [...formBreakSchedule];
-                          next[idx] = { ...next[idx], minWorkHours: Number(e.target.value) };
-                          setFormBreakSchedule(next);
-                        }}
-                        className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <span className="text-sm text-gray-500 shrink-0">시간 이상 근무 시</span>
-                      <input
-                        type="number"
-                        value={String(tier.breakMinutes ?? 0)}
-                        onChange={(e) => {
-                          const next = [...formBreakSchedule];
-                          next[idx] = { ...next[idx], breakMinutes: Number(e.target.value) };
-                          setFormBreakSchedule(next);
-                        }}
-                        className="w-16 rounded border border-gray-300 px-2 py-1 text-center text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <span className="text-sm text-gray-500 shrink-0">분 휴게</span>
-                      <div className="flex-1" />
-                      {formBreakSchedule.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setFormBreakSchedule(formBreakSchedule.filter((_, i) => i !== idx))}
-                          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                        ><X className="h-3.5 w-3.5" /></button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setFormBreakSchedule([...formBreakSchedule, { minWorkHours: 0, breakMinutes: 0 }])}
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                  ><Plus className="h-3 w-3" /> 조건 추가</button>
-                  <p className="text-[11px] text-gray-400">근무시간이 해당 조건 이상일 때 가장 큰 조건의 휴게시간이 적용됩니다.</p>
-                </div>
-              )}
-
-              {/* SCHEDULED: 시간대 지정 휴게 */}
-              {formBreakType === 'SCHEDULED' && (
-                <div className="rounded-lg border border-gray-200 bg-gray-50/50 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-gray-600">휴게 시간대</p>
-                  {formBreakSchedule.map((slot, idx) => (
-                    <div key={idx} className="flex items-center gap-3 rounded-md border border-gray-200 bg-white px-3 py-2">
-                      <input
-                        type="time"
-                        value={String(slot.startTime ?? '12:00')}
-                        onChange={(e) => {
-                          const next = [...formBreakSchedule];
-                          next[idx] = { ...next[idx], startTime: e.target.value };
-                          setFormBreakSchedule(next);
-                        }}
-                        className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <span className="text-sm text-gray-400">~</span>
-                      <input
-                        type="time"
-                        value={String(slot.endTime ?? '13:00')}
-                        onChange={(e) => {
-                          const next = [...formBreakSchedule];
-                          next[idx] = { ...next[idx], endTime: e.target.value };
-                          setFormBreakSchedule(next);
-                        }}
-                        className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none"
-                      />
-                      <div className="flex-1" />
-                      {formBreakSchedule.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setFormBreakSchedule(formBreakSchedule.filter((_, i) => i !== idx))}
-                          className="rounded p-1 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                        ><X className="h-3.5 w-3.5" /></button>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => setFormBreakSchedule([...formBreakSchedule, { startTime: '12:00', endTime: '13:00' }])}
-                    className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"
-                  ><Plus className="h-3 w-3" /> 시간대 추가</button>
-                  <p className="text-[11px] text-gray-400">근무시간과 겹치는 시간대의 휴게시간이 합산 적용됩니다.</p>
-                </div>
-              )}
-              <div>
-                <p className="mb-2 text-xs font-medium text-gray-700">근무일</p>
-                <div className="flex gap-2">
-                  {DAY_LABELS.map((label, i) => (
-                    <button
-                      key={i}
-                      onClick={() => toggleDay(i)}
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                        formDays.includes(i)
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+            </div>
+            <div className="pb-1">
               <Checkbox
                 label="기본 정책으로 설정"
                 checked={formDefault}
@@ -533,64 +381,58 @@ export default function WorkPolicyPage() {
             </div>
           </div>
 
-          {/* 지각/조퇴 유예 섹션 */}
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">지각/조퇴 유예</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="지각 유예시간 (분)"
-                type="number"
-                value={String(formLateGrace)}
-                onChange={(e) => setFormLateGrace(Number(e.target.value))}
-                placeholder="0"
-              />
-              <Input
-                label="조퇴 유예시간 (분)"
-                type="number"
-                value={String(formEarlyLeaveGrace)}
-                onChange={(e) => setFormEarlyLeaveGrace(Number(e.target.value))}
-                placeholder="0"
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              유예시간 내 출근/퇴근은 지각/조퇴로 처리하지 않습니다. 0분이면 유예 없이 즉시 판정됩니다.
-            </p>
-          </div>
-
-          {/* 야간근로/연장근로 섹션 */}
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">야간/연장근로</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="야간근로 시작"
-                type="time"
-                value={formNightStart}
-                onChange={(e) => setFormNightStart(e.target.value)}
-              />
-              <Input
-                label="야간근로 종료"
-                type="time"
-                value={formNightEnd}
-                onChange={(e) => setFormNightEnd(e.target.value)}
-              />
-              <Input
-                label="일일 연장근로 기준 (시간)"
-                type="number"
-                value={String(formOvertimeThreshold / 60)}
-                onChange={(e) => setFormOvertimeThreshold(Number(e.target.value) * 60)}
-              />
+          {/* ── 근무시간 + 휴게시간 (2컬럼) ── */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* 좌: 근무시간 */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50/30 p-4 space-y-4">
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                <Clock className="h-4 w-4 text-indigo-500" />
+                근무시간
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="출근"
+                  type="time"
+                  value={formStart}
+                  onChange={(e) => { setFormStart(e.target.value); setWeeklyDirty(false); setMonthlyDirty(false); }}
+                />
+                <Input
+                  label="퇴근"
+                  type="time"
+                  value={formEnd}
+                  onChange={(e) => { setFormEnd(e.target.value); setWeeklyDirty(false); setMonthlyDirty(false); }}
+                />
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium text-gray-700">근무일</p>
+                <div className="flex gap-1.5">
+                  {DAY_LABELS.map((label, i) => (
+                    <button
+                      key={i}
+                      onClick={() => toggleDay(i)}
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors ${
+                        formDays.includes(i)
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div>
                 <p className="mb-2 text-xs font-medium text-gray-700">주휴요일</p>
-                <div className="flex gap-2">
+                <div className="flex gap-1.5">
                   {DAY_LABELS.map((label, i) => (
                     <button
                       key={i}
                       type="button"
                       onClick={() => setFormWeeklyHoliday(String(i))}
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-medium transition-colors ${
                         Number(formWeeklyHoliday) === i
                           ? 'bg-indigo-600 text-white'
-                          : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                          : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-100'
                       }`}
                     >
                       {label}
@@ -599,103 +441,146 @@ export default function WorkPolicyPage() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* 출퇴근 허용시간 섹션 */}
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">출퇴근 허용시간</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="출근 허용 (분 전)"
-                type="number"
-                value={String(formCheckInAllowed)}
-                onChange={(e) => setFormCheckInAllowed(Number(e.target.value))}
-                placeholder="30"
-              />
-              <Input
-                label="퇴근 허용 (분 후)"
-                type="number"
-                value={String(formCheckOutAllowed)}
-                onChange={(e) => setFormCheckOutAllowed(Number(e.target.value))}
-                placeholder="60"
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              출근시간 기준 N분 전부터 출근 기록 가능, 퇴근시간 기준 N분 후까지 퇴근 기록 가능합니다.
-            </p>
-          </div>
-
-          {/* 연장근로/판정방식 섹션 */}
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">연장근로 적용 설정</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="최소 기준 (분)"
-                type="number"
-                value={String(formOTMinThreshold)}
-                onChange={(e) => setFormOTMinThreshold(Number(e.target.value))}
-                placeholder="0"
-              />
-              <Input
-                label="절사 단위 (분)"
-                type="number"
-                value={String(formOTRounding)}
-                onChange={(e) => setFormOTRounding(Number(e.target.value))}
-                placeholder="0"
-              />
-            </div>
-            <p className="mt-2 text-xs text-gray-500">
-              최소 기준: N분 이상 초과근무해야 연장근로 인정. 절사: M분 단위로 절사. 0이면 미적용.
-            </p>
-            <div className="mt-4">
+            {/* 우: 휴게시간 */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50/30 p-4 space-y-4">
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                <Coffee className="h-4 w-4 text-amber-500" />
+                휴게시간
+              </h4>
               <Select
-                label="지각/연장 판정방식"
+                label="방식"
+                options={[
+                  { value: 'FIXED', label: '고정 시간' },
+                  { value: 'TIERED', label: '근무시간별' },
+                  { value: 'SCHEDULED', label: '시간대 지정' },
+                ]}
+                value={formBreakType}
+                onChange={(v) => {
+                  setFormBreakType(v);
+                  if (v === 'TIERED' && (formBreakSchedule.length === 0 || !('minWorkHours' in (formBreakSchedule[0] ?? {})))) {
+                    setFormBreakSchedule([{ minWorkHours: 4, breakMinutes: 30 }, { minWorkHours: 8, breakMinutes: 60 }]);
+                  }
+                  if (v === 'SCHEDULED' && (formBreakSchedule.length === 0 || !('startTime' in (formBreakSchedule[0] ?? {})))) {
+                    setFormBreakSchedule([{ startTime: '12:00', endTime: '13:00' }]);
+                  }
+                  if (v === 'FIXED') setFormBreakSchedule([]);
+                }}
+              />
+              {formBreakType === 'FIXED' && (
+                <Input
+                  label="휴게 시간 (분)"
+                  type="number"
+                  value={String(formBreak)}
+                  onChange={(e) => { setFormBreak(Number(e.target.value)); setWeeklyDirty(false); setMonthlyDirty(false); }}
+                />
+              )}
+              {formBreakType === 'TIERED' && (
+                <div className="space-y-2">
+                  {formBreakSchedule.map((tier, idx) => (
+                    <div key={idx} className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5">
+                      <input type="number" value={String(tier.minWorkHours ?? 0)} onChange={(e) => { const next = [...formBreakSchedule]; next[idx] = { ...next[idx], minWorkHours: Number(e.target.value) }; setFormBreakSchedule(next); }}
+                        className="w-12 rounded border border-gray-300 px-1.5 py-1 text-center text-sm focus:border-indigo-500 focus:outline-none" />
+                      <span className="text-xs text-gray-500">시간 이상</span>
+                      <input type="number" value={String(tier.breakMinutes ?? 0)} onChange={(e) => { const next = [...formBreakSchedule]; next[idx] = { ...next[idx], breakMinutes: Number(e.target.value) }; setFormBreakSchedule(next); }}
+                        className="w-12 rounded border border-gray-300 px-1.5 py-1 text-center text-sm focus:border-indigo-500 focus:outline-none" />
+                      <span className="text-xs text-gray-500">분 휴게</span>
+                      <div className="flex-1" />
+                      {formBreakSchedule.length > 1 && (
+                        <button type="button" onClick={() => setFormBreakSchedule(formBreakSchedule.filter((_, i) => i !== idx))} className="rounded p-0.5 text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setFormBreakSchedule([...formBreakSchedule, { minWorkHours: 0, breakMinutes: 0 }])} className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"><Plus className="h-3 w-3" /> 조건 추가</button>
+                  <p className="text-[11px] text-gray-400">가장 큰 조건의 휴게시간이 적용됩니다.</p>
+                </div>
+              )}
+              {formBreakType === 'SCHEDULED' && (
+                <div className="space-y-2">
+                  {formBreakSchedule.map((slot, idx) => (
+                    <div key={idx} className="flex items-center gap-2 rounded-md border border-gray-200 bg-white px-3 py-1.5">
+                      <input type="time" value={String(slot.startTime ?? '12:00')} onChange={(e) => { const next = [...formBreakSchedule]; next[idx] = { ...next[idx], startTime: e.target.value }; setFormBreakSchedule(next); }}
+                        className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none" />
+                      <span className="text-xs text-gray-400">~</span>
+                      <input type="time" value={String(slot.endTime ?? '13:00')} onChange={(e) => { const next = [...formBreakSchedule]; next[idx] = { ...next[idx], endTime: e.target.value }; setFormBreakSchedule(next); }}
+                        className="rounded border border-gray-300 px-2 py-1 text-sm focus:border-indigo-500 focus:outline-none" />
+                      <div className="flex-1" />
+                      {formBreakSchedule.length > 1 && (
+                        <button type="button" onClick={() => setFormBreakSchedule(formBreakSchedule.filter((_, i) => i !== idx))} className="rounded p-0.5 text-gray-400 hover:text-red-500"><X className="h-3.5 w-3.5" /></button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" onClick={() => setFormBreakSchedule([...formBreakSchedule, { startTime: '12:00', endTime: '13:00' }])} className="flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800"><Plus className="h-3 w-3" /> 시간대 추가</button>
+                  <p className="text-[11px] text-gray-400">겹치는 시간대의 휴게시간이 합산됩니다.</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── 출퇴근 관리 + 지각/조퇴 (2컬럼) ── */}
+          <div className="grid grid-cols-2 gap-6">
+            <div className="rounded-lg border border-gray-200 bg-gray-50/30 p-4 space-y-4">
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                <DoorOpen className="h-4 w-4 text-emerald-500" />
+                출퇴근 관리
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="출근 허용 (분 전)" type="number" value={String(formCheckInAllowed)} onChange={(e) => setFormCheckInAllowed(Number(e.target.value))} />
+                <Input label="퇴근 허용 (분 후)" type="number" value={String(formCheckOutAllowed)} onChange={(e) => setFormCheckOutAllowed(Number(e.target.value))} />
+              </div>
+              <Select
+                label="판정방식"
                 options={[
                   { value: 'TIME_BASED', label: '출퇴근시간 기준' },
                   { value: 'DURATION_BASED', label: '총 근무시간 기준' },
                 ]}
                 value={formCalcMode}
                 onChange={(v) => setFormCalcMode(v)}
-                wrapperClassName="max-w-xs"
               />
+              <p className="text-[11px] text-gray-400">출퇴근시간: 지각·연장 각각 계산 / 총 근무시간: 충족하면 미적용</p>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              출퇴근시간 기준: 지각·연장을 각각 계산 / 총 근무시간 기준: 총 시간만 충족하면 지각·연장 미적용.
-            </p>
+
+            <div className="rounded-lg border border-gray-200 bg-gray-50/30 p-4 space-y-4">
+              <h4 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+                <AlertTriangle className="h-4 w-4 text-orange-500" />
+                지각/조퇴 유예
+              </h4>
+              <Input label="지각 유예 (분)" type="number" value={String(formLateGrace)} onChange={(e) => setFormLateGrace(Number(e.target.value))} placeholder="0" />
+              <Input label="조퇴 유예 (분)" type="number" value={String(formEarlyLeaveGrace)} onChange={(e) => setFormEarlyLeaveGrace(Number(e.target.value))} placeholder="0" />
+              <p className="text-[11px] text-gray-400">유예시간 이내면 지각/조퇴 미적용. 0이면 즉시 판정.</p>
+            </div>
           </div>
 
-          {/* 소정근로시간 섹션 */}
-          <div className="border-t pt-4">
-            <h4 className="mb-3 text-sm font-semibold text-gray-900">소정근로시간</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="주 소정근로시간"
-                type="number"
-                value={String(formWeeklyHours)}
-                onChange={(e) => { setFormWeeklyHours(Number(e.target.value)); setWeeklyDirty(true); }}
-              />
-              <Input
-                label="월 소정근로시간"
-                type="number"
-                value={String(formMonthlyHours)}
-                onChange={(e) => { setFormMonthlyHours(Number(e.target.value)); setMonthlyDirty(true); }}
-              />
-              <Input
-                label="주 연장근로 최대"
-                type="number"
-                value={String(formWeeklyOTLimit)}
-                onChange={(e) => setFormWeeklyOTLimit(Number(e.target.value))}
-              />
-              <Input
-                label="월 연장근로 최대"
-                type="number"
-                value={String(formMonthlyOTLimit)}
-                onChange={(e) => setFormMonthlyOTLimit(Number(e.target.value))}
-              />
+          {/* ── 연장/야간근로 (통합) ── */}
+          <div className="rounded-lg border border-gray-200 bg-gray-50/30 p-4 space-y-4">
+            <h4 className="flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+              <Timer className="h-4 w-4 text-purple-500" />
+              연장/야간근로
+            </h4>
+            <div className="grid grid-cols-4 gap-3">
+              <Input label="야간 시작" type="time" value={formNightStart} onChange={(e) => setFormNightStart(e.target.value)} />
+              <Input label="야간 종료" type="time" value={formNightEnd} onChange={(e) => setFormNightEnd(e.target.value)} />
+              <Input label="일일 기준 (시간)" type="number" value={String(formOvertimeThreshold / 60)} onChange={(e) => setFormOvertimeThreshold(Number(e.target.value) * 60)} />
+              <div />
+              <Input label="최소 기준 (분)" type="number" value={String(formOTMinThreshold)} onChange={(e) => setFormOTMinThreshold(Number(e.target.value))} placeholder="0" />
+              <Input label="절사 단위 (분)" type="number" value={String(formOTRounding)} onChange={(e) => setFormOTRounding(Number(e.target.value))} placeholder="0" />
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              출퇴근/휴게/근무일 변경 시 주/월 소정근로시간이 자동 계산됩니다. 직접 수정하면 자동계산이 중지됩니다.
-            </p>
+            <p className="text-[11px] text-gray-400">최소 기준: N분 이상 초과근무 시 연장 인정. 절사: M분 단위 절사. 0이면 미적용.</p>
+          </div>
+
+          {/* ── 소정근로시간 (자동계산) ── */}
+          <div className="rounded-lg border border-gray-100 bg-gray-50/50 p-4">
+            <h4 className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-gray-900">
+              <Calculator className="h-4 w-4 text-gray-500" />
+              소정근로시간
+              <span className="ml-1 text-[11px] font-normal text-gray-400">(출퇴근/휴게/근무일 변경 시 자동계산)</span>
+            </h4>
+            <div className="grid grid-cols-4 gap-3">
+              <Input label="주 소정근로시간" type="number" value={String(formWeeklyHours)} onChange={(e) => { setFormWeeklyHours(Number(e.target.value)); setWeeklyDirty(true); }} />
+              <Input label="월 소정근로시간" type="number" value={String(formMonthlyHours)} onChange={(e) => { setFormMonthlyHours(Number(e.target.value)); setMonthlyDirty(true); }} />
+              <Input label="주 연장근로 최대" type="number" value={String(formWeeklyOTLimit)} onChange={(e) => setFormWeeklyOTLimit(Number(e.target.value))} />
+              <Input label="월 연장근로 최대" type="number" value={String(formMonthlyOTLimit)} onChange={(e) => setFormMonthlyOTLimit(Number(e.target.value))} />
+            </div>
           </div>
         </div>
       </Modal>

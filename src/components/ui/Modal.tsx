@@ -4,7 +4,7 @@ import { useEffect, useCallback, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-type ModalSize = 'sm' | 'md' | 'lg';
+type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
 
 interface ModalProps {
   open: boolean;
@@ -19,6 +19,7 @@ const sizeStyles: Record<ModalSize, string> = {
   sm: 'max-w-[400px]',
   md: 'max-w-[500px]',
   lg: 'max-w-[640px]',
+  xl: 'max-w-[900px]',
 };
 
 function Modal({ open, onClose, title, children, footer, size = 'md' }: ModalProps) {
