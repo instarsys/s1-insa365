@@ -19,6 +19,227 @@
 
 ---
 
+## [2026-03-24] 급여 확정 24시간 취소 유예 제거 — 확정 불가역 전환
+
+### 배경 (왜)
+
+급여 확정(CONFIRMED) 시 급여대장(PayrollMonthly) 불변 스냅샷이 즉시 생성되고, 급여명세서 이메일 발송까지 가능한 상태인데 24시간 내 취소를 허용하는 것은 아키텍처적 모순. "불변 스냅샷"이 삭제 가능하고, 이미 이메일로 발송된 명세서와 취소된 급여 간 불일치가 발생할 수 있음. 또한 연쇄 취소 로직(급여→근태)의 복잡성도 문제.
+
+### 변경 내용 (무엇을)
+
+1. **CancelPayrollUseCase**: 24시간 체크 로직 전체 삭제. `force=false`면 CONFIRMED 취소 차단 (`확정된 급여는 취소할 수 없습니다.`). `force=true`는 SYSTEM_ADMIN 이력 삭제 전용으로만 유지
+2. **payroll/cancel API**: `force=true` 사용 시 `SYSTEM_ADMIN` 역할 검증 추가 (403 반환)
+3. **급여 실행 UI**: `24시간 이내에 취소 가능` → `확정 후에는 수정하거나 취소할 수 없습니다` (red 경고). 확정 배너 문구도 변경
+4. **근태 달력 UI**: 급여 CONFIRMED 시 연쇄 취소 로직 제거. 확정 취소 버튼 비활성화 + tooltip 안내
+
+### 수정 파일 (영향 범위)
+
+| 레이어 | 파일 | 변경 |
+|--------|------|------|
+| Application | CancelPayrollUseCase.ts | 24시간 로직 삭제, CONFIRMED 취소 차단 |
+| API | payroll/cancel/route.ts | force=true SYSTEM_ADMIN 제한 |
+| UI | payroll/run/page.tsx | 24시간 문구 → 불가역 경고, 확정 배너 문구 변경 |
+| UI | attendance/calendar/page.tsx | 연쇄 취소 제거, 버튼 비활성화 |
+
+### DB 마이그레이션
+
+없음 (코드 레벨 변경만)
+
+### 설계 결정
+
+1. **확정 = 최종 확정**: CONFIRMED는 PAID와 동일하게 취소 불가. 실수 시 정정 급여(Off-Cycle, Phase 1.5)로 처리
+2. **force=true 유지**: PayrollHistory 이력 삭제 기능에서 사용 중이므로 경로 자체는 보존, SYSTEM_ADMIN만 접근 가능
+3. **근태 취소 차단**: 급여 확정 상태에서 근태 확정 취소도 차단하여 데이터 정합성 보장
+
+### 검증
+
+- `npm run build`: ✓ 컴파일 성공
+
+### 교훈 / 주의사항
+
+1. **불변 스냅샷과 취소 가능은 양립 불가**: "불변" 데이터를 생성하면서 취소 시 삭제하는 것은 설계 모순. 처음부터 확정의 불가역성을 명확히 정의해야 함
+2. **이메일 발송 후 취소 문제**: 급여명세서 이메일 발송 기능 추가로 취소 불가가 더 중요해짐 — 이미 발송된 명세서를 "없던 일"로 할 수 없음
+
+---
+
+## [2026-03-24] 급여명세서 이메일 발송 + 근태확정 재분류 + 근무정책 UI 개선
+
+### 배경 (왜)
+
+1. 급여명세서를 직원에게 이메일로 발송하고, 발송 이력과 수신(열람) 확인 기능 필요
+2. 근무정책의 연장근로 최소기준(overtimeMinThreshold) 변경 후 기존 출퇴근 기록에 소급 적용 안 되는 문제 — 확정 시 재분류 필요
+3. 근무정책 설정이 21개로 늘어났는데 640px 모달에 세로 나열만 되어 UX 개선 필요
+
+### 변경 내용 (무엇을)
+
+**1. 급여명세서 이메일 발송 시스템**
+- DB: `PayslipEmailLog` 모델 (발송 이력 + 트래킹 토큰) + `PayslipEmailStatus` enum (PENDING/SENT/OPENED/FAILED) + `AuditAction.SEND`
+- RLS: `payslip_email_logs` FORCE RLS + `record_payslip_email_open()` SECURITY DEFINER 함수 (트래킹 픽셀 RLS 우회)
+- Infrastructure: `EmailService.sendPayslipEmail()` — Resend API 연동 (미설정 시 콘솔 로그 fallback) + `PayslipEmailTemplate.ts` HTML 이메일 템플릿 (인라인 CSS, 모바일 호환)
+- UseCase 3개: `SendPayslipEmailUseCase` (순차 발송 + AuditLog), `GetPayslipEmailHistoryUseCase`, `RecordPayslipEmailOpenUseCase` (멱등)
+- API: `POST /api/payroll/payslips/email` (발송), `GET .../history` (이력), `GET .../email-read/[token]` (1x1 GIF 트래킹 픽셀, 공개)
+- UI: `EmailSendDialog` (직원 체크박스 선택 + 일괄 발송) + `EmailHistoryPanel` (슬라이드 패널, 상태 뱃지, 재발송, 30초 자동 갱신)
+- DI 컨테이너: `PayslipEmailLogRepository` + `EmailService` + UseCase 3개 등록
+
+**2. 근태확정 시 현재 근무정책으로 재분류**
+- `ConfirmAttendanceUseCase`: 확정 시 각 일별 Attendance에 대해 `AttendanceClassifier.classify()` 재호출
+- 현재 workPolicy의 `overtimeMinThreshold`/`overtimeRoundingMinutes` 소급 적용
+- 휴일 여부 재판정: `workDays` + `CompanyHoliday` 기준으로 `isHoliday` 자동 설정
+- 변경된 레코드만 DB 업데이트 후 합산
+- `AttendanceRepository.updateClassification()` 메서드 추가
+
+**3. 근무정책 수정 모달 UI 개선**
+- `Modal` xl 사이즈 추가 (max-w-900px)
+- 6섹션 세로 → 5섹션 2컬럼 카드 레이아웃 (근무시간+휴게 / 출퇴근관리+지각조퇴 좌우 배치)
+- 연장/야간근로 통합 + 소정근로시간 4컬럼 compact
+- 섹션별 아이콘 헤더 (Clock/Coffee/DoorOpen/AlertTriangle/Timer/Calculator)
+- 근무정책 저장 버그 수정: `workDays` 문자열↔배열 변환 누락 + `handleSave` catch 블록 추가
+
+### 수정 파일 (영향 범위)
+
+| 레이어 | 파일 | 변경 |
+|--------|------|------|
+| Schema | prisma/schema.prisma | PayslipEmailLog 모델 + PayslipEmailStatus enum + AuditAction.SEND + 관계 |
+| Migration | 3개 | add_payslip_email_log + RLS + SECURITY DEFINER |
+| Infrastructure | EmailService.ts | sendPayslipEmail() 추가 (Resend API) |
+| Infrastructure | PayslipEmailTemplate.ts | **신규** — HTML 이메일 템플릿 빌더 |
+| Repository | PayslipEmailLogRepository.ts | **신규** — 6개 메서드 (create/findByPeriod/findByToken/updateStatus/findLatest/recordOpen) |
+| Repository | AttendanceRepository.ts | updateClassification() 추가 |
+| UseCase | SendPayslipEmailUseCase.ts | **신규** — 이메일 발송 + AuditLog |
+| UseCase | GetPayslipEmailHistoryUseCase.ts | **신규** — 발송 이력 조회 |
+| UseCase | RecordPayslipEmailOpenUseCase.ts | **신규** — 트래킹 픽셀 열람 기록 |
+| UseCase | ConfirmAttendanceUseCase.ts | 재분류 로직 추가 (AttendanceClassifier 재호출) |
+| API | payslips/email/route.ts | **신규** — POST 이메일 발송 |
+| API | payslips/email/history/route.ts | **신규** — GET 발송 이력 |
+| API | payslips/email-read/[token]/route.ts | **신규** — GET 트래킹 픽셀 (공개) |
+| API | payroll/ledger/route.ts | userId 필드 추가 |
+| Middleware | proxy.ts | 트래킹 픽셀 publicPaths 추가 |
+| DI | container.ts | 1 Repository + 1 Service + 3 UseCase 등록 |
+| UI | payslips/page.tsx | 이메일 발송/이력 버튼 + 컴포넌트 통합 |
+| UI | payslips/EmailSendDialog.tsx | **신규** — 발송 대상 선택 모달 |
+| UI | payslips/EmailHistoryPanel.tsx | **신규** — 발송 이력 슬라이드 패널 |
+| UI | work-policy/page.tsx | 2컬럼 레이아웃 + 저장 버그 수정 |
+| UI | Modal.tsx | xl 사이즈 추가 |
+
+### DB 마이그레이션
+
+- `20260323131429_add_payslip_email_log`: PayslipEmailLog 테이블 + PayslipEmailStatus enum + AuditAction.SEND
+- `20260323131446_add_payslip_email_log_rls`: (빈 마이그레이션)
+- `20260323131500_add_payslip_email_log_rls`: RLS + FORCE RLS + `record_payslip_email_open()` SECURITY DEFINER
+
+### 설계 결정
+
+1. **트래킹 픽셀 RLS 우회**: SECURITY DEFINER 함수로 안전하게 우회 — 트래킹 픽셀은 인증 없는 공개 엔드포인트이므로 RLS 세션 변수 없음
+2. **Resend fallback**: `RESEND_API_KEY` 미설정 시 콘솔 로그로 대체 — 개발 환경에서 실제 이메일 발송 불필요
+3. **근태 재분류 시점**: 확정(Confirm) 시에만 재분류 — 체크아웃 시 분류는 기존 로직 유지, 정책 변경 후 재확정으로 소급 적용
+4. **EmailService DI**: Resend 인스턴스를 EmailService 내부에서 관리 — Container에서는 EmailService만 주입
+
+### 검증
+
+- `npm run build`: ✓ 컴파일 성공
+- API 테스트 (curl): 근태확정 취소 → 휴일 출퇴근 추가 → 재확정 → 급여 재계산 → 김영수 연장 0→0h, 휴일수당 1,148,304원 확인
+- 근무정책 저장: curl로 overtimeRoundingMinutes=60 저장 성공
+
+### 교훈 / 주의사항
+
+1. **근태 데이터 소급**: 근무정책 변경은 체크아웃 시점의 분류에만 영향 — 기존 기록은 재확정해야 소급 적용됨. 재분류 로직이 없으면 사용자가 혼란
+2. **RLS + 공개 엔드포인트 충돌**: FORCE RLS가 켜진 테이블에 인증 없는 엔드포인트가 접근하면 차단됨. SECURITY DEFINER 함수로 우회 필요
+3. **workDays 타입 불일치**: API 응답 String("1,2,3,4,5") vs 프론트 state number[] — 양방향 변환 필수. TypeScript가 any 타입에서 잡지 못함
+
+---
+
+## [2026-03-23] 근무정책 기능 확장 + 급여대장/명세서 개선 + 직원등록 기본값
+
+### 배경 (왜)
+
+1. 통합 테스트(TEST-SCENARIO-2026-02) 재실행 중 급여대장/명세서에 데이터 불일치 발견
+2. 근무정책에 출퇴근 허용시간, 복수 휴게, 연장근로 절사, 판정방식 등 실무 기능 필요
+3. 직원 등록 시 기본 그룹/정책/근무지 미선택으로 급여 실행 시 문제 발생 가능
+
+### 변경 내용 (무엇을)
+
+**1. 급여 재계산 버그 수정**
+- `CalculatePayrollUseCase:83` — `e.employeeId` → `e.userId` (CONFIRMED 검증 우회 근본 원인)
+- 급여 실행 UI: CONFIRMED 상태에서 "계산하기" 비활성화 + 안내 배너
+
+**2. 급여대장 개선**
+- ledger/page.tsx: `items`(code 기반) → `payItems/deductionItems`(label 기반) UI 전환
+- ConfirmPayrollUseCase: `calc.employeeName` → `calc.user?.name` (사번/이름/부서 null 수정)
+- PayrollMonthlyRepository: findByPeriodAndGroup에 user include 추가 (기존 null 데이터 fallback)
+- ledger API: 스냅샷 필드 null 시 user 관계에서 fallback
+
+**3. 급여명세서 개선**
+- 데이터소스: `usePayrollSpreadsheet`(합산) → `usePayrollLedger`(개별 스냅샷) — "고정수당 900,000" → 직책수당/식대/차량유지비 분리
+- 산출근거 표시: 연장수당 "48분", 지각공제 "15분", 시급제 기본급 "157시간"
+- GetPayrollDetailUseCase: 시급제 기본급에 hours 필드 + description 보강
+
+**4. 근무정책 기능 확장 (5가지)**
+- DB: WorkPolicy 7개 필드 추가 (마이그레이션 `20260323052604`)
+  - checkInAllowedMinutes (30), checkOutAllowedMinutes (60)
+  - overtimeMinThreshold (0), overtimeRoundingMinutes (0)
+  - breakType (FIXED), breakSchedule (Json?), attendanceCalcMode (TIME_BASED)
+- AttendanceClassifier: `calculateBreakMins()` TIERED/SCHEDULED 지원, `applyOvertimeRules()` 절사, DURATION_BASED 모드
+- CheckIn/CheckOutUseCase: 출퇴근 허용시간 검증 (ValidationError)
+- 설정 UI: 5개 섹션 확장 + TIERED/SCHEDULED 동적 폼 (카드 스타일)
+- API/Repository: 7개 필드 CRUD + 시드 기본값
+
+**5. 직원 등록 기본값 + 삭제 보호**
+- 직원 등록 폼: openCreate 시 기본 급여그룹/근무정책/근무지 자동 선택
+- payrollGroupId 필수화 (API 스키마 optional → required)
+- 기본 근무지 삭제 차단 (API isDefault 체크 + UI 삭제 버튼 숨김 + 이름 readOnly)
+
+### 수정 파일 (영향 범위)
+
+| 레이어 | 파일 | 변경 |
+|--------|------|------|
+| Schema | prisma/schema.prisma | WorkPolicy 7개 필드 추가 |
+| Migration | 20260323052604_add_work_policy_extensions | 7개 컬럼 (기본값 포함) |
+| Seed | prisma/seed.ts | 근무정책 새 필드 기본값 |
+| Domain | AttendanceClassifier.ts | calculateBreakMins + applyOvertimeRules + DURATION_BASED |
+| UseCase | CalculatePayrollUseCase.ts | e.employeeId → e.userId |
+| UseCase | ConfirmPayrollUseCase.ts | calc.user?.name (사번/이름/부서) |
+| UseCase | GetPayrollDetailUseCase.ts | 시급제 기본급 hours/description |
+| UseCase | CheckIn/OutAttendanceUseCase.ts | 출퇴근 허용시간 검증 |
+| Repository | PayrollMonthlyRepository.ts | user include |
+| Repository | WorkPolicyRepository.ts | 7개 필드 CRUD |
+| API | payroll/ledger/route.ts | user fallback |
+| API | work-locations/[id]/route.ts | isDefault 삭제 차단 |
+| API | settings/work-policy/*.ts | 7개 필드 반영 |
+| Schema | employee.ts (Zod) | payrollGroupId 필수화 |
+| UI | payroll/ledger/page.tsx | payItems/deductionItems 렌더링 |
+| UI | payroll/payslips/page.tsx | 개별항목 + 산출근거 |
+| UI | payroll/run/page.tsx | CONFIRMED 비활성화 + 배너 |
+| UI | settings/work-policy/page.tsx | 5개 섹션 + TIERED/SCHEDULED 폼 |
+| UI | settings/work-locations/page.tsx | 기본 근무지 보호 |
+| UI | employees/list/page.tsx | 기본값 자동 선택 |
+
+### DB 마이그레이션
+
+**`20260323052604_add_work_policy_extensions`**: WorkPolicy에 7개 컬럼 추가 (모두 기본값 → 기존 데이터 영향 없음)
+
+### 설계 결정
+
+1. **급여명세서 데이터소스**: spreadsheet API(합산) → ledger API(스냅샷 개별항목) — PayrollMonthly에 이미 개별 항목이 저장되므로 추가 API 불필요
+2. **DURATION_BASED 모드**: 총 근무시간만 충족하면 지각/연장 미적용 — 현재 TIME_BASED가 기본값이므로 기존 동작 변경 없음
+3. **breakSchedule JSON**: TIERED/SCHEDULED 설정을 별도 테이블 없이 JSON으로 저장 — 정규화보다 유연하고 WorkPolicy 읽기 시 추가 JOIN 불필요
+4. **직원등록 기본값**: UI에서만 기본 선택 (서버 fallback은 방어적) — 관리자가 명시적으로 다른 값을 선택할 수 있음
+
+### 검증
+
+- `tsc --noEmit`: ✓ 타입 에러 없음
+- `vitest run`: ✓ 21파일 399 테스트 전체 통과
+- 통합 테스트 시나리오(TEST-SCENARIO-2026-02): 단계 0~8 전체 완료
+- Playwright MCP: 급여대장/명세서/근무정책 설정 UI 검증
+
+### 교훈 / 주의사항
+
+1. **Prisma 필드명 주의**: `e.employeeId`(존재하지 않음) vs `e.userId`(실제 필드명) — TypeScript가 `any` 타입에서 잡지 못함. Prisma 반환 객체의 필드명을 항상 스키마와 대조할 것
+2. **PayrollMonthly 스냅샷 의존**: 급여대장/명세서는 PayrollMonthly.payItemsSnapshot에서 읽음. 확정 시 스냅샷이 올바르게 저장되지 않으면 이후 조회에서 문제 발생
+3. **dev 서버 Prisma 캐시**: `prisma generate` 후 `.next` 캐시가 이전 client를 사용할 수 있음. 새 필드 추가 후 반드시 `.next` 삭제 + dev 서버 재시작
+4. **2026년 간이세액표**: 시드에 2025년만 포함. 2026년 급여 계산 시 수동으로 복사 필요 (시드 자동화 필요)
+
+---
+
 ## [2026-03-22] 그룹 기반 관리 + 세부 권한 시스템 — Phase 1 기반 구축
 
 ### 배경 (왜)

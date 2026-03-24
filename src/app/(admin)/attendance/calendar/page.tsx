@@ -298,35 +298,12 @@ function AttendanceConfirmBar({ year, month, payrollGroupId, onConfirmed }: { ye
   }
 
   async function handleCancelConfirm() {
-    if (isPayrollPaid) {
-      toast.error('급여가 지급 완료된 상태입니다. 취소할 수 없습니다.');
+    if (isPayrollPaid || isPayrollConfirmed) {
+      toast.error('급여가 확정된 상태에서는 근태 확정을 취소할 수 없습니다.');
       return;
     }
 
-    if (isPayrollConfirmed) {
-      if (!confirm(`${year}년 ${month}월 급여가 확정된 상태입니다.\n급여 확정을 먼저 취소한 후 근태 확정을 취소합니다.\n\n계속하시겠습니까?`)) return;
-
-      setCancelling(true);
-      try {
-        // 1단계: 급여 취소
-        await cancelPayroll({ year, month, payrollGroupId: payrollGroupId ?? '' });
-        // 2단계: 근태 취소
-        await cancelConfirmAttendance({ year, month, payrollGroupId });
-        onConfirmed();
-        mutateReview();
-        mutatePayroll();
-        toast.success('급여 및 근태 확정이 취소되었습니다.');
-      } catch (err) {
-        const message = err instanceof Error ? err.message : '취소 중 오류가 발생했습니다.';
-        toast.error(message);
-        mutatePayroll();
-      } finally {
-        setCancelling(false);
-      }
-      return;
-    }
-
-    // 급여 미확정 — 기존 동작
+    // 급여 미확정 — 근태 확정만 취소
     if (!confirm(`${year}년 ${month}월 근태 확정을 취소하시겠습니까?\n자동 생성된 결근 기록과 스냅샷이 삭제됩니다.`)) return;
     setCancelling(true);
     try {
@@ -372,9 +349,10 @@ function AttendanceConfirmBar({ year, month, payrollGroupId, onConfirmed }: { ye
         {allConfirmed && (
           <Button
             onClick={handleCancelConfirm}
-            disabled={cancelling || isPayrollPaid}
+            disabled={cancelling || isPayrollPaid || isPayrollConfirmed}
             size="sm"
             variant="secondary"
+            title={isPayrollConfirmed ? '급여가 확정되어 취소할 수 없습니다' : undefined}
           >
             {cancelling ? <Spinner size="sm" /> : null}
             확정 취소

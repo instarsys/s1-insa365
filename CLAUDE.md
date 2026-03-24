@@ -182,7 +182,7 @@ const excelService = new ExcelService();  // DI 컨테이너 우회
 
 ### DI 컨테이너 (`src/infrastructure/di/container.ts`)
 
-- **싱글톤 패턴**: 31개 Repository + 46개 Use Case + 7개 Infrastructure Service를 한 곳에서 관리
+- **싱글톤 패턴**: 32개 Repository + 49개 Use Case + 8개 Infrastructure Service를 한 곳에서 관리
 - **의존성 주입**: Use Case 생성 시 필요한 Repository/Service를 생성자로 주입
 - **새 Repository 추가 절차**:
   1. `src/infrastructure/persistence/repositories/XxxRepository.ts` 클래스 생성
@@ -211,6 +211,7 @@ const excelService = new ExcelService();  // DI 컨테이너 우회
 | Database | PostgreSQL + RLS | Row-Level Security for tenant isolation |
 | Batch Processing | BullMQ + Redis | Payroll batch calc, PDF generation queue |
 | File Storage | S3-compatible object storage (Cloudflare R2) | presigned URL upload, UUID filenames |
+| Email | Resend API | 급여명세서 이메일 발송 + 트래킹 픽셀 수신확인 |
 | Monitoring | Sentry | Error tracking + performance monitoring |
 | Auth | JWT (Access 1hr + Refresh 7d) + bcrypt | See Auth section |
 | Infra | AWS (EC2/ECS + RDS PostgreSQL + ElastiCache Redis) | 다른 프로젝트와 AWS 통합 운영 |
@@ -239,13 +240,13 @@ Company ──1:N── User (Employee)
 User ──1:N── Attendance, EmployeeSalaryItem, SalaryCalculation
 Attendance ──1:N── AttendanceSegment
 
-Standalone reference tables: InsuranceRate (date-range based), TaxBracket (yearly), TaxExemptLimit (yearly), PayrollMonthly (monthly history), MinimumWage (yearly), LegalParameter (key-value), AuditLog (change history)
+Standalone reference tables: InsuranceRate (date-range based), TaxBracket (yearly), TaxExemptLimit (yearly), PayrollMonthly (monthly history), MinimumWage (yearly), LegalParameter (key-value), AuditLog (change history), PayslipEmailLog (이메일 발송 이력 + 수신확인)
 ```
 
 Key relationships:
 - `SalaryRule` (company-level template) → copied to `EmployeeSalaryItem` (per-employee) on hire
 - Employee number format: `E{A-Z}{0000-9999}` (e.g., EA1234)
-- Salary workflow: `DRAFT → CONFIRMED → PAID` (also `FAILED` for calculation errors, `SKIPPED` for skip)
+- Salary workflow: `DRAFT → CONFIRMED → PAID` (also `FAILED` for calculation errors, `SKIPPED` for skip). CONFIRMED는 불가역 — 확정 후 취소/수정 불가. 급여 확정 시 근태 확정 취소도 차단됨.
 - Payroll confirmation (CONFIRMED) auto-generates 급여대장 (payroll ledger) + 급여명세서
 
 ## Payroll Workflow (End-to-End)
@@ -256,13 +257,13 @@ Key relationships:
 [Month-end]
   (1) Manager: Review attendance + approve pending leave
   (2) Manager: "일괄 확정" (bulk confirm) → SalaryAttendanceData snapshot created
-      - "확정 취소" → 급여 CONFIRMED 시 연쇄 취소(급여→근태), PAID 시 취소 불가
+      - "확정 취소" → 급여 미확정 시에만 가능. 급여 CONFIRMED/PAID 시 근태 취소 불가
       - POST /api/attendance/cancel → 급여 상태 확인 + 확정 해제 + 자동 결근 삭제 + 스냅샷 삭제
   (3) [Step 1: 스프레드시트 급여 입력] → Spreadsheet UI with inline editing
       - Salaried: auto-populated, Hourly: attendance-linked + manual override
       - Variable allowances direct input, Employee Skip for leave/unpaid
   (4) [Step 2: Review Summary] → Total pay/deductions/net, MoM comparison, drill-down
-  (5) [Step 3: Confirm] → 3 hero summary cards (총지급/총공제/총실수령) + expandable dept breakdown → DRAFT → CONFIRMED, 24h cancel window
+  (5) [Step 3: Confirm] → 3 hero summary cards (총지급/총공제/총실수령) + expandable dept breakdown → DRAFT → CONFIRMED (불가역, 취소 불가)
       → Auto-generates: 급여대장 (payroll ledger) + 급여명세서 (pay stubs)
 ```
 
@@ -343,6 +344,12 @@ Salary types per employee: `MONTHLY` (월급제, default — basePay from Employ
 
 Attendance exempt per employee: `attendanceExempt` Boolean (default `false`). `true`이면 출퇴근 기록 없이 매월 고정 급여 지급 (임원/대표 등). **시급제(HOURLY)와 동시 설정 불가** — 시급제로 변경 시 서버에서 자동 해제. 근태면제 직원은 급여 계산 시 근태 미확정이어도 SKIPPED 되지 않고 기본급+고정수당만 지급.
 
+Work policy extensions (2026-03-23):
+- **출퇴근 허용시간**: `checkInAllowedMinutes` (default 30), `checkOutAllowedMinutes` (default 60) — 출근 N분 전부터 가능, 퇴근 M분 후까지 가능
+- **연장근로 적용**: `overtimeMinThreshold` (default 0 = 미적용), `overtimeRoundingMinutes` (default 0) — X분 이상 초과근무해야 연장 인정, Y분 단위 절사
+- **복수 휴게시간**: `breakType` (FIXED/TIERED/SCHEDULED), `breakSchedule` (Json) — FIXED: 기존 breakMinutes, TIERED: [{minWorkHours, breakMinutes}], SCHEDULED: [{startTime, endTime}]
+- **지각/연장 판정방식**: `attendanceCalcMode` (TIME_BASED/DURATION_BASED) — TIME_BASED: 출퇴근시간 기준 지각·연장 각각 계산, DURATION_BASED: 총 근무시간만 충족하면 미적용
+
 ## Korean Labor Law Constants
 
 - Standard monthly work hours: 209 hours (hourly rate = baseSalary / 209)
@@ -408,7 +415,14 @@ JWT-based: Access Token (1hr) + Refresh Token (7d). Passwords: bcrypt with 10 sa
 
 ## Seed Data on Company Signup
 
-Auto-created: 5 departments, 5 positions, 1 work policy (09:00-18:00, 60min break), 1 work location, 11 allowance rules (A01-A11), 12 deduction rules (D01-D12), 2 minimum wages (2025-2026), 10 legal parameters (work hours, overtime rates, etc.).
+Auto-created: 5 departments, 5 positions, 1 work policy (09:00-18:00, 60min break), 1 work location (본사), 1 payroll group (기본 그룹), 11 allowance rules (A01-A11), 12 deduction rules (D01-D12), 2 minimum wages (2025-2026), 10 legal parameters (work hours, overtime rates, etc.).
+
+**기본 항목 삭제 보호 (isDefault=true)**:
+- 급여그룹 '기본 그룹': 삭제 불가 (PayrollGroupRepository.softDelete에서 차단)
+- 근무정책 '기본근무정책': 삭제 불가 (API work-policy/[id] DELETE에서 차단)
+- 근무지 '본사': 삭제 불가 (API work-locations/[id] DELETE에서 차단), 이름 변경 불가 (주소/반경만 수정)
+
+**직원 등록 시 기본값**: 급여그룹/근무정책/근무지가 미선택이면 isDefault 항목이 자동 선택됨. payrollGroupId는 API 스키마에서 필수(required).
 
 Seed accounts:
 - `admin@test-company.com` / `admin123!` — COMPANY_ADMIN (테스트 주식회사)
@@ -467,7 +481,7 @@ All `update()`/`softDelete()`/`delete()` methods use `findFirst({ id, companyId 
 ### DB-Level Defense (PostgreSQL RLS)
 20 tenant tables have `ENABLE ROW LEVEL SECURITY` + `FORCE ROW LEVEL SECURITY` + `tenant_isolation_*` policies using `current_setting('app.company_id', true)`.
 
-RLS tables: `users`, `departments`, `positions`, `work_policies`, `work_locations`, `salary_rules`, `employee_salary_items`, `attendances`, `attendance_segments`, `salary_attendance_data`, `salary_calculations`, `leave_requests`, `leave_balances`, `notifications`, `payroll_monthlies`, `audit_logs` (allows NULL companyId for system logs), `company_holidays`, `payroll_groups`, `payroll_group_managers`, `role_permissions`.
+RLS tables: `users`, `departments`, `positions`, `work_policies`, `work_locations`, `salary_rules`, `employee_salary_items`, `attendances`, `attendance_segments`, `salary_attendance_data`, `salary_calculations`, `leave_requests`, `leave_balances`, `notifications`, `payroll_monthlies`, `audit_logs` (allows NULL companyId for system logs), `company_holidays`, `payroll_groups`, `payroll_group_managers`, `role_permissions`, `payslip_email_logs`.
 
 Global tables (NO RLS): `companies`, `insurance_rates`, `tax_brackets`, `tax_exempt_limits`, `minimum_wages`, `legal_parameters`.
 
@@ -561,7 +575,7 @@ context = await browser.newContext({
 - **`Dockerfile`** — 3-stage build (deps → build → standalone runner), `prisma generate` 포함
 - **`docker-entrypoint.sh`** — `prisma migrate deploy` 자동 실행 후 `node server.js` 시작
 - **`docker-compose.prod.yml`** — app + PostgreSQL 16 + Redis 7 (optional), 헬스체크 `/api/health`
-- **`.env.production.example`** — 필수/선택 환경변수 템플릿 (DATABASE_URL, JWT, PII_KEY, Sentry)
+- **`.env.production.example`** — 필수/선택 환경변수 템플릿 (DATABASE_URL, JWT, PII_KEY, Sentry, Resend)
 - **`next.config.ts`** — `output: 'standalone'`, 보안 헤더 (X-Frame-Options, nosniff), `withSentryConfig`
 - **`sentry.server.config.ts`** — DSN + SSN 패턴 마스킹 (`beforeSend`)
 - **`sentry.client.config.ts`** — PUBLIC_DSN + Hydration 에러 무시 + 쿠키 PII 제거

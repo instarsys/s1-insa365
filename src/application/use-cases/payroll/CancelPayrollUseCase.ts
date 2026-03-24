@@ -23,28 +23,19 @@ export class CancelPayrollUseCase {
       ? allCalculations.filter((c) => c.payrollGroupId === payrollGroupId)
       : allCalculations;
 
-    const confirmed = calculations.filter((c) => c.status === 'CONFIRMED');
-    if (confirmed.length === 0) {
-      throw new ValidationError('취소할 확정 급여가 없습니다.');
-    }
-
     const hasPaid = calculations.some((c) => c.status === 'PAID');
     if (hasPaid) {
       throw new ValidationError('지급 완료된 급여는 취소할 수 없습니다.');
     }
 
-    // 24시간 취소 제한 (force=true 시 건너뜀 — 이력 삭제용)
+    const confirmed = calculations.filter((c) => c.status === 'CONFIRMED');
+    if (confirmed.length === 0) {
+      throw new ValidationError('취소할 확정 급여가 없습니다.');
+    }
+
+    // 확정된 급여는 취소 불가 (force=true: SYSTEM_ADMIN 이력 삭제 전용)
     if (!force) {
-      const firstConfirmed = confirmed[0];
-      if (firstConfirmed.confirmedAt) {
-        const confirmedTime = typeof firstConfirmed.confirmedAt === 'string'
-          ? new Date(firstConfirmed.confirmedAt).getTime()
-          : new Date(firstConfirmed.confirmedAt).getTime();
-        const hoursSinceConfirm = (Date.now() - confirmedTime) / (1000 * 60 * 60);
-        if (hoursSinceConfirm > 24) {
-          throw new ValidationError('확정 후 24시간이 지나 취소할 수 없습니다.');
-        }
-      }
+      throw new ValidationError('확정된 급여는 취소할 수 없습니다.');
     }
 
     // CONFIRMED → DRAFT 전환 (그룹별로 해당 직원만)

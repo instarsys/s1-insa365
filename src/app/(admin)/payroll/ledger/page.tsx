@@ -45,6 +45,11 @@ interface LedgerData {
   employees: LedgerEmployee[];
 }
 
+function splitHalf<T>(arr: T[]): [T[], T[]] {
+  const mid = Math.ceil(arr.length / 2);
+  return [arr.slice(0, mid), arr.slice(mid)];
+}
+
 export default function PayrollLedgerPage() {
   const [year, setYear] = useState(currentDate.getFullYear());
   const [month, setMonth] = useState(currentDate.getMonth() + 1);
@@ -78,6 +83,14 @@ export default function PayrollLedgerPage() {
     return result;
   }, [employees]);
 
+  // Split into top/bottom rows
+  const [topAllowances, bottomAllowances] = useMemo(() => splitHalf(allAllowances), [allAllowances]);
+  const [topDeductions, bottomDeductions] = useMemo(() => splitHalf(allDeductions), [allDeductions]);
+
+  // Max columns per half-row (for padding cells when top/bottom counts differ)
+  const payColCount = Math.max(topAllowances.length, bottomAllowances.length);
+  const dedColCount = Math.max(topDeductions.length, bottomDeductions.length);
+
   function getPayAmount(emp: LedgerEmployee, label: string): number {
     return (emp.payItems ?? []).find((i) => i.label === label)?.amount ?? 0;
   }
@@ -107,6 +120,27 @@ export default function PayrollLedgerPage() {
     }
     return result;
   }, [employees]);
+
+  // Reusable styles
+  const thBase = 'whitespace-nowrap px-3 py-2 text-xs font-medium tracking-wider';
+  const tdBase = 'whitespace-nowrap px-3 py-1.5 text-sm tabular-nums';
+  const stickyCol1 = 'sticky left-0 z-10';
+  const stickyCol2 = 'sticky left-[4.5rem] z-10';
+  const sectionBorder = 'border-l-2 border-gray-300';
+
+  function padCells(count: number, max: number, prefix: string, className?: string) {
+    if (count >= max) return null;
+    return Array.from({ length: max - count }, (_, i) => (
+      <td key={`${prefix}-${i}`} className={className ?? tdBase}></td>
+    ));
+  }
+
+  function padThCells(count: number, max: number, prefix: string) {
+    if (count >= max) return null;
+    return Array.from({ length: max - count }, (_, i) => (
+      <th key={`${prefix}-${i}`} className={thBase}></th>
+    ));
+  }
 
   return (
     <div>
@@ -154,97 +188,182 @@ export default function PayrollLedgerPage() {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
+                {/* ─── Header ─── */}
                 <thead>
-                  <tr className="bg-gray-50">
-                    <th className="sticky left-0 z-10 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      사번
+                  {/* Row 1: Group headers */}
+                  <tr className="bg-gray-100 border-b border-gray-300">
+                    <th colSpan={2} className={`${thBase} text-center text-gray-700 font-semibold`}>
+                      인적사항
                     </th>
-                    <th className="sticky left-[5rem] z-10 whitespace-nowrap bg-gray-50 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      이름
+                    <th colSpan={payColCount + 1} className={`${thBase} text-center text-blue-700 font-semibold ${sectionBorder}`}>
+                      지급 내역
                     </th>
-                    <th className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      부서
+                    <th colSpan={dedColCount + 1} className={`${thBase} text-center text-red-700 font-semibold ${sectionBorder}`}>
+                      공제 내역
                     </th>
-                    {allAllowances.map((col) => (
-                      <th key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-blue-600">
-                        {col.label}
-                      </th>
-                    ))}
-                    <th className="whitespace-nowrap bg-blue-50 px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-blue-700">
-                      총지급
-                    </th>
-                    {allDeductions.map((col) => (
-                      <th key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-red-600">
-                        {col.label}
-                      </th>
-                    ))}
-                    <th className="whitespace-nowrap bg-red-50 px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-red-700">
-                      총공제
-                    </th>
-                    <th className="whitespace-nowrap bg-emerald-50 px-4 py-3 text-right text-xs font-bold uppercase tracking-wider text-emerald-700">
-                      실수령
+                    <th rowSpan={3} className={`${thBase} text-center bg-emerald-50 text-emerald-700 font-bold align-middle ${sectionBorder} min-w-[5.5rem]`}>
+                      차인<br />지급액
                     </th>
                   </tr>
+                  {/* Row 2: Top sub-columns */}
+                  <tr className="bg-gray-50 border-b border-gray-200">
+                    <th className={`${thBase} text-left text-gray-500 ${stickyCol1} bg-gray-50 min-w-[4.5rem]`}>
+                      사번
+                    </th>
+                    <th className={`${thBase} text-left text-gray-500 ${stickyCol2} bg-gray-50`}>
+                      이름
+                    </th>
+                    {topAllowances.map((col, i) => (
+                      <th key={col.label} className={`${thBase} text-right text-blue-600 ${i === 0 ? sectionBorder : ''}`}>
+                        {col.label}
+                      </th>
+                    ))}
+                    {topAllowances.length === 0 && <th className={`${thBase} ${sectionBorder}`}></th>}
+                    {padThCells(topAllowances.length, payColCount, 'hpad-pay-t')}
+                    <th rowSpan={2} className={`${thBase} text-right bg-blue-50 text-blue-700 font-bold align-middle min-w-[5.5rem]`}>
+                      총지급
+                    </th>
+                    {topDeductions.map((col, i) => (
+                      <th key={col.label} className={`${thBase} text-right text-red-600 ${i === 0 ? sectionBorder : ''}`}>
+                        {col.label}
+                      </th>
+                    ))}
+                    {topDeductions.length === 0 && <th className={`${thBase} ${sectionBorder}`}></th>}
+                    {padThCells(topDeductions.length, dedColCount, 'hpad-ded-t')}
+                    <th rowSpan={2} className={`${thBase} text-right bg-red-50 text-red-700 font-bold align-middle min-w-[5rem]`}>
+                      총공제
+                    </th>
+                  </tr>
+                  {/* Row 3: Bottom sub-columns */}
+                  <tr className="bg-gray-50 border-b-2 border-gray-400">
+                    <th className={`${thBase} text-left text-gray-400 ${stickyCol1} bg-gray-50`}></th>
+                    <th className={`${thBase} text-left text-gray-400 ${stickyCol2} bg-gray-50`}>
+                      부서
+                    </th>
+                    {bottomAllowances.map((col, i) => (
+                      <th key={col.label} className={`${thBase} text-right text-blue-500 ${i === 0 ? sectionBorder : ''}`}>
+                        {col.label}
+                      </th>
+                    ))}
+                    {bottomAllowances.length === 0 && <th className={`${thBase} ${sectionBorder}`}></th>}
+                    {padThCells(bottomAllowances.length, payColCount, 'hpad-pay-b')}
+                    {bottomDeductions.map((col, i) => (
+                      <th key={col.label} className={`${thBase} text-right text-red-500 ${i === 0 ? sectionBorder : ''}`}>
+                        {col.label}
+                      </th>
+                    ))}
+                    {bottomDeductions.length === 0 && <th className={`${thBase} ${sectionBorder}`}></th>}
+                    {padThCells(bottomDeductions.length, dedColCount, 'hpad-ded-b')}
+                  </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {employees.map((emp, idx) => (
-                    <tr key={idx} className="hover:bg-indigo-50/30">
-                      <td className="sticky left-0 z-10 whitespace-nowrap bg-white px-4 py-3 text-xs text-gray-500">
+
+                {/* ─── Data rows: one <tbody> per employee for group hover ─── */}
+                {employees.map((emp, idx) => (
+                  <tbody key={idx} className="group border-b border-gray-200 last:border-b-0">
+                    {/* Top row */}
+                    <tr className="group-hover:bg-indigo-50/30">
+                      <td rowSpan={2} className={`${stickyCol1} bg-white group-hover:bg-indigo-50/30 ${tdBase} text-xs text-gray-500 align-middle`}>
                         {emp.employeeNumber}
                       </td>
-                      <td className="sticky left-[5rem] z-10 whitespace-nowrap bg-white px-4 py-3 text-sm font-medium text-gray-800">
+                      <td className={`${stickyCol2} bg-white group-hover:bg-indigo-50/30 ${tdBase} font-medium text-gray-800`}>
                         {emp.employeeName}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600">
-                        {emp.departmentName}
-                      </td>
-                      {allAllowances.map((col) => (
-                        <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
+                      {topAllowances.map((col, i) => (
+                        <td key={col.label} className={`${tdBase} text-right ${i === 0 ? sectionBorder : ''}`}>
                           {formatKRW(getPayAmount(emp, col.label))}
                         </td>
                       ))}
-                      <td className="whitespace-nowrap bg-blue-50/50 px-4 py-3 text-right text-sm font-semibold tabular-nums text-blue-700">
+                      {topAllowances.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                      {padCells(topAllowances.length, payColCount, `pay-t-${idx}`)}
+                      <td rowSpan={2} className={`${tdBase} text-right font-semibold text-blue-700 bg-blue-50/50 align-middle`}>
                         {formatKRW(emp.totalPay)}
                       </td>
-                      {allDeductions.map((col) => (
-                        <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
+                      {topDeductions.map((col, i) => (
+                        <td key={col.label} className={`${tdBase} text-right text-red-600 ${i === 0 ? sectionBorder : ''}`}>
                           {formatKRW(getDeductionAmount(emp, col.label))}
                         </td>
                       ))}
-                      <td className="whitespace-nowrap bg-red-50/50 px-4 py-3 text-right text-sm font-semibold tabular-nums text-red-700">
+                      {topDeductions.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                      {padCells(topDeductions.length, dedColCount, `ded-t-${idx}`)}
+                      <td rowSpan={2} className={`${tdBase} text-right font-semibold text-red-700 bg-red-50/50 align-middle`}>
                         {formatKRW(emp.totalDeduction)}
                       </td>
-                      <td className="whitespace-nowrap bg-emerald-50/50 px-4 py-3 text-right text-sm font-bold tabular-nums text-emerald-700">
+                      <td rowSpan={2} className={`${tdBase} text-right font-bold text-emerald-700 bg-emerald-50/50 align-middle ${sectionBorder}`}>
                         {formatKRW(emp.netPay)}
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-                {/* Footer totals */}
+                    {/* Bottom row */}
+                    <tr className="group-hover:bg-indigo-50/30">
+                      <td className={`${stickyCol2} bg-white group-hover:bg-indigo-50/30 ${tdBase} text-xs text-gray-400`}>
+                        {emp.departmentName}
+                      </td>
+                      {bottomAllowances.map((col, i) => (
+                        <td key={col.label} className={`${tdBase} text-right ${i === 0 ? sectionBorder : ''}`}>
+                          {formatKRW(getPayAmount(emp, col.label))}
+                        </td>
+                      ))}
+                      {bottomAllowances.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                      {padCells(bottomAllowances.length, payColCount, `pay-b-${idx}`)}
+                      {bottomDeductions.map((col, i) => (
+                        <td key={col.label} className={`${tdBase} text-right text-red-600 ${i === 0 ? sectionBorder : ''}`}>
+                          {formatKRW(getDeductionAmount(emp, col.label))}
+                        </td>
+                      ))}
+                      {bottomDeductions.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                      {padCells(bottomDeductions.length, dedColCount, `ded-b-${idx}`)}
+                    </tr>
+                  </tbody>
+                ))}
+
+                {/* ─── Footer totals ─── */}
                 <tfoot>
-                  <tr className="border-t-2 border-gray-300 bg-gray-50 font-semibold">
-                    <td className="sticky left-0 z-10 bg-gray-50 px-4 py-3 text-sm" colSpan={3}>
+                  {/* Top total row */}
+                  <tr className="border-t-2 border-gray-400 bg-gray-50 font-semibold">
+                    <td rowSpan={2} className={`${stickyCol1} bg-gray-50 ${tdBase} text-sm align-middle`} />
+                    <td className={`${stickyCol2} bg-gray-50 ${tdBase} text-sm font-bold`}>
                       합계 ({employees.length}명)
                     </td>
-                    {allAllowances.map((col) => (
-                      <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums">
+                    {topAllowances.map((col, i) => (
+                      <td key={col.label} className={`${tdBase} text-right ${i === 0 ? sectionBorder : ''}`}>
                         {formatKRW(totals.byLabel.get(col.label) ?? 0)}
                       </td>
                     ))}
-                    <td className="whitespace-nowrap bg-blue-50 px-4 py-3 text-right text-sm tabular-nums text-blue-700">
+                    {topAllowances.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                    {padCells(topAllowances.length, payColCount, 'ftpad-pay-t')}
+                    <td rowSpan={2} className={`${tdBase} text-right bg-blue-50 text-blue-700 font-bold align-middle`}>
                       {formatKRW(totals.totalPay)}
                     </td>
-                    {allDeductions.map((col) => (
-                      <td key={col.label} className="whitespace-nowrap px-4 py-3 text-right text-sm tabular-nums text-red-600">
+                    {topDeductions.map((col, i) => (
+                      <td key={col.label} className={`${tdBase} text-right text-red-600 ${i === 0 ? sectionBorder : ''}`}>
                         {formatKRW(totals.byLabel.get(col.label) ?? 0)}
                       </td>
                     ))}
-                    <td className="whitespace-nowrap bg-red-50 px-4 py-3 text-right text-sm tabular-nums text-red-700">
+                    {topDeductions.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                    {padCells(topDeductions.length, dedColCount, 'ftpad-ded-t')}
+                    <td rowSpan={2} className={`${tdBase} text-right bg-red-50 text-red-700 font-bold align-middle`}>
                       {formatKRW(totals.totalDeduction)}
                     </td>
-                    <td className="whitespace-nowrap bg-emerald-50 px-4 py-3 text-right text-sm font-bold tabular-nums text-emerald-700">
+                    <td rowSpan={2} className={`${tdBase} text-right bg-emerald-50 text-emerald-700 font-bold align-middle ${sectionBorder}`}>
                       {formatKRW(totals.netPay)}
                     </td>
+                  </tr>
+                  {/* Bottom total row */}
+                  <tr className="bg-gray-50 font-semibold">
+                    <td className={`${stickyCol2} bg-gray-50 ${tdBase}`}></td>
+                    {bottomAllowances.map((col, i) => (
+                      <td key={col.label} className={`${tdBase} text-right ${i === 0 ? sectionBorder : ''}`}>
+                        {formatKRW(totals.byLabel.get(col.label) ?? 0)}
+                      </td>
+                    ))}
+                    {bottomAllowances.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                    {padCells(bottomAllowances.length, payColCount, 'ftpad-pay-b')}
+                    {bottomDeductions.map((col, i) => (
+                      <td key={col.label} className={`${tdBase} text-right text-red-600 ${i === 0 ? sectionBorder : ''}`}>
+                        {formatKRW(totals.byLabel.get(col.label) ?? 0)}
+                      </td>
+                    ))}
+                    {bottomDeductions.length === 0 && <td className={`${tdBase} ${sectionBorder}`}></td>}
+                    {padCells(bottomDeductions.length, dedColCount, 'ftpad-ded-b')}
                   </tr>
                 </tfoot>
               </table>

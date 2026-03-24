@@ -1,7 +1,7 @@
 # TODO — s1-insa365 작업 백로그
 
 > 모든 작업 추적은 이 파일 하나에서 관리합니다.
-> 최종 업데이트: 2026-03-22 (사업자번호 검증 + 배치 근태 추가 + 급여규칙 수정 + 휴가 관리 개선)
+> 최종 업데이트: 2026-03-24 (급여 확정 24시간 취소 유예 제거 + 급여명세서 이메일 발송 + 근태확정 재분류 + 근무정책 UI 개선)
 
 ---
 
@@ -91,7 +91,7 @@
 |---|------|------|
 | 3-1 | 연말정산 | 연차 자동계산 고급 (대리승인, 자동승인 규칙) |
 | 3-2 | 증명서 발급 | 재직, 경력, 소득 증명서 |
-| 3-3 | 급여명세서 이메일 발송 | PDF + 이메일 채널 |
+| 3-3 | ~~급여명세서 이메일 발송~~ | ✅ HTML 이메일 + Resend API + 트래킹 픽셀 수신확인 + 발송이력 UI (2026-03-24) |
 | 3-4 | 외출 관리 | 근태 부가 기능 |
 | 3-5 | 4대보험 EDI 연동 | 전자 신고 |
 | 3-6 | PWA 오프라인 (Service Worker) | 오프라인 출퇴근 → 복귀 시 동기화 |
@@ -301,3 +301,52 @@
 | 2026-03-22 | ├ 승인 휴가 달력 표시: API에서 LeaveRequest 조회 → 보라색 "휴가(유형명)" 오버레이 |
 | 2026-03-22 | ├ 근태 확정 시 승인 휴가일에 Attendance.status='LEAVE' 자동 생성 |
 | 2026-03-22 | └ 달력 휴가 셀 클릭 시 출퇴근 추가 모달 방지 → 안내 토스트 표시 |
+| 2026-03-23 | **급여 재계산 버그 수정 + 급여대장/명세서 개선** |
+| 2026-03-23 | ├ CalculatePayrollUseCase: `e.employeeId` → `e.userId` (CONFIRMED 검증 우회 버그 수정) |
+| 2026-03-23 | ├ 급여 실행 UI: CONFIRMED 상태에서 "계산하기" 비활성화 + 안내 배너 추가 |
+| 2026-03-23 | ├ 급여대장: API 응답 `payItems/deductionItems` 구조에 맞게 UI 전환 (items → label 기반) |
+| 2026-03-23 | ├ 급여대장: 사번/이름/부서 누락 수정 — ConfirmPayrollUseCase에서 user 관계 데이터 활용 |
+| 2026-03-23 | ├ PayrollMonthlyRepository: `findByPeriodAndGroup`에 user include 추가 (null fallback) |
+| 2026-03-23 | ├ 급여명세서: 데이터소스 `usePayrollSpreadsheet`(합산) → `usePayrollLedger`(개별 스냅샷) 변경 |
+| 2026-03-23 | ├ 급여명세서: 수당/공제 개별항목 표시 (직책수당/식대/차량유지비 등 분리) |
+| 2026-03-23 | ├ 급여명세서: 지급 항목 산출근거 표시 (연장수당 시간, 지각/조퇴 분, 시급제 근무시간) |
+| 2026-03-23 | └ GetPayrollDetailUseCase: 시급제 기본급에 hours 필드 + description 보강 |
+| 2026-03-23 | **근무정책 기능 확장 (5가지)** |
+| 2026-03-23 | ├ DB: WorkPolicy 7개 필드 추가 — 마이그레이션 `20260323052604_add_work_policy_extensions` |
+| 2026-03-23 | ├ 출퇴근 허용시간: checkInAllowedMinutes(30분), checkOutAllowedMinutes(60분) |
+| 2026-03-23 | ├ 연장근로 적용: overtimeMinThreshold(최소기준), overtimeRoundingMinutes(절사단위) |
+| 2026-03-23 | ├ 복수 휴게시간: breakType(FIXED/TIERED/SCHEDULED) + breakSchedule(JSON) |
+| 2026-03-23 | ├ 지각/연장 판정방식: attendanceCalcMode(TIME_BASED/DURATION_BASED) |
+| 2026-03-23 | ├ AttendanceClassifier: calculateBreakMins() + applyOvertimeRules() + DURATION_BASED 모드 |
+| 2026-03-23 | ├ CheckIn/OutUseCase: 출퇴근 허용시간 검증 (ValidationError) |
+| 2026-03-23 | ├ 설정 UI: 출퇴근 허용/연장근로 적용/판정방식/휴게방식 폼 + TIERED/SCHEDULED 동적 폼 |
+| 2026-03-23 | └ WorkPolicyRepository + API: 7개 필드 CRUD 지원 + 시드 기본값 |
+| 2026-03-23 | **직원 등록 기본값 자동 선택 + 기본 항목 삭제 보호** |
+| 2026-03-23 | ├ 직원 등록 폼: 기본 급여그룹/근무정책/근무지 자동 선택 (openCreate 시 isDefault 항목 배정) |
+| 2026-03-23 | ├ 급여그룹 payrollGroupId 필수화 (API 스키마 optional → required) |
+| 2026-03-23 | ├ 기본 근무지(본사) 삭제 차단: API DELETE에서 isDefault 체크 + UI 삭제 버튼 숨김 |
+| 2026-03-23 | └ 기본 근무지 이름 readOnly 처리 (주소/반경만 수정 가능) |
+| 2026-03-24 | **급여명세서 이메일 발송 + 발송이력 + 수신확인** |
+| 2026-03-24 | ├ DB: PayslipEmailLog 모델 + PayslipEmailStatus enum + AuditAction.SEND 추가 |
+| 2026-03-24 | ├ RLS: payslip_email_logs FORCE RLS + SECURITY DEFINER 함수 (트래킹 픽셀용 RLS 우회) |
+| 2026-03-24 | ├ Infrastructure: EmailService Resend API 연동 (미설정 시 콘솔 로그 fallback) + HTML 이메일 템플릿 |
+| 2026-03-24 | ├ UseCase 3개: SendPayslipEmailUseCase + GetPayslipEmailHistoryUseCase + RecordPayslipEmailOpenUseCase |
+| 2026-03-24 | ├ API 3개: POST 발송 + GET 이력 + GET 트래킹 픽셀 (공개 엔드포인트, 1x1 GIF) |
+| 2026-03-24 | ├ UI: 급여명세서 페이지에 이메일 발송 모달 + 발송 이력 슬라이드 패널 + 상태 뱃지 (대기/발송완료/열람/실패) |
+| 2026-03-24 | └ DI 컨테이너: PayslipEmailLogRepository + EmailService + UseCase 3개 등록 |
+| 2026-03-24 | **근태확정 시 현재 근무정책으로 재분류** |
+| 2026-03-24 | ├ ConfirmAttendanceUseCase: 확정 시 AttendanceClassifier.classify() 재호출 (overtimeMinThreshold/rounding 소급 적용) |
+| 2026-03-24 | ├ 휴일 여부 재판정: workDays + CompanyHoliday 기준으로 isHoliday 자동 설정 |
+| 2026-03-24 | ├ AttendanceRepository: updateClassification() 메서드 추가 |
+| 2026-03-24 | └ 검증: 김영수 연장 0.8h→0h (threshold=60 소급), 휴일근로수당 1,148,304원 정상 표시 |
+| 2026-03-24 | **근무정책 수정 모달 UI 개선** |
+| 2026-03-24 | ├ Modal xl 사이즈 추가 (900px) — 기존 lg(640px)에서 확대 |
+| 2026-03-24 | ├ 6섹션 세로 나열 → 5섹션 2컬럼 카드 레이아웃 (근무시간+휴게 / 출퇴근+지각조퇴) |
+| 2026-03-24 | ├ 연장/야간근로 통합 (기존 분산 섹션 합침) + 소정근로시간 4컬럼 compact |
+| 2026-03-24 | ├ 섹션별 아이콘 헤더 (Clock/Coffee/DoorOpen/AlertTriangle/Timer/Calculator) |
+| 2026-03-24 | └ 근무정책 저장 버그 수정: workDays 문자열↔배열 변환 + handleSave catch 블록 추가 |
+| 2026-03-24 | **급여 확정 24시간 취소 유예 제거 — 확정 불가역 전환** |
+| 2026-03-24 | ├ CancelPayrollUseCase: 24시간 체크 로직 삭제, force=false면 CONFIRMED 취소 차단 |
+| 2026-03-24 | ├ payroll/cancel API: force=true는 SYSTEM_ADMIN 전용 (403 반환) |
+| 2026-03-24 | ├ 급여 실행 UI: `24시간 이내 취소` → `확정 후 수정/취소 불가` (red 경고) |
+| 2026-03-24 | └ 근태 달력 UI: 급여 확정 시 연쇄 취소 제거 + 확정 취소 버튼 비활성화 |

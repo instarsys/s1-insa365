@@ -47,7 +47,12 @@ async function handler(request: NextRequest, auth: AuthContext) {
   const { salaryCalcRepo } = getContainer();
   const result = await salaryCalcRepo.getHistory(auth.companyId, page, limit, payrollGroupId);
 
-  return successResponse({ items: result.items, total: result.total, page: result.page, limit: result.limit, totalPages: Math.ceil(result.total / result.limit) });
+  const items = (result.items as Array<Record<string, unknown>>).map((item) => ({
+    ...item,
+    totalEmployees: item.employeeCount,
+  }));
+
+  return successResponse({ items, total: result.total, page: result.page, limit: result.limit, totalPages: Math.ceil(result.total / result.limit) });
 }
 
 export const GET = withAuth(handler) as (request: NextRequest) => Promise<NextResponse>;

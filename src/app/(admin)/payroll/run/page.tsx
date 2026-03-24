@@ -509,7 +509,7 @@ export default function PayrollRunPage() {
                   {year}년 {month}월 급여가 이미 {summary?.status === 'PAID' ? '지급' : '확정'}되었습니다.
                 </span>
                 <span className="text-xs text-blue-600">
-                  재계산하려면 먼저 급여 확정을 취소해주세요.
+                  확정된 급여는 수정할 수 없습니다.
                 </span>
               </div>
             </div>
@@ -855,8 +855,8 @@ export default function PayrollRunPage() {
         <p className="mt-3 text-xs text-gray-500">
           대상 {rows.filter(r => r.status !== 'SKIPPED').length}명 · 확정 후 급여대장과 급여명세서가 자동 생성됩니다.
         </p>
-        <p className="mt-1 text-xs text-amber-600">
-          확정 후 24시간 이내에 취소할 수 있습니다.
+        <p className="mt-1 text-xs text-red-600">
+          확정 후에는 수정하거나 취소할 수 없습니다. 반드시 확인 후 확정해주세요.
         </p>
       </Modal>
     </div>
