@@ -19,6 +19,49 @@
 
 ---
 
+## [2026-03-25] 급여대장 2행 레이아웃 리디자인 + 급여이력 직원수 버그 수정
+
+### 배경 (왜)
+
+1. **급여대장 가로폭 문제**: 지급+공제 항목이 1행에 모두 나열되어 15+ 컬럼 → 가로 스크롤 필수. 한국 표준 급여대장 양식과 괴리.
+2. **급여이력 직원수 빈칸**: `SalaryCalculationRepository.getHistory()`가 `employeeCount`로 반환하지만 프론트엔드는 `totalEmployees`를 기대 → 필드명 불일치 버그.
+
+### 변경 내용 (무엇을)
+
+1. **급여대장 2행 레이아웃** (`src/app/(admin)/payroll/ledger/page.tsx`):
+   - 1인 1행 → 1인 2행: 인적사항 | 지급내역 | 공제내역 | 차인지급액 4개 섹션
+   - 2단 그룹 헤더: 상위(섹션명) + 하위(개별항목) 2행
+   - `splitHalf()` 함수로 지급/공제 항목을 상단/하단 행에 자동 분배
+   - 직원별 `<tbody>` 분리 → Tailwind `group` hover 정상 동작
+   - `rowSpan=2` 병합: 사번, 총지급, 총공제, 차인지급액
+   - 섹션 구분선 `border-l-2`, 합계 행도 동일 2행 구조
+
+2. **급여이력 직원수 버그** (`src/app/api/payroll/history/route.ts`):
+   - API 응답 평탄화: `employeeCount` → `totalEmployees` 매핑 추가
+
+### 수정 파일 (영향 범위)
+
+- `src/app/(admin)/payroll/ledger/page.tsx` — 전면 리디자인 (201줄 변경)
+- `src/app/api/payroll/history/route.ts` — 필드 매핑 5줄 추가
+
+### 설계 결정
+
+- **Option 2 선택** (인적사항 2줄 | 지급 2줄 | 공제 2줄 | 차인지급): 한국 표준 급여대장 양식에 가장 근접
+- **2행 고정**: 항목 15+15개 극단 케이스에서도 가로 스크롤은 기존 대비 절반 수준. 3행 이상은 rowSpan 복잡도 + 가독성 저하로 비채택
+- **API 평탄화**: CLAUDE.md "API 응답 평탄화 규칙" 준수 (Repository 필드명 → 프론트 기대 필드명)
+
+### 검증
+
+- tsc 에러 없음
+- 클린 아키텍처 전면 감사: 123 API Route + 36 Domain + 102 Application → **100% 준수** 재확인
+
+### 교훈 / 주의사항
+
+- **필드명 불일치는 반복되는 버그 패턴**: `e404f57` (nested→flat), 이번 `employeeCount→totalEmployees`. API Route에서 프론트 기대 필드와 명시적으로 매핑하는 습관 필수.
+- **HTML `<table>` 2행 구조**: `<tr>` 안에 `<tr>` 불가, `group` hover는 직원별 `<tbody>` 분리로 해결.
+
+---
+
 ## [2026-03-24] 급여 확정 24시간 취소 유예 제거 — 확정 불가역 전환
 
 ### 배경 (왜)

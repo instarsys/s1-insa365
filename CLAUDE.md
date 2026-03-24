@@ -120,7 +120,7 @@ items: result.items.map(item => ({
   departmentName: item.user?.department?.name ?? '',
 })),
 ```
-**교훈**: `item.user.name` (nested) vs `item.userName` (flat) 불일치로 빈 셀 버그 발생 (`e404f57`).
+**교훈**: `item.user.name` (nested) vs `item.userName` (flat) 불일치로 빈 셀 버그 발생 (`e404f57`). 동일 패턴: `employeeCount` vs `totalEmployees` 불일치로 급여이력 직원수 빈칸 (`7f0a7a5`).
 
 ### 프론트엔드 에러 핸들링 필수 패턴
 
