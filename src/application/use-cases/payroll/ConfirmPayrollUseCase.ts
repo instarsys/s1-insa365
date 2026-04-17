@@ -8,6 +8,10 @@ import type { IAuditLogRepository } from '../../ports/IAuditLogRepository';
 import { GetPayrollDetailUseCase } from './GetPayrollDetailUseCase';
 import { ValidationError } from '@domain/errors';
 
+interface EncryptionService {
+  decrypt(encrypted: string): string;
+}
+
 export class ConfirmPayrollUseCase {
   constructor(
     private salaryCalcRepo: ISalaryCalculationRepository,
@@ -18,6 +22,7 @@ export class ConfirmPayrollUseCase {
     private notificationRepo: INotificationRepository,
     private auditLogRepo: IAuditLogRepository,
     private getPayrollDetailUseCase: GetPayrollDetailUseCase,
+    private encryptionService: EncryptionService,
   ) {}
 
   async execute(
@@ -92,6 +97,19 @@ export class ConfirmPayrollUseCase {
       if (calcId) {
         const detail = await this.getPayrollDetailUseCase.execute(companyId, calcId);
         if (detail) {
+          let residentNumberMasked: string | null = null;
+          const encryptedRrn = userRel?.encryptedRrn;
+          if (typeof encryptedRrn === 'string' && encryptedRrn) {
+            try {
+              const residentNumber = this.encryptionService.decrypt(encryptedRrn);
+              if (residentNumber.length >= 6) {
+                residentNumberMasked = `${residentNumber.substring(0, 6)}-*******`;
+              }
+            } catch {
+              residentNumberMasked = null;
+            }
+          }
+
           payItemsSnapshot = detail.payItems;
           deductionItemsSnapshot = detail.deductionItems;
           attendanceSnapshot = detail.attendance;
@@ -104,6 +122,7 @@ export class ConfirmPayrollUseCase {
             prorationRatio: detail.prorationRatio,
             minimumWageWarning: detail.minimumWageWarning,
             salaryType: detail.salaryType,
+            residentNumberMasked,
           };
         }
       }

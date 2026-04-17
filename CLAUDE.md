@@ -8,6 +8,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 The product vision: "Korean SME payroll in 3 minutes." Three core modules: Employee Management, Attendance Management, Salary Auto-calculation.
 
+### Fast Entry Points
+
+- Current architecture baseline: `docs/ARCHITECTURE-MAP.md`
+- Verification and collaboration workflow: `docs/VERIFICATION-PLAYBOOK.md`
+- Product requirements and MVP scope: `docs/PRD.md`, `docs/MVP.md`
+- Change history and design intent: `docs/DEVLOG.md`
+
 ## SaaS Business Model (비즈니스 모델)
 
 ### 서비스 구조

@@ -135,6 +135,14 @@ import { CrudMinimumWageUseCase } from '@/application/use-cases/system/CrudMinim
 import { CrudLegalParameterUseCase } from '@/application/use-cases/system/CrudLegalParameterUseCase';
 import { GetAuditLogUseCase } from '@/application/use-cases/system/GetAuditLogUseCase';
 
+// Tax
+import { GetWithholdingSummaryUseCase } from '@/application/use-cases/tax/GetWithholdingSummaryUseCase';
+import { GetWithholdingEmployeesUseCase } from '@/application/use-cases/tax/GetWithholdingEmployeesUseCase';
+import { GetWithholdingReturnUseCase } from '@/application/use-cases/tax/GetWithholdingReturnUseCase';
+import { GetSimplifiedStatementUseCase } from '@/application/use-cases/tax/GetSimplifiedStatementUseCase';
+import { GetWithholdingReceiptUseCase } from '@/application/use-cases/tax/GetWithholdingReceiptUseCase';
+import { GetAnnualTaxSummaryUseCase } from '@/application/use-cases/tax/GetAnnualTaxSummaryUseCase';
+
 // Notifications
 import { CreateNotificationUseCase } from '@/application/use-cases/notifications/CreateNotificationUseCase';
 import { GetNotificationsUseCase } from '@/application/use-cases/notifications/GetNotificationsUseCase';
@@ -269,6 +277,14 @@ export interface Container {
   crudMinimumWageUseCase: CrudMinimumWageUseCase;
   crudLegalParameterUseCase: CrudLegalParameterUseCase;
   getAuditLogUseCase: GetAuditLogUseCase;
+
+  // Tax Use Cases
+  getWithholdingSummaryUseCase: GetWithholdingSummaryUseCase;
+  getWithholdingEmployeesUseCase: GetWithholdingEmployeesUseCase;
+  getWithholdingReturnUseCase: GetWithholdingReturnUseCase;
+  getSimplifiedStatementUseCase: GetSimplifiedStatementUseCase;
+  getWithholdingReceiptUseCase: GetWithholdingReceiptUseCase;
+  getAnnualTaxSummaryUseCase: GetAnnualTaxSummaryUseCase;
 
   // Notification Use Cases
   createNotificationUseCase: CreateNotificationUseCase;
@@ -516,6 +532,7 @@ function createContainer(): Container {
     notificationRepo as Any,
     auditLogRepo as Any,
     getPayrollDetailUseCase,
+    encryptionService,
   );
   const templateAdapter = { buildHtml: buildPayslipEmailHtml };
   const sendPayslipEmailUseCase = new SendPayslipEmailUseCase(
@@ -565,6 +582,14 @@ function createContainer(): Container {
   const crudMinimumWageUseCase = new CrudMinimumWageUseCase(minimumWageRepo as Any);
   const crudLegalParameterUseCase = new CrudLegalParameterUseCase(legalParameterRepo as Any);
   const getAuditLogUseCase = new GetAuditLogUseCase(auditLogRepo as Any);
+
+  // Tax
+  const getWithholdingSummaryUseCase = new GetWithholdingSummaryUseCase(payrollMonthlyRepo as Any);
+  const getWithholdingEmployeesUseCase = new GetWithholdingEmployeesUseCase(payrollMonthlyRepo as Any);
+  const getWithholdingReturnUseCase = new GetWithholdingReturnUseCase(payrollMonthlyRepo as Any, companyRepo as Any);
+  const getSimplifiedStatementUseCase = new GetSimplifiedStatementUseCase(payrollMonthlyRepo as Any, companyRepo as Any);
+  const getWithholdingReceiptUseCase = new GetWithholdingReceiptUseCase(payrollMonthlyRepo as Any, companyRepo as Any, employeeRepo as Any);
+  const getAnnualTaxSummaryUseCase = new GetAnnualTaxSummaryUseCase(payrollMonthlyRepo as Any);
 
   // Notifications
   const createNotificationUseCase = new CreateNotificationUseCase(notificationRepo as Any);
@@ -677,6 +702,13 @@ function createContainer(): Container {
     // System
     crudInsuranceRateUseCase,
     crudTaxBracketUseCase,
+    // Tax
+    getWithholdingSummaryUseCase,
+    getWithholdingEmployeesUseCase,
+    getWithholdingReturnUseCase,
+    getSimplifiedStatementUseCase,
+    getWithholdingReceiptUseCase,
+    getAnnualTaxSummaryUseCase,
     crudMinimumWageUseCase,
     crudLegalParameterUseCase,
     getAuditLogUseCase,

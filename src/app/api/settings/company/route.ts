@@ -21,6 +21,8 @@ async function handlePut(request: NextRequest, auth: AuthContext) {
     'representativeName', 'address', 'phone', 'email',
     'payDay', 'prorationMethod', 'gpsEnforcementMode',
     'logoUrl', 'sealUrl',
+    'corporateRegistrationNumber', 'businessType', 'businessCategory',
+    'taxOfficeCode', 'taxOfficeName',
   ] as const;
 
   const updateData: Record<string, unknown> = {};

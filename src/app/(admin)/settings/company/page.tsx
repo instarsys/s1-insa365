@@ -18,6 +18,25 @@ import { AddressSearchInput } from '@/components/address/AddressSearchInput';
 import { apiGet, apiPut, apiPost } from '@/lib/api';
 import { useCompanyHolidays, useCompanyHolidayMutations } from '@/hooks';
 
+interface ApiCompanySettings {
+  name: string;
+  businessNumber: string;
+  representativeName: string;
+  address: string | null;
+  phone: string | null;
+  email: string | null;
+  payDay: number;
+  prorationMethod: string;
+  gpsEnforcementMode: string;
+  logoUrl: string | null;
+  sealUrl: string | null;
+  corporateRegistrationNumber: string | null;
+  businessType: string | null;
+  businessCategory: string | null;
+  taxOfficeCode: string | null;
+  taxOfficeName: string | null;
+}
+
 interface CompanySettings {
   name: string;
   businessNumber: string;
@@ -30,6 +49,11 @@ interface CompanySettings {
   gpsEnforcementMode: string;
   logoUrl: string | null;
   sealUrl: string | null;
+  corporateRegistrationNumber: string;
+  businessType: string;
+  businessCategory: string;
+  taxOfficeCode: string;
+  taxOfficeName: string;
 }
 
 const PAY_DAY_OPTIONS = Array.from({ length: 28 }, (_, i) => ({
@@ -48,6 +72,21 @@ const GPS_ENFORCEMENT_OPTIONS = [
   { value: 'BLOCK', label: '차단 (반경 밖 출퇴근 불가)' },
 ];
 
+function normalizeCompanySettings(data: ApiCompanySettings): CompanySettings {
+  return {
+    ...data,
+    representativeName: data.representativeName ?? '',
+    address: data.address ?? '',
+    phone: stripPhoneNumber(data.phone ?? ''),
+    email: data.email ?? '',
+    corporateRegistrationNumber: data.corporateRegistrationNumber ?? '',
+    businessType: data.businessType ?? '',
+    businessCategory: data.businessCategory ?? '',
+    taxOfficeCode: data.taxOfficeCode ?? '',
+    taxOfficeName: data.taxOfficeName ?? '',
+  };
+}
+
 export default function CompanySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,11 +102,16 @@ export default function CompanySettingsPage() {
     gpsEnforcementMode: 'OFF',
     logoUrl: null,
     sealUrl: null,
+    corporateRegistrationNumber: '',
+    businessType: '',
+    businessCategory: '',
+    taxOfficeCode: '',
+    taxOfficeName: '',
   });
 
   useEffect(() => {
-    apiGet<CompanySettings>('/api/settings/company')
-      .then((data) => setForm({ ...data, phone: stripPhoneNumber(data.phone || '') }))
+    apiGet<ApiCompanySettings>('/api/settings/company')
+      .then((data) => setForm(normalizeCompanySettings(data)))
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -244,6 +288,57 @@ export default function CompanySettingsPage() {
             <p className="text-xs text-gray-500">
               근무지별 반경 설정은 설정 &gt; 근무지 관리에서 할 수 있습니다.
             </p>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* 세무 정보 */}
+      <div className="grid grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>세무 신고 정보</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <Input
+              label="법인등록번호"
+              value={form.corporateRegistrationNumber}
+              onChange={(e) => updateField('corporateRegistrationNumber', e.target.value)}
+              placeholder="110111-0000000"
+            />
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="업태"
+                value={form.businessType}
+                onChange={(e) => updateField('businessType', e.target.value)}
+                placeholder="예: 서비스업"
+              />
+              <Input
+                label="업종"
+                value={form.businessCategory}
+                onChange={(e) => updateField('businessCategory', e.target.value)}
+                placeholder="예: 소프트웨어 개발"
+              />
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>관할 세무서</CardTitle>
+          </CardHeader>
+          <CardBody className="space-y-4">
+            <Input
+              label="세무서 코드"
+              value={form.taxOfficeCode}
+              onChange={(e) => updateField('taxOfficeCode', e.target.value)}
+              placeholder="예: 212"
+            />
+            <Input
+              label="세무서명"
+              value={form.taxOfficeName}
+              onChange={(e) => updateField('taxOfficeName', e.target.value)}
+              placeholder="예: 강남세무서"
+            />
           </CardBody>
         </Card>
       </div>

@@ -56,6 +56,8 @@ next-env.d.ts
 # project docs (private)
 CLAUDE.md
 TODO.md
-/docs/
+/docs/*
+!/docs/ARCHITECTURE-MAP.md
+!/docs/VERIFICATION-PLAYBOOK.md
 
 /src/generated/prisma

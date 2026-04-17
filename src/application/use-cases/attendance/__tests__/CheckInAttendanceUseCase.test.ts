@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { ValidationError } from '@/domain/errors';
 import { CheckInAttendanceUseCase } from '../CheckInAttendanceUseCase';
 
 // Mock factories
@@ -44,11 +45,13 @@ function createMockWorkPolicyRepo() {
       startTime: '09:00',
       workDays: 'MON,TUE,WED,THU,FRI',
       lateGraceMinutes: 0,
+      checkInAllowedMinutes: 30,
     }),
     findDefault: vi.fn().mockResolvedValue({
       startTime: '09:00',
       workDays: 'MON,TUE,WED,THU,FRI',
       lateGraceMinutes: 0,
+      checkInAllowedMinutes: 30,
     }),
   };
 }
@@ -92,6 +95,9 @@ describe('CheckInAttendanceUseCase', () => {
   let leaveRequestRepo: ReturnType<typeof createMockLeaveRequestRepo>;
 
   beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-20T08:45:00+09:00'));
+
     attendanceRepo = createMockAttendanceRepo();
     employeeRepo = createMockEmployeeRepo();
     workPolicyRepo = createMockWorkPolicyRepo();
@@ -107,6 +113,10 @@ describe('CheckInAttendanceUseCase', () => {
       companyRepo as never,
       leaveRequestRepo,
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('승인된 휴가 없으면 정상 출근 처리', async () => {
@@ -144,5 +154,14 @@ describe('CheckInAttendanceUseCase', () => {
 
     expect(result.attendance).toBeDefined();
     expect(attendanceRepo.create).toHaveBeenCalled();
+  });
+
+  it('허용시간 이전 출근은 ValidationError를 던진다', async () => {
+    vi.setSystemTime(new Date('2026-04-20T08:20:00+09:00'));
+
+    await expect(useCase.execute('comp-1', 'user-1')).rejects.toThrow(ValidationError);
+    await expect(useCase.execute('comp-1', 'user-1')).rejects.toThrow(
+      '출근은 09:00 기준 30분 전부터 가능합니다.',
+    );
   });
 });

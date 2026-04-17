@@ -61,6 +61,15 @@ export class PayrollMonthlyRepository {
     });
   }
 
+  async findByYearHalf(companyId: string, year: number, half: 1 | 2) {
+    const monthStart = half === 1 ? 1 : 7;
+    const monthEnd = half === 1 ? 6 : 12;
+    return prisma.payrollMonthly.findMany({
+      where: { companyId, year, month: { gte: monthStart, lte: monthEnd } },
+      orderBy: [{ userId: 'asc' }, { month: 'asc' }],
+    });
+  }
+
   async findByPeriodAndGroup(companyId: string, year: number, month: number, payrollGroupId?: string) {
     return prisma.payrollMonthly.findMany({
       where: { companyId, year, month, ...(payrollGroupId && { payrollGroupId }) },

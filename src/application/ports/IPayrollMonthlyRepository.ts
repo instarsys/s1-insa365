@@ -54,6 +54,9 @@ export interface CreatePayrollMonthlyData {
 export interface IPayrollMonthlyRepository {
   findByEmployeeAndPeriod(companyId: string, userId: string, year: number, month: number): Promise<PayrollMonthlyDto | null>;
   findByEmployeeAndYear(companyId: string, userId: string, year: number): Promise<PayrollMonthlyDto[]>;
+  findByYear(companyId: string, year: number): Promise<PayrollMonthlyDto[]>;
+  findByYearMonth(companyId: string, year: number, month: number): Promise<PayrollMonthlyDto[]>;
+  findByYearHalf(companyId: string, year: number, half: 1 | 2): Promise<PayrollMonthlyDto[]>;
   findByPeriodAndGroup(companyId: string, year: number, month: number, payrollGroupId?: string): Promise<PayrollMonthlyDto[]>;
   create(data: CreatePayrollMonthlyData): Promise<PayrollMonthlyDto>;
   createMany(data: CreatePayrollMonthlyData[]): Promise<number>;

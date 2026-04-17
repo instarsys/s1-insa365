@@ -10,6 +10,13 @@ export interface CompanyDto {
   prorationMethod: string;
   subscriptionPlan: string;
   gpsEnforcementMode: string;
+  logoUrl: string | null;
+  sealUrl: string | null;
+  corporateRegistrationNumber: string | null;
+  businessType: string | null;
+  businessCategory: string | null;
+  taxOfficeCode: string | null;
+  taxOfficeName: string | null;
   createdAt: string;
 }
 
@@ -23,6 +30,7 @@ export interface CreateCompanyData {
 }
 
 export interface UpdateCompanyData {
+  representativeName?: string;
   name?: string;
   address?: string;
   phone?: string;
@@ -30,6 +38,13 @@ export interface UpdateCompanyData {
   payDay?: number;
   prorationMethod?: string;
   gpsEnforcementMode?: string;
+  logoUrl?: string | null;
+  sealUrl?: string | null;
+  corporateRegistrationNumber?: string;
+  businessType?: string;
+  businessCategory?: string;
+  taxOfficeCode?: string;
+  taxOfficeName?: string;
 }
 
 export interface ICompanyRepository {

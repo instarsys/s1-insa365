@@ -102,6 +102,7 @@ const menuItems: MenuItemConfig[] = [
     allowedRoles: ['COMPANY_ADMIN'],
     children: [
       { label: '원천징수 현황', href: '/tax/withholding' },
+      { label: '원천징수영수증', href: '/tax/withholding-receipt' },
       { label: '신고 데이터', href: '/tax/reports' },
     ],
   },
